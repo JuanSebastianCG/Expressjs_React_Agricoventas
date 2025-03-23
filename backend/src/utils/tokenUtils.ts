@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { JwtPayload, RefreshTokenPayload, AuthTokens } from '../types/auth.types';
+import { JwtPayload, RefreshTokenPayload, AuthTokens } from '../types/zod';
 
 // Get JWT configuration from environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'default_jwt_secret_key';

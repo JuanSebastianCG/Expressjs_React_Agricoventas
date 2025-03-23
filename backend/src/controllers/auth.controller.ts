@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
-import { LoginCredentials, RegisterUserDto } from '../types/auth.types';
+import { LoginCredentials, RegisterUserDto } from '../types/zod';
 import { ApiError } from '../middleware/error.middleware';
 import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';

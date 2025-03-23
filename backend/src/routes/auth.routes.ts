@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
+import { loginSchema, registerSchema } from '../types/zod';
 
 const router = Router();
 const authController = new AuthController();
@@ -60,7 +62,7 @@ const authController = new AuthController();
  *       409:
  *         description: El usuario ya existe
  */
-router.post('/register', authController.register);
+router.post('/register', validate(registerSchema), authController.register);
 
 /**
  * @swagger
@@ -106,7 +108,7 @@ router.post('/register', authController.register);
  *       401:
  *         description: Credenciales inválidas
  */
-router.post('/login', authController.login);
+router.post('/login', validate(loginSchema), authController.login);
 
 /**
  * @swagger

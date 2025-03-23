@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { UserService } from '../services/user.service';
 import { ApiError } from '../middleware/error.middleware';
-import { userToSafeUser } from '../types/auth.types';
+import { userToSafeUser, UpdateUserInput, UserIdParam } from '../types/zod';
 import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 

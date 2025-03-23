@@ -1,6 +1,6 @@
 import { User, PrismaClient } from '@prisma/client';
 import { hashPassword } from '../utils/passwordUtils';
-import { RegisterUserDto, SafeUser, userToSafeUser } from '../types/auth.types';
+import { RegisterUserDto, SafeUser, userToSafeUser, UpdateUserInput, mapRegisterDtoToPrisma } from '../types/zod';
 
 // Initialize Prisma client (this replaces the import from ../prisma)
 const prisma = new PrismaClient();
@@ -62,7 +62,7 @@ export class UserService {
 
     return prisma.user.create({
       data: {
-        ...rest,
+        ...mapRegisterDtoToPrisma(userData),
         password: hashedPassword,
       },
     });
@@ -71,12 +71,11 @@ export class UserService {
   /**
    * Update a user
    * @param id - User ID
-   * @param userData - Updated user data
+   * @param userData - Updates for the user
    * @returns Updated user
    */
-  async update(id: string, userData: Partial<User>): Promise<User> {
-    // Don't allow updating certain fields directly
-    const { id: _, createdAt, updatedAt, ...updateData } = userData;
+  async update(id: string, userData: UpdateUserInput): Promise<User> {
+    const updateData: any = { ...userData };
 
     // If password is being updated, hash it
     if (updateData.password) {

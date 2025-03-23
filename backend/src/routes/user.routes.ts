@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validation.middleware';
+import { updateUserSchema, userIdSchema } from '../types/zod';
 
 const router = Router();
 const userController = new UserController();
@@ -76,7 +78,7 @@ router.get('/', authenticate, authorize(['admin']), userController.getAllUsers);
  *       404:
  *         description: Usuario no encontrado
  */
-router.get('/:id', authenticate, userController.getUserById);
+router.get('/:id', authenticate, validate(userIdSchema, 'params'), userController.getUserById);
 
 /**
  * @swagger
@@ -141,7 +143,13 @@ router.get('/:id', authenticate, userController.getUserById);
  *       404:
  *         description: Usuario no encontrado
  */
-router.put('/:id', authenticate, userController.updateUser);
+router.put(
+  '/:id',
+  authenticate,
+  validate(userIdSchema, 'params'),
+  validate(updateUserSchema),
+  userController.updateUser
+);
 
 /**
  * @swagger
@@ -179,6 +187,6 @@ router.put('/:id', authenticate, userController.updateUser);
  *       404:
  *         description: Usuario no encontrado
  */
-router.delete('/:id', authenticate, userController.deleteUser);
+router.delete('/:id', authenticate, validate(userIdSchema, 'params'), userController.deleteUser);
 
 export default router;
