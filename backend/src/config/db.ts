@@ -1,5 +1,8 @@
-import { prisma } from '../prisma';
+import { PrismaClient } from '@prisma/client';
 import { PrismaClientInitializationError } from '@prisma/client/runtime/library';
+
+// Initialize Prisma client (this replaces the import from ../prisma)
+const prisma = new PrismaClient();
 
 /**
  * Connect to the database using Prisma

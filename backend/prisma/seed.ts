@@ -8,19 +8,33 @@ async function seed() {
     // Clean existing data
     await prisma.user.deleteMany({});
 
-    // Create a test user
-    const hashedPassword = await bcrypt.hash('password123', 10);
-
-    const newUser = await prisma.user.create({
+    // Create admin user
+    const adminPassword = await bcrypt.hash('admin123', 10);
+    const admin = await prisma.user.create({
       data: {
         fullName: 'Admin User',
         username: 'admin',
-        password: hashedPassword,
+        password: adminPassword,
         email: 'admin@agricoventas.com',
+        role: 'admin',
       },
     });
 
-    console.log('Database seeded successfully', newUser);
+    // Create a regular user
+    const userPassword = await bcrypt.hash('user123', 10);
+    const user = await prisma.user.create({
+      data: {
+        fullName: 'Regular User',
+        username: 'user',
+        password: userPassword,
+        email: 'user@agricoventas.com',
+        role: 'user',
+      },
+    });
+
+    console.log('Database seeded successfully');
+    console.log('Admin user created:', admin.username);
+    console.log('Regular user created:', user.username);
   } catch (error) {
     console.error('Error in seed function:', error);
   }

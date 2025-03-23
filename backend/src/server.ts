@@ -1,9 +1,15 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 import { connectDB, disconnectDB } from './config/db';
+import { errorHandler, notFound } from './middleware/error.middleware';
+
+// Routes
+import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
 
 // Load environment variables
 dotenv.config();
@@ -16,26 +22,30 @@ const PORT = process.env.PORT || 3000;
 connectDB();
 
 // Middlewares
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : true,
+    credentials: true,
+  })
+);
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
 // Root route
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'Welcome to Agricoventas API' });
 });
 
-// Basic error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Internal Server Error',
-    error: process.env.NODE_ENV === 'production' ? null : err.message,
-  });
-});
+// Error handling middleware
+app.use(notFound);
+app.use(errorHandler);
 
 // Start server
 const server = app.listen(PORT, () => {
