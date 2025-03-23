@@ -46,7 +46,7 @@ export class AuthService {
     // Generate tokens
     const payload: JwtPayload = {
       userId: user.id,
-      username: user.username,
+      username: (user as any).username,
       role: user.role,
     };
 
@@ -83,14 +83,14 @@ export class AuthService {
     }
 
     // Check if user is active
-    if (!user.isActive) {
+    if (!(user as any).isActive) {
       throw new Error('User account is disabled');
     }
 
     // Generate tokens
     const payload: JwtPayload = {
       userId: user.id,
-      username: user.username,
+      username: (user as any).username,
       role: user.role,
     };
 
@@ -134,14 +134,14 @@ export class AuthService {
     }
 
     // Check if token matches stored token
-    if (user.refreshToken !== refreshToken) {
+    if ((user as any).refreshToken !== refreshToken) {
       throw new Error('Invalid refresh token');
     }
 
     // Generate new tokens
     const payload: JwtPayload = {
       userId: user.id,
-      username: user.username,
+      username: (user as any).username,
       role: user.role,
     };
 

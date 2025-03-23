@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Request, Response, CookieOptions } from 'express';
 import { AuthService } from '../services/auth.service';
 import { LoginCredentials, RegisterUserDto } from '../types/zod';
 import { ApiError } from '../middleware/error.middleware';
 import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
+import { COOKIE_CONFIG } from '../config/app';
 
 /**
  * Authentication controller
@@ -29,13 +30,16 @@ export class AuthController {
 
       const result = await this.authService.register(userData);
 
-      // Set refresh token as HTTP-only cookie
-      res.cookie('refreshToken', result.tokens?.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/api/auth/refresh',
-      });
+      // Asegurar que el refreshToken existe
+      if (result.tokens?.refreshToken) {
+        // Set refresh token as HTTP-only cookie
+        const cookieOptions: CookieOptions = {
+          ...(COOKIE_CONFIG as CookieOptions),
+          path: '/api/auth/refresh',
+        };
+
+        res.cookie('refreshToken', result.tokens.refreshToken, cookieOptions);
+      }
 
       // Return user data and access token with 201 Created status
       sendSuccessResponse(
@@ -71,13 +75,16 @@ export class AuthController {
 
       const result = await this.authService.login(credentials);
 
-      // Set refresh token as HTTP-only cookie
-      res.cookie('refreshToken', result.tokens?.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/api/auth/refresh',
-      });
+      // Asegurar que el refreshToken existe
+      if (result.tokens?.refreshToken) {
+        // Set refresh token as HTTP-only cookie
+        const cookieOptions: CookieOptions = {
+          ...(COOKIE_CONFIG as CookieOptions),
+          path: '/api/auth/refresh',
+        };
+
+        res.cookie('refreshToken', result.tokens.refreshToken, cookieOptions);
+      }
 
       // Return user data and access token
       sendSuccessResponse(res, {
@@ -110,7 +117,7 @@ export class AuthController {
       // Clear refresh token cookie
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: COOKIE_CONFIG.secure,
         path: '/api/auth/refresh',
       });
 
@@ -138,17 +145,18 @@ export class AuthController {
       // Refresh tokens
       const tokens = await this.authService.refreshTokens(refreshToken);
 
-      // Set new refresh token as HTTP-only cookie
-      res.cookie('refreshToken', tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      // Set new refresh token as HTTP-only cookie with values from config
+      const cookieOptions: CookieOptions = {
+        ...(COOKIE_CONFIG as CookieOptions),
         path: '/api/auth/refresh',
-      });
+      };
+
+      res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
 
       // Return new access token
       sendSuccessResponse(res, {
         accessToken: tokens.accessToken,
+        // No incluimos refreshToken en la respuesta ya que está en la cookie
       });
     } catch (error) {
       if (error instanceof Error) {

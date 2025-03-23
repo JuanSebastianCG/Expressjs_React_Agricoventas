@@ -27,7 +27,7 @@ export class UserService {
    */
   async findByUsername(username: string): Promise<User | null> {
     return prisma.user.findUnique({
-      where: { username },
+      where: { username } as any,
     });
   }
 
@@ -64,7 +64,7 @@ export class UserService {
       data: {
         ...mapRegisterDtoToPrisma(userData),
         password: hashedPassword,
-      },
+      } as any,
     });
   }
 
@@ -108,7 +108,9 @@ export class UserService {
   async saveRefreshToken(userId: string, refreshToken: string): Promise<User> {
     return prisma.user.update({
       where: { id: userId },
-      data: { refreshToken },
+      data: {
+        refreshToken,
+      } as any,
     });
   }
 
@@ -120,7 +122,9 @@ export class UserService {
   async removeRefreshToken(userId: string): Promise<User> {
     return prisma.user.update({
       where: { id: userId },
-      data: { refreshToken: null },
+      data: {
+        refreshToken: null,
+      } as any,
     });
   }
 }

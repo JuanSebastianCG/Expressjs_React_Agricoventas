@@ -31,7 +31,6 @@ services:
       - mongodb
     environment:
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://mongodb:27017/agricoventas
       - PORT=3000
       - JWT_SECRET=your_jwt_secret_key_placeholder
     networks:
