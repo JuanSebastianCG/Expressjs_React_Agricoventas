@@ -1,6 +1,12 @@
 import { User, PrismaClient } from '@prisma/client';
 import { hashPassword } from '../utils/passwordUtils';
-import { RegisterUserDto, SafeUser, userToSafeUser, UpdateUserInput, mapRegisterDtoToPrisma } from '../types/zod';
+import {
+  RegisterUserDto,
+  SafeUser,
+  userToSafeUser,
+  UpdateUserInput,
+  mapRegisterDtoToPrisma,
+} from '../schemas/user.schema';
 
 // Initialize Prisma client (this replaces the import from ../prisma)
 const prisma = new PrismaClient();

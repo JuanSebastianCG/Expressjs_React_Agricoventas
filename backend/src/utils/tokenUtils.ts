@@ -1,6 +1,6 @@
 import jwt, { JwtPayload as JwtPayloadBase, SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { JwtPayload, RefreshTokenPayload, AuthTokens } from '../types/zod';
+import { JwtPayload, RefreshTokenPayload, AuthTokens } from '../schemas/user.schema';
 import { JWT_CONFIG } from '../config/app';
 
 // Define StringValue type to match jsonwebtoken's expected type

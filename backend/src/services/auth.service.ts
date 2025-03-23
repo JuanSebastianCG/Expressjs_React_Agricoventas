@@ -9,7 +9,7 @@ import {
   SafeUser,
   UserResponse,
   userToSafeUser,
-} from '../types/zod';
+} from '../schemas/user.schema';
 import { generateTokens, verifyRefreshToken } from '../utils/tokenUtils';
 
 /**

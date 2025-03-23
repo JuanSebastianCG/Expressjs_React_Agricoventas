@@ -1,6 +1,6 @@
 import { Request, Response, CookieOptions } from 'express';
 import { AuthService } from '../services/auth.service';
-import { LoginCredentials, RegisterUserDto } from '../types/zod';
+import { LoginCredentials, RegisterUserDto } from '../schemas/user.schema';
 import { ApiError } from '../middleware/error.middleware';
 import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
