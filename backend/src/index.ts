@@ -1,13 +1,45 @@
-/**
- * Agricoventas API Entry Point
- * 
- * This file serves as the main entry point for the backend application.
- * It imports and executes the server configuration from server.ts
- */
+import * as dotenv from 'dotenv';
+import express from 'express';
+import cors from 'cors';
+import { notFoundHandler } from './middleware/not-found';
+import { errorHandler } from './middleware/error-handler';
+import cookieParser from 'cookie-parser';
+import requestLogger from './middleware/requestLogger';
+import { pino } from "pino";
 
-// Import server configuration
-import './server';
+dotenv.config();
 
-// The server setup and start logic is contained in the server.ts file
-// This entry point simply ensures that the server is loaded and executed
-console.log('Agricoventas API starting up...'); 
+export const logger = pino({ name: "server start" });
+const PORT: number = parseInt(process.env.PORT as string, 10);
+
+const app = express();
+
+// CORS Middleware
+const corsOptions = {
+  origin: process.env.APP_ENV == 'developement' ? '*' : process.env.ORIGIN,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+// JSON Middleware & Form Data
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// cookie parser middleware
+app.use(cookieParser());
+
+// Request Logger
+app.use(requestLogger)
+
+// Main Routes
+
+// Not Found Middleware
+app.use(notFoundHandler);
+
+// Error Handling Middleware
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  logger.info(`Listening on PORT ${PORT}`);
+});
