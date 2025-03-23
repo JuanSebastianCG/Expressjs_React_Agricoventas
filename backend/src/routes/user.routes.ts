@@ -6,30 +6,178 @@ const router = Router();
 const userController = new UserController();
 
 /**
- * @route   GET /api/users
- * @desc    Get all users
- * @access  Private (admin only)
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Obtener todos los usuarios
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios recuperada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No autorizado, solo administradores pueden acceder
  */
 router.get('/', authenticate, authorize(['admin']), userController.getAllUsers);
 
 /**
- * @route   GET /api/users/:id
- * @desc    Get user by ID
- * @access  Private (self or admin)
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: Obtener usuario por ID
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Usuario recuperado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No autorizado
+ *       404:
+ *         description: Usuario no encontrado
  */
 router.get('/:id', authenticate, userController.getUserById);
 
 /**
- * @route   PUT /api/users/:id
- * @desc    Update user
- * @access  Private (self or admin)
+ * @swagger
+ * /api/users/{id}:
+ *   put:
+ *     summary: Actualizar usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *                 example: Juan Pérez Actualizado
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: juan_updated@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: NewPassword123!
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *                 example: user
+ *               isActive:
+ *                 type: boolean
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Usuario actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No autorizado
+ *       404:
+ *         description: Usuario no encontrado
  */
 router.put('/:id', authenticate, userController.updateUser);
 
 /**
- * @route   DELETE /api/users/:id
- * @desc    Delete user
- * @access  Private (self or admin)
+ * @swagger
+ * /api/users/{id}:
+ *   delete:
+ *     summary: Eliminar usuario
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Usuario eliminado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User deleted
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: No autorizado
+ *       404:
+ *         description: Usuario no encontrado
  */
 router.delete('/:id', authenticate, userController.deleteUser);
 

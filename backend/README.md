@@ -32,6 +32,7 @@ El proyecto sigue una arquitectura limpia y escalable:
 - **Validación de datos**: Validación completa de entradas usando express-validator
 - **Manejo de errores**: Sistema centralizado de manejo de errores
 - **Conexión segura a MongoDB**: Usando Prisma ORM para operaciones seguras
+- **Documentación API**: Documentación interactiva con Swagger/OpenAPI
 
 ## Beneficios de la estructura
 
@@ -48,6 +49,21 @@ El proyecto sigue una arquitectura limpia y escalable:
 4. Implementa los controladores en `src/controllers/`
 5. Define las rutas en `src/routes/`
 6. Actualiza `src/server.ts` para incluir las nuevas rutas
+
+## Documentación de la API
+
+El proyecto incluye documentación interactiva de la API mediante Swagger/OpenAPI. Para acceder a la documentación:
+
+1. Inicia el servidor con `npm run dev` o `npm start`
+2. Navega a `http://localhost:3000/api-docs` en tu navegador
+
+La documentación permite:
+- Explorar todos los endpoints disponibles
+- Probar las solicitudes directamente desde el navegador
+- Ver los esquemas de datos y modelos
+- Entender los requisitos de autenticación
+
+Para más detalles sobre cómo usar la documentación, consulta [la guía de Swagger](./docs/swagger-guide.md).
 
 ## Comandos útiles
 

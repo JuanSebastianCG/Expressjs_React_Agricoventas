@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaClientInitializationError } from '@prisma/client/runtime/library';
+import { logger } from './logger';
 
 // Initialize Prisma client (this replaces the import from ../prisma)
 const prisma = new PrismaClient();
@@ -14,12 +15,12 @@ export const connectDB = async (): Promise<void> => {
   try {
     // Test the connection by executing a simple query
     await prisma.$connect();
-    console.log('MongoDB connected successfully');
+    logger.info('MongoDB connected successfully');
   } catch (error) {
     if (error instanceof PrismaClientInitializationError) {
-      console.error('Failed to connect to MongoDB:', error.message);
+      logger.error('Failed to connect to MongoDB:', error.message);
     } else {
-      console.error('Unexpected error when connecting to MongoDB:', error);
+      logger.error('Unexpected error when connecting to MongoDB:', error);
     }
 
     // If we can't connect to the database, exit the process
@@ -36,8 +37,8 @@ export const connectDB = async (): Promise<void> => {
 export const disconnectDB = async (): Promise<void> => {
   try {
     await prisma.$disconnect();
-    console.log('MongoDB disconnected successfully');
+    logger.info('MongoDB disconnected successfully');
   } catch (error) {
-    console.error('Error disconnecting from MongoDB:', error);
+    logger.error('Error disconnecting from MongoDB:', error);
   }
 };
