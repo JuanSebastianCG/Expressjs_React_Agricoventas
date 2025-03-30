@@ -31,13 +31,13 @@ export class AuthService {
     // Check if username already exists
     const existingUsername = await this.userService.findByUsername(userData.username);
     if (existingUsername) {
-      throw new Error('Username already exists');
+      throw new Error(`Username already exists: "${userData.username}"`);
     }
 
     // Check if email already exists
     const existingEmail = await this.userService.findByEmail(userData.email);
     if (existingEmail) {
-      throw new Error('Email already exists');
+      throw new Error(`Email already exists: "${userData.email}"`);
     }
 
     // Create user
@@ -47,8 +47,7 @@ export class AuthService {
     const payload: JwtPayload = {
       userId: user.id,
       username: (user as any).username,
-      role: user.role,
-      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour from now
+      role: user.role
     };
 
     const tokens = generateTokens(payload);
@@ -92,8 +91,7 @@ export class AuthService {
     const payload: JwtPayload = {
       userId: user.id,
       username: (user as any).username,
-      role: user.role,
-      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour from now
+      role: user.role
     };
 
     const tokens = generateTokens(payload);
@@ -144,8 +142,7 @@ export class AuthService {
     const payload: JwtPayload = {
       userId: user.id,
       username: (user as any).username,
-      role: user.role,
-      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour from now
+      role: user.role
     };
 
     const tokens = generateTokens(payload);

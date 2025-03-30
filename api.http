@@ -1,0 +1,208 @@
+@baseUrl = http://localhost:3000/api
+@authToken = {{login.response.body.data.accessToken}}
+
+### Variables de entorno para desarrollo
+@email = test4@example.com
+@password = Test1234!
+@username = testuser5
+@fullName = Test User
+
+### Registro de usuario
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "email": "{{email}}",
+    "password": "{{password}}",
+    "username": "{{username}}",
+    "fullName": "{{fullName}}"
+}
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "username": "{{username}}",
+    "password": "{{password}}"
+}
+
+### Obtener perfil del usuario
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Actualizar perfil del usuario
+PUT {{baseUrl}}/users/profile
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "fullName": "Updated Test User",
+    "email": "updated@example.com"
+}
+
+### Refrescar token
+# @name refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Productos
+
+### Obtener todos los productos
+GET {{baseUrl}}/products
+Content-Type: application/json
+
+### Obtener un producto por ID
+@productId = your-product-id
+GET {{baseUrl}}/products/{{productId}}
+Content-Type: application/json
+
+### Crear un nuevo producto (requiere autenticación)
+POST {{baseUrl}}/products
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "Producto de prueba",
+    "description": "Descripción del producto de prueba",
+    "price": 99.99,
+    "category": "Frutas",
+    "stock": 100,
+    "unit": "kg"
+}
+
+### Actualizar un producto (requiere autenticación)
+PUT {{baseUrl}}/products/{{productId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "Producto actualizado",
+    "description": "Descripción actualizada",
+    "price": 149.99,
+    "stock": 150
+}
+
+### Eliminar un producto (requiere autenticación)
+DELETE {{baseUrl}}/products/{{productId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Categorías
+
+### Obtener todas las categorías
+GET {{baseUrl}}/categories
+Content-Type: application/json
+
+### Obtener una categoría por ID
+@categoryId = your-category-id
+GET {{baseUrl}}/categories/{{categoryId}}
+Content-Type: application/json
+
+### Crear una nueva categoría (requiere autenticación)
+POST {{baseUrl}}/categories
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "Nueva Categoría",
+    "description": "Descripción de la nueva categoría"
+}
+
+### Actualizar una categoría (requiere autenticación)
+PUT {{baseUrl}}/categories/{{categoryId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "Categoría Actualizada",
+    "description": "Descripción actualizada de la categoría"
+}
+
+### Eliminar una categoría (requiere autenticación)
+DELETE {{baseUrl}}/categories/{{categoryId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Órdenes
+
+### Obtener todas las órdenes del usuario
+GET {{baseUrl}}/orders
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Obtener una orden por ID
+@orderId = your-order-id
+GET {{baseUrl}}/orders/{{orderId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Crear una nueva orden
+POST {{baseUrl}}/orders
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "items": [
+        {
+            "productId": "{{productId}}",
+            "quantity": 2
+        }
+    ],
+    "shippingAddress": {
+        "street": "Calle Principal 123",
+        "city": "Ciudad",
+        "state": "Estado",
+        "country": "País",
+        "zipCode": "12345"
+    }
+}
+
+### Actualizar estado de una orden (requiere autenticación de admin)
+PUT {{baseUrl}}/orders/{{orderId}}/status
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "status": "SHIPPED"
+}
+
+### Cancelar una orden
+POST {{baseUrl}}/orders/{{orderId}}/cancel
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Usuarios (Admin)
+
+### Obtener todos los usuarios (requiere autenticación de admin)
+GET {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Obtener un usuario por ID (requiere autenticación de admin)
+@userId = your-user-id
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+### Actualizar rol de usuario (requiere autenticación de admin)
+PUT {{baseUrl}}/users/{{userId}}/role
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "role": "ADMIN"
+}
+
+### Deshabilitar usuario (requiere autenticación de admin)
+POST {{baseUrl}}/users/{{userId}}/disable
+Authorization: Bearer {{authToken}}
+Content-Type: application/json 

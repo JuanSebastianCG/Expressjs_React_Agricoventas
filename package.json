@@ -1,17 +1,26 @@
 {
   "name": "agricoventas",
   "version": "1.0.0",
-  "description": "",
+  "description": "Plataforma de comercio electrónico para productos agrícolas",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "dev:backend": "powershell -Command \"Set-Location -Path backend; npm run dev\"",
+    "dev:frontend": "powershell -Command \"Set-Location -Path frontend; npm run dev\"",
+    "dev": "npx concurrently -c \"blue,green\" -n \"BACKEND,FRONTEND\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "install:all": "npm install && powershell -Command \"Set-Location -Path backend; npm install; Set-Location -Path ../frontend; npm install\"",
+    "start:backend": "powershell -Command \"./start-dev.ps1\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "agricultura",
+    "ecommerce",
+    "express",
+    "react"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }

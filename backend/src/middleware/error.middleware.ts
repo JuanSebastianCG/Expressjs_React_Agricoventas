@@ -26,43 +26,57 @@ export class ApiError extends Error {
 }
 
 /**
- * Not found middleware
- * - Handles 404 errors for routes that don't exist
+ * Not found middleware - Handles 404 errors for routes that don't exist
  */
-export const notFound = (req: Request, res: Response, next: NextFunction): void => {
-  const errorMessage = `Resource not found - ${req.originalUrl}`;
-  sendNotFoundResponse(res, errorMessage);
+export const notFound = (req: Request, res: Response): void => {
+  sendNotFoundResponse(res, `Resource not found - ${req.originalUrl}`);
 };
 
 /**
- * Error handler middleware
- * - Handles all errors in the application
+ * Determine if error is CORS related
+ */
+const isCorsError = (err: Error): boolean => {
+  return err.name === 'CORSError' || err.message.includes('CORS');
+};
+
+/**
+ * Get error status code
+ */
+const getErrorStatusCode = (err: Error | ApiError): number => {
+  return 'statusCode' in err ? err.statusCode : HttpStatusCode.INTERNAL_SERVER_ERROR;
+};
+
+/**
+ * Get error details for development environment
+ */
+const getErrorDetails = (err: Error): Record<string, unknown> | undefined => {
+  return process.env.NODE_ENV !== 'production' 
+    ? { stack: err.stack, name: err.name } 
+    : undefined;
+};
+
+/**
+ * Error handler middleware - Handles all errors in the application
  */
 export const errorHandler = (err: Error | ApiError, req: Request, res: Response, next: NextFunction): void => {
-  // Evitar que el error se propague y cierre la aplicación
   try {
     console.error('Error:', err);
 
-    // Get error details
-    const statusCode = 'statusCode' in err ? err.statusCode : HttpStatusCode.INTERNAL_SERVER_ERROR;
-    let message = err.message || 'Internal Server Error';
-    
-    // Detectar tipos específicos de errores
-    if (err.name === 'CORSError' || message.includes('CORS')) {
-      // Usar el manejador específico para errores CORS
+    // Handle CORS errors specifically
+    if (isCorsError(err)) {
       sendCorsErrorResponse(res);
       return;
     }
 
-    // Additional error details for development
-    const errorDetails = process.env.NODE_ENV !== 'production' 
-      ? { stack: err.stack, name: err.name } 
-      : undefined;
+    // Get error details
+    const statusCode = getErrorStatusCode(err);
+    const message = err.message || 'Internal Server Error';
+    const errorDetails = getErrorDetails(err);
 
     // Send appropriate error response
     sendErrorResponse(res, { message, ...errorDetails }, statusCode);
   } catch (internalError) {
-    // En caso de error en el manejador de errores, enviamos una respuesta genérica
+    // Fallback for errors in the error handler
     console.error('Error in error handler:', internalError);
     res.status(500).json({
       success: false,

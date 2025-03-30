@@ -102,5 +102,14 @@ export function createApp(): Express {
   app.use(notFound);
   app.use(errorHandler);
 
+  // Handle uncaught exceptions to prevent app crash
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
   return app;
 }

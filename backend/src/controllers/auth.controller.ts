@@ -21,6 +21,28 @@ export class AuthController {
   }
 
   /**
+   * Set refresh token cookie
+   */
+  private setRefreshTokenCookie(res: Response, token: string): void {
+    const cookieOptions: CookieOptions = {
+      ...(COOKIE_CONFIG as CookieOptions),
+      path: '/api/auth/refresh',
+    };
+    res.cookie('refreshToken', token, cookieOptions);
+  }
+
+  /**
+   * Clear refresh token cookie
+   */
+  private clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: COOKIE_CONFIG.secure,
+      path: '/api/auth/refresh',
+    });
+  }
+
+  /**
    * Register a new user
    */
   register = async (req: Request, res: Response): Promise<void> => {
@@ -29,20 +51,15 @@ export class AuthController {
 
       // Validate required fields
       if (!userData.fullName || !userData.username || !userData.email || !userData.password) {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, 'All fields are required');
+        sendErrorResponse(res, { message: 'All fields are required' }, HttpStatusCode.BAD_REQUEST);
+        return;
       }
 
       const result = await this.authService.register(userData);
 
-      // Asegurar que el refreshToken existe
+      // Set refresh token cookie if available
       if (result.tokens?.refreshToken) {
-        // Set refresh token as HTTP-only cookie
-        const cookieOptions: CookieOptions = {
-          ...(COOKIE_CONFIG as CookieOptions),
-          path: '/api/auth/refresh',
-        };
-
-        res.cookie('refreshToken', result.tokens.refreshToken, cookieOptions);
+        this.setRefreshTokenCookie(res, result.tokens.refreshToken);
       }
 
       // Return user data and access token with 201 Created status
@@ -56,12 +73,32 @@ export class AuthController {
       );
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message.includes('exists')) {
-          throw new ApiError(HttpStatusCode.CONFLICT, error.message);
+        if (error.message.includes('Username already exists')) {
+          sendErrorResponse(
+            res, 
+            { message: `Username "${req.body.username}" already exists. Please try a different username.` },
+            HttpStatusCode.CONFLICT
+          );
+        } else if (error.message.includes('Email already exists')) {
+          sendErrorResponse(
+            res, 
+            { message: `Email "${req.body.email}" already exists. Please use a different email or try to login.` },
+            HttpStatusCode.CONFLICT
+          );
+        } else {
+          sendErrorResponse(
+            res, 
+            { message: error.message },
+            HttpStatusCode.BAD_REQUEST
+          );
         }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
+      } else {
+        sendErrorResponse(
+          res, 
+          { message: 'An unknown error occurred' },
+          HttpStatusCode.INTERNAL_SERVER_ERROR
+        );
       }
-      throw error;
     }
   };
 
@@ -70,24 +107,19 @@ export class AuthController {
    */
   login = async (req: Request, res: Response): Promise<void> => {
     try {
-      const credentials: LoginCredentials = req.body;
+      const { username, password } = req.body;
 
       // Validate required fields
-      if (!credentials.username || !credentials.password) {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Username and password are required');
+      if (!username || !password) {
+        sendErrorResponse(res, { message: 'Username and password are required' }, HttpStatusCode.BAD_REQUEST);
+        return;
       }
 
-      const result = await this.authService.login(credentials);
+      const result = await this.authService.login({ username, password });
 
-      // Asegurar que el refreshToken existe
+      // Set refresh token cookie if available
       if (result.tokens?.refreshToken) {
-        // Set refresh token as HTTP-only cookie
-        const cookieOptions: CookieOptions = {
-          ...(COOKIE_CONFIG as CookieOptions),
-          path: '/api/auth/refresh',
-        };
-
-        res.cookie('refreshToken', result.tokens.refreshToken, cookieOptions);
+        this.setRefreshTokenCookie(res, result.tokens.refreshToken);
       }
 
       // Return user data and access token
@@ -96,11 +128,12 @@ export class AuthController {
         accessToken: result.tokens?.accessToken,
       });
     } catch (error) {
-      if (error instanceof Error) {
-        // Use 401 for authentication errors
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, error.message);
-      }
-      throw error;
+      // Use 401 for authentication errors
+      sendErrorResponse(
+        res,
+        { message: error instanceof Error ? error.message : 'Authentication failed' },
+        HttpStatusCode.UNAUTHORIZED
+      );
     }
   };
 
@@ -112,37 +145,34 @@ export class AuthController {
       // Get user ID from request
       const userId = req.user?.userId;
       if (!userId) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Not authenticated');
+        sendErrorResponse(res, { message: 'Not authenticated' }, HttpStatusCode.UNAUTHORIZED);
+        return;
       }
 
-      // Get token from header
+      // Blacklist the current token if available
       const authHeader = req.headers.authorization;
       if (authHeader) {
         const token = authHeader.split(' ')[1];
         const decoded = verifyAccessToken(token);
-        if (decoded) {
-          // Add token to blacklist with its expiration time
+        if (decoded && decoded.exp) {
           await this.tokenService.blacklistToken(token, new Date(decoded.exp * 1000));
         }
       }
 
-      // Logout user
+      // Logout user (remove refresh token from database)
       await this.authService.logout(userId);
 
       // Clear refresh token cookie
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: COOKIE_CONFIG.secure,
-        path: '/api/auth/refresh',
-      });
+      this.clearRefreshTokenCookie(res);
 
-      // Use sendSuccessNoDataResponse for responses without data
+      // Send success response
       sendSuccessNoDataResponse(res, 'Logout successful');
     } catch (error) {
-      if (error instanceof Error) {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
+      sendErrorResponse(
+        res,
+        { message: error instanceof Error ? error.message : 'Logout failed' },
+        HttpStatusCode.BAD_REQUEST
+      );
     }
   };
 
@@ -154,30 +184,26 @@ export class AuthController {
       // Get refresh token from cookie
       const refreshToken = req.cookies.refreshToken;
       if (!refreshToken) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Refresh token not found');
+        sendErrorResponse(res, { message: 'Refresh token not found' }, HttpStatusCode.UNAUTHORIZED);
+        return;
       }
 
       // Refresh tokens
       const tokens = await this.authService.refreshTokens(refreshToken);
 
-      // Set new refresh token as HTTP-only cookie with values from config
-      const cookieOptions: CookieOptions = {
-        ...(COOKIE_CONFIG as CookieOptions),
-        path: '/api/auth/refresh',
-      };
-
-      res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+      // Set new refresh token cookie
+      this.setRefreshTokenCookie(res, tokens.refreshToken);
 
       // Return new access token
       sendSuccessResponse(res, {
         accessToken: tokens.accessToken,
-        // No incluimos refreshToken en la respuesta ya que está en la cookie
       });
     } catch (error) {
-      if (error instanceof Error) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, error.message);
-      }
-      throw error;
+      sendErrorResponse(
+        res,
+        { message: error instanceof Error ? error.message : 'Token refresh failed' },
+        HttpStatusCode.UNAUTHORIZED
+      );
     }
   };
 
@@ -189,7 +215,8 @@ export class AuthController {
       // Get user ID from request
       const userId = req.user?.userId;
       if (!userId) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Not authenticated');
+        sendErrorResponse(res, { message: 'Not authenticated' }, HttpStatusCode.UNAUTHORIZED);
+        return;
       }
 
       // Get user profile
@@ -198,10 +225,11 @@ export class AuthController {
       // Return user profile
       sendSuccessResponse(res, { user });
     } catch (error) {
-      if (error instanceof Error) {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
+      sendErrorResponse(
+        res,
+        { message: error instanceof Error ? error.message : 'Failed to get profile' },
+        HttpStatusCode.BAD_REQUEST
+      );
     }
   };
 }
