@@ -3,6 +3,9 @@ import { verifyAccessToken } from '../utils/tokenUtils';
 import { sendUnauthorizedResponse, sendForbiddenResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 import { ApiError } from './error.middleware';
+import { TokenService } from '../services/token.service';
+
+const tokenService = new TokenService();
 
 // Extend Express Request with user info
 declare global {
@@ -22,7 +25,7 @@ declare global {
  * - Verifies the access token in the Authorization header
  * - Adds user info to the request object
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Check for Authorization header
     const authHeader = req.headers.authorization;
@@ -39,6 +42,13 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     }
 
     const token = parts[1];
+
+    // Check if token is blacklisted
+    const isBlacklisted = await tokenService.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      sendUnauthorizedResponse(res, 'Token has been invalidated');
+      return;
+    }
 
     // Verify token
     const decoded = verifyAccessToken(token);

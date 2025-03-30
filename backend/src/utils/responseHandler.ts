@@ -10,6 +10,8 @@ interface ErrorResponse<T> {
   success: false;
   error: {
     message: T;
+    code?: string;
+    details?: any;
   };
 }
 
@@ -35,9 +37,34 @@ export const sendSuccessNoDataResponse = (
 export const sendErrorResponse = <T>(
   res: Response,
   message: T,
-  status = HttpStatusCode.INTERNAL_SERVER_ERROR
+  status = HttpStatusCode.INTERNAL_SERVER_ERROR,
+  code?: string,
+  details?: any
 ): Response<ErrorResponse<T>> => {
-  return res.status(status).json({ success: false, error: { message } });
+  try {
+    // Añade encabezados CORS en caso de errores
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+    
+    const errorObject: ErrorResponse<T> = { 
+      success: false, 
+      error: { 
+        message,
+        ...(code && { code }),
+        ...(details && { details })
+      } 
+    };
+    
+    return res.status(status).json(errorObject);
+  } catch (err) {
+    console.error('Error sending error response:', err);
+    // Última opción si todo lo demás falla
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: 'Error while sending error response' } 
+    });
+  }
 };
 
 // Not Found response
@@ -46,7 +73,7 @@ export const sendNotFoundResponse = <T>(
   message: T,
   status = HttpStatusCode.NOT_FOUND
 ): Response<ErrorResponse<T>> => {
-  return res.status(status).json({ success: false, error: { message } });
+  return sendErrorResponse(res, message, status, 'NOT_FOUND');
 };
 
 // Validation Error response
@@ -56,38 +83,49 @@ export const sendValidationError = <T>(
   errors: string[],
   status = HttpStatusCode.BAD_REQUEST
 ): Response<ErrorResponse<T>> => {
-  return res.status(status).json({
-    success: false,
-    error: {
-      message: message,
-      errors: errors,
-    },
-  });
+  return sendErrorResponse(res, message, status, 'VALIDATION_ERROR', { errors });
 };
 
 // Unauthorized response
-export const sendUnauthorizedResponse = <T>(
+export const sendUnauthorizedResponse = <T extends string>(
   res: Response,
-  message = 'Unauthorized',
+  message: T = 'Unauthorized' as T,
   status = HttpStatusCode.UNAUTHORIZED
 ): Response<ErrorResponse<T>> => {
-  return res.status(status).json({ success: false, error: { message } });
+  return sendErrorResponse(res, message, status, 'UNAUTHORIZED');
 };
 
 // Forbidden response
-export const sendForbiddenResponse = <T>(
+export const sendForbiddenResponse = <T extends string>(
   res: Response,
-  message = 'Forbidden',
+  message: T = 'Forbidden' as T,
   status = HttpStatusCode.FORBIDDEN
 ): Response<ErrorResponse<T>> => {
-  return res.status(status).json({ success: false, error: { message } });
+  return sendErrorResponse(res, message, status, 'FORBIDDEN');
 };
 
 // Bad Request response
-export const sendBadRequestResponse = <T>(
+export const sendBadRequestResponse = <T extends string>(
   res: Response,
   message: T,
   status = HttpStatusCode.BAD_REQUEST
 ): Response<ErrorResponse<T>> => {
-  return res.status(status).json({ success: false, error: { message } });
+  return sendErrorResponse(res, message, status, 'BAD_REQUEST');
+};
+
+// CORS Error response
+export const sendCorsErrorResponse = (
+  res: Response,
+  message = 'CORS policy violation. Cross-origin request not allowed.',
+  status = HttpStatusCode.FORBIDDEN
+): Response<ErrorResponse<string>> => {
+  return sendErrorResponse(
+    res, 
+    message, 
+    status, 
+    'CORS_ERROR',
+    { 
+      suggestion: 'Check that your request includes proper CORS headers and that the server is configured to accept requests from your origin.' 
+    }
+  );
 };

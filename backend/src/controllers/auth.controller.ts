@@ -1,19 +1,23 @@
 import { Request, Response, CookieOptions } from 'express';
 import { AuthService } from '../services/auth.service';
+import { TokenService } from '../services/token.service';
 import { LoginCredentials, RegisterUserDto } from '../schemas/user.schema';
 import { ApiError } from '../middleware/error.middleware';
 import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 import { COOKIE_CONFIG } from '../config/app';
+import { verifyAccessToken } from '../utils/tokenUtils';
 
 /**
  * Authentication controller
  */
 export class AuthController {
   private authService: AuthService;
+  private tokenService: TokenService;
 
   constructor() {
     this.authService = new AuthService();
+    this.tokenService = new TokenService();
   }
 
   /**
@@ -109,6 +113,17 @@ export class AuthController {
       const userId = req.user?.userId;
       if (!userId) {
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Not authenticated');
+      }
+
+      // Get token from header
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        const decoded = verifyAccessToken(token);
+        if (decoded) {
+          // Add token to blacklist with its expiration time
+          await this.tokenService.blacklistToken(token, new Date(decoded.exp * 1000));
+        }
       }
 
       // Logout user

@@ -70,6 +70,7 @@ export interface JwtPayload {
   userId: string;
   username: string;
   role: string;
+  exp: number;
 }
 
 export interface RefreshTokenPayload {

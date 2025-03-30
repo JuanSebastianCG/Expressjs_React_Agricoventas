@@ -32,9 +32,22 @@ async function seed() {
       },
     });
 
+    // Create test user (Juan Perez)
+    const juanPassword = await bcrypt.hash('Password123!', 10);
+    const juan = await prisma.user.create({
+      data: {
+        fullName: 'Juan Perez',
+        username: 'juanperez',
+        password: juanPassword,
+        email: 'juan@agricoventas.com',
+        role: 'user',
+      },
+    });
+
     console.log('Database seeded successfully');
     console.log('Admin user created:', admin.username);
     console.log('Regular user created:', user.username);
+    console.log('Test user created:', juan.username);
   } catch (error) {
     console.error('Error in seed function:', error);
   }

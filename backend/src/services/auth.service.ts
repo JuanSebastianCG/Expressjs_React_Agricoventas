@@ -48,6 +48,7 @@ export class AuthService {
       userId: user.id,
       username: (user as any).username,
       role: user.role,
+      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour from now
     };
 
     const tokens = generateTokens(payload);
@@ -92,6 +93,7 @@ export class AuthService {
       userId: user.id,
       username: (user as any).username,
       role: user.role,
+      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour from now
     };
 
     const tokens = generateTokens(payload);
@@ -143,6 +145,7 @@ export class AuthService {
       userId: user.id,
       username: (user as any).username,
       role: user.role,
+      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour from now
     };
 
     const tokens = generateTokens(payload);

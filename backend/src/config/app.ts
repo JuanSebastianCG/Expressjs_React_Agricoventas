@@ -17,10 +17,13 @@ logger.info(`Server configuration loaded - Port: ${SERVER_CONFIG.port}, Environm
 
 // CORS configuration
 export const CORS_CONFIG = {
-  origin: SERVER_CONFIG.env === 'production' ? SERVER_CONFIG.frontendUrl : true,
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Cookie configuration
