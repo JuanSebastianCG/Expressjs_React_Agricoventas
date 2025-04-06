@@ -87,6 +87,30 @@ npx prisma generate
 npx prisma db push
 ```
 
+4. Ejecutar Seeds (Datos Iniciales):
+```bash
+npx prisma db seed
+```
+
+Esto creará los siguientes usuarios por defecto:
+- **Admin User**
+  - Username: `admin`
+  - Password: `admin123`
+  - Email: `admin@agricoventas.com`
+  - Rol: `admin`
+
+- **Regular User**
+  - Username: `user`
+  - Password: `user123`
+  - Email: `user@agricoventas.com`
+  - Rol: `user`
+
+- **Test User**
+  - Username: `juanperez`
+  - Password: `Password123!`
+  - Email: `juan@agricoventas.com`
+  - Rol: `user`
+
 ### 3. Configuración del Frontend
 
 1. Instalar dependencias:
