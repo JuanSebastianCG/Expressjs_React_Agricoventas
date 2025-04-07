@@ -16,26 +16,27 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
   
   const sidebarClasses = `
-    min-h-screen bg-blue-3 text-white transition-all duration-300 ease-in-out
+    min-h-screen bg-black text-white transition-all duration-300 ease-in-out shadow-xl
     ${collapsed ? 'w-16' : 'w-64'}
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
   `;
   
   const navItems = [
-    { name: 'Dashboard', icon: '📊' },
-    { name: 'Analytics', icon: '📈' },
-    { name: 'Products', icon: '📦' },
-    { name: 'Customers', icon: '👥' },
-    { name: 'Settings', icon: '⚙️' },
+    { name: 'Dashboard', icon: '📊', href: '/dashboard' },
+    { name: 'Mercado', icon: '🏪', href: '/mercado-general' },
+    { name: 'Mis Productos', icon: '📦', href: '/mis-productos' },
+    { name: 'Mis Pedidos', icon: '🚚', href: '/mis-pedidos' },
+    { name: 'Insights', icon: '📈', href: '/insights' },
+    { name: 'Configuración', icon: '⚙️', href: '/configuracion' },
   ];
   
   return (
     <aside className={sidebarClasses}>
-      <div className="p-4 flex items-center justify-between border-b border-blue-1-5/20">
-        {!collapsed && <h2 className="text-xl font-bold">Menu</h2>}
+      <div className="p-4 flex items-center justify-between border-b border-gray-0-5">
+        {!collapsed && <h2 className="text-xl font-bold text-green-1">Menu</h2>}
         <button 
           onClick={toggleCollapse} 
-          className="text-white hover:text-blue-1-5 transition-colors"
+          className="text-white bg-green-1 hover:bg-green-0-9 p-2 rounded transition-colors"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? '→' : '←'}
@@ -47,7 +48,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="text-white hover:text-red-1 transition-colors"
             aria-label="Close sidebar"
           >
-            ✕
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         )}
       </div>
@@ -57,16 +60,31 @@ const Sidebar: React.FC<SidebarProps> = ({
           {navItems.map((item, index) => (
             <li key={index}>
               <a 
-                href="#"
-                className="flex items-center py-3 px-4 hover:bg-blue-1-5/10 transition-colors"
+                href={item.href}
+                className="flex items-center py-3 px-4 hover:bg-green-1 hover:text-white transition-colors"
               >
-                <span className="text-xl">{item.icon}</span>
-                {!collapsed && <span className="ml-3">{item.name}</span>}
+                <span className="text-xl w-8">{item.icon}</span>
+                {!collapsed && <span className="ml-3 font-medium">{item.name}</span>}
               </a>
             </li>
           ))}
         </ul>
       </nav>
+      
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-0-5">
+        {!collapsed && (
+          <div className="text-sm text-gray-0-5 mb-2">
+            ¿Necesitas ayuda?
+          </div>
+        )}
+        <a 
+          href="/soporte" 
+          className="flex items-center text-white hover:text-green-1 transition-colors"
+        >
+          <span className="text-xl">❓</span>
+          {!collapsed && <span className="ml-3">Soporte</span>}
+        </a>
+      </div>
     </aside>
   );
 };

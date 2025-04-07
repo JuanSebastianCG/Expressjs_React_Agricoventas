@@ -15,3 +15,45 @@
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Colores principales */
+  --color-green-1: #046B4D;
+  --color-green-0-9: #2E7D32;
+  --color-green-0-8: #54965F;
+  --color-green-0-7: #85BE2B;
+  --color-green-0-6: #98C070;
+  --color-green-0-5: #D1FAE5;
+  --color-green-0-4: #ECFDF5;
+  --color-green-0-1: #E3E986;
+  
+  --color-red-1: #EF4444;
+  
+  --color-gray-0-5: #AAABAD;
+  --color-gray-1: #555658;
+  
+  --color-blue-3: #111827;
+  --color-blue-1-5: #EFF6FF;
+  --color-blue-2: #DBEAFE;
+  
+  --color-yellow-1: #F1B303;
+  --color-yellow-1-5: #FFC107;
+  --color-yellow-2: #FFE600;
+}
+
+/* Estilos personalizados para botones */
+.btn-green {
+  background-color: var(--color-green-1);
+  color: white;
+  border-color: var(--color-green-1);
+}
+
+.btn-green:hover {
+  background-color: var(--color-green-0-9);
+}
+
+/* Otros estilos personalizados según sea necesario */

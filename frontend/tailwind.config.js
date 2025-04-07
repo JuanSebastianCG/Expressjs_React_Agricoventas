@@ -3,6 +3,14 @@ module.exports = {
       "./index.html",
       "./src/**/*.{js,jsx,ts,tsx}"
     ],
+    safelist: [
+      'bg-green-1',
+      'text-green-1',
+      'border-green-1',
+      'hover:bg-green-0-9',
+      'focus:border-green-1',
+      'btn-green'
+    ],
     theme: {
       extend: {
         colors: {
@@ -35,6 +43,16 @@ module.exports = {
           },
           black: '#000000',
           white: '#FFFFFF',
+        },
+        backgroundColor: {
+          'green-primary': '#046B4D',
+          'green-hover': '#2E7D32',
+        },
+        textColor: {
+          'green-primary': '#046B4D',
+        },
+        borderColor: {
+          'green-primary': '#046B4D',
         }
       },
     },

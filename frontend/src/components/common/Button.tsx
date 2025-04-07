@@ -8,6 +8,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   fullWidth?: boolean;
   children: React.ReactNode;
+  icon?: React.ReactNode;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -16,24 +17,25 @@ const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   children,
   className = '',
+  icon,
   ...props
 }) => {
   // Base classes for all buttons
-  const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = 'inline-flex items-center justify-center rounded-md font-semibold transition-colors shadow-md focus:outline-none';
   
   // Variant-specific classes
   const variantClasses = {
-    primary: 'bg-blue-3 hover:bg-blue-3/90 text-white focus:ring-blue-3',
-    secondary: 'bg-gray-0-5 hover:bg-gray-1 text-white focus:ring-gray-1',
-    success: 'bg-green-1 hover:bg-green-0-9 text-white focus:ring-green-1',
-    danger: 'bg-red-1 hover:bg-red-1/90 text-white focus:ring-red-1',
-    warning: 'bg-yellow-1 hover:bg-yellow-1-5 text-black focus:ring-yellow-1',
+    primary: 'bg-green-1 hover:bg-green-0-9 text-white border border-green-1',
+    secondary: 'bg-gray-0-5 hover:bg-gray-1 text-white border border-gray-0-5',
+    success: 'bg-green-1 hover:bg-green-0-9 text-white border border-green-1',
+    danger: 'bg-red-1 hover:bg-red-1/90 text-white border border-red-1',
+    warning: 'bg-yellow-1 hover:bg-yellow-1-5 text-black border border-yellow-1',
   };
 
   // Size-specific classes
   const sizeClasses = {
     sm: 'text-sm px-3 py-1.5',
-    md: 'text-base px-4 py-2',
+    md: 'text-base px-4 py-3',
     lg: 'text-lg px-6 py-3',
   };
 
@@ -45,6 +47,7 @@ const Button: React.FC<ButtonProps> = ({
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${widthClass} ${className}`}
       {...props}
     >
+      {icon && <span className="mr-2">{icon}</span>}
       {children}
     </button>
   );
