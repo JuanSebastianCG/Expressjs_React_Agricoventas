@@ -1,16 +1,28 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import authService, { UserData } from '../services/authService';
 
 // Define the shape of our context state
 interface AppContextState {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   isAuthenticated: boolean;
-  login: () => void;
+  user: UserData | null;
+  login: (token: string, userData: UserData) => void;
   logout: () => void;
+  updateUser: (userData: UserData) => void;
 }
+
+// Token storage key
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
 
 // Create the context with a default value
 const AppContext = createContext<AppContextState | undefined>(undefined);
+
+// Props for the AppProvider component
+interface AppProviderProps {
+  children: ReactNode;
+}
 
 // Custom hook to use the app context
 export const useAppContext = () => {
@@ -21,41 +33,142 @@ export const useAppContext = () => {
   return context;
 };
 
-// Provider component
-interface AppProviderProps {
-  children: ReactNode;
-}
+// Función para verificar si hay una sesión guardada
+const checkForSavedSession = (): { token: string | null, user: UserData | null } => {
+  try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userStr = localStorage.getItem(USER_KEY);
+    console.log('checkForSavedSession - Token encontrado:', !!token);
+    console.log('checkForSavedSession - Usuario encontrado:', !!userStr);
+    
+    if (token && userStr) {
+      const userData = JSON.parse(userStr);
+      console.log('checkForSavedSession - Usuario cargado:', userData && userData.username ? userData.username : 'sin username');
+      return { token, user: userData };
+    }
+  } catch (error) {
+    console.error('Error al verificar sesión guardada:', error);
+  }
+  
+  return { token: null, user: null };
+};
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
+  // Verificar si hay una sesión guardada antes de definir el estado inicial
+  const savedSession = checkForSavedSession();
+  
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!savedSession.token);
+  const [user, setUser] = useState<UserData | null>(savedSession.user);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Inicialización adicional y escucha de cambios en localStorage
+  useEffect(() => {
+    console.log("AppContext - Estado inicial de isAuthenticated:", isAuthenticated);
+    console.log("AppContext - Estado inicial de user:", user ? (user.username || 'sin username') : 'null');
+
+    // Verificar inmediatamente
+    if (savedSession.token && !isAuthenticated) {
+      setIsAuthenticated(true);
+      setUser(savedSession.user);
+      console.log("AppContext - Sesión restaurada durante inicialización");
+    }
+    
+    // Escuchar cambios en localStorage (por si se cierra sesión en otra pestaña)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === TOKEN_KEY || event.key === USER_KEY) {
+        console.log("AppContext - Cambio detectado en localStorage:", event.key);
+        const session = checkForSavedSession();
+        if (session.token) {
+          setIsAuthenticated(true);
+          setUser(session.user);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      }
+    };
+
+    // Añadir event listener para storage
+    window.addEventListener('storage', handleStorageChange);
+
+    // Limpiar event listener al desmontar
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
   
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
-    // You could also persist this to localStorage here
   };
   
-  const login = () => {
-    // Here you would typically handle actual authentication logic
-    setIsAuthenticated(true);
+  const login = (token: string, userData: UserData) => {
+    console.log("AppContext - Login llamado con:", token ? "token válido" : "token inválido", userData ? "userData existe" : "userData NO existe");
+    
+    // Verificación estricta de userData
+    if (!userData) {
+      console.error("Error: userData es undefined en la función login");
+      return;
+    }
+    
+    try {
+      // Evitar el acceso a propiedades de userData para prevenir errores
+      console.log("AppContext - Guardando datos de usuario en localStorage");
+      
+      // Guardar en localStorage
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(userData));
+      
+      // Actualizar estado
+      setIsAuthenticated(true);
+      setUser(userData);
+      
+      console.log("AppContext - Usuario autenticado correctamente");
+    } catch (error) {
+      console.error("Error en la función login:", error);
+    }
   };
   
   const logout = () => {
-    // Clean up any user data or tokens
+    console.log("AppContext - Logout ejecutado");
+    
+    // Limpiar localStorage
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    
+    // Actualizar estado
     setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  const updateUser = (userData: UserData) => {
+    // Actualizar en localStorage y en el estado
+    localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    setUser(userData);
   };
   
   // Memoize the context value to prevent unnecessary re-renders
-  const value = React.useMemo(() => ({
+  const contextValue = {
     theme,
     toggleTheme,
     isAuthenticated,
+    user,
     login,
-    logout
-  }), [theme, isAuthenticated]);
+    logout,
+    updateUser
+  };
+  
+  // Mostrar loading mientras se inicializa el estado de autenticación
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-1"></div>
+      </div>
+    );
+  }
   
   return (
-    <AppContext.Provider value={value}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

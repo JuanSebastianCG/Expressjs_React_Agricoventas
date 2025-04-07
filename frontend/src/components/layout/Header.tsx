@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 
 interface HeaderProps {
@@ -6,22 +6,35 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
-  const { isAuthenticated, logout } = useAppContext();
+  const { isAuthenticated, user, logout } = useAppContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Function to navigate between pages, using the global function added in App.tsx
+  useEffect(() => {
+    console.log('Header - Estado de autenticación:', isAuthenticated);
+    console.log('Header - Usuario:', user?.username || 'no hay usuario');
+  }, [isAuthenticated, user]);
+
+  // Extraer iniciales del nombre del usuario
+  const getUserInitials = () => {
+    if (!user || !user.fullName) return '?';
+    const names = user.fullName.split(' ');
+    return names.length > 1 
+      ? `${names[0][0]}${names[1][0]}`.toUpperCase()
+      : names[0][0].toUpperCase();
+  };
+
+  // Function to navigate between pages
   const navigate = (path: string) => {
-    // @ts-ignore - we added this in App.tsx
-    if (window.navigate) {
-      // @ts-ignore
-      window.navigate(path);
-    } else {
-      window.location.href = path === 'home' ? '/' : `/${path}`;
-    }
+    window.location.href = path === 'home' ? '/' : `/${path}`;
   };
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/';
   };
 
   return (
@@ -61,12 +74,15 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
             <div className="hidden md:flex items-center">
               <div className="relative flex items-center">
                 <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
-                  <span>JP</span>
+                  <span>{getUserInitials()}</span>
                 </div>
-                <span className="text-gray-1 mr-1">Hola, Juan Pérez</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <span className="text-gray-1 mr-1">Hola, {user?.fullName || 'Usuario'}</span>
+                <button 
+                  onClick={handleLogout}
+                  className="ml-4 px-4 py-2 bg-red-1 text-white rounded-md hover:bg-red-600 transition-colors"
+                >
+                  Salir
+                </button>
               </div>
             </div>
           </>
@@ -109,7 +125,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
         )}
 
         {/* Mobile Menu Button */}
-        <button 
+        <button
           className="md:hidden p-2 text-gray-1 hover:text-green-1 transition-colors"
           onClick={toggleMobileMenu}
           aria-label="Toggle menu"
@@ -129,19 +145,14 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                 {/* User info for mobile */}
                 <div className="flex items-center py-2 mb-2 border-b border-gray-0-5">
                   <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
-                    <span>JP</span>
+                    <span>{getUserInitials()}</span>
                   </div>
-                  <span className="text-gray-1">Juan Pérez</span>
+                  <span className="text-gray-1">{user?.fullName || 'Usuario'}</span>
                 </div>
                 
                 {/* Navigation links for logged-in users on mobile */}
                 <nav>
                   <ul className="space-y-2">
-                    <li>
-                      <a href="/dashboard" className="block py-2 text-gray-1 hover:text-green-1">
-                        Dashboard
-                      </a>
-                    </li>
                     <li>
                       <a href="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
                         Mercado General
@@ -163,7 +174,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       </a>
                     </li>
                     <li>
-                      <button onClick={logout} className="block w-full text-left py-2 text-red-1 hover:text-red-700">
+                      <button onClick={handleLogout} className="block w-full text-left py-2 text-red-1 hover:text-red-700">
                         Cerrar Sesión
                       </button>
                     </li>

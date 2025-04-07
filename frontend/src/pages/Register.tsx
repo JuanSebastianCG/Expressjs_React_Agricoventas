@@ -3,6 +3,9 @@ import MainLayout from '../components/layout/MainLayout';
 import Input from '../components/common/Input';
 import AuthButton from '../components/common/AuthButton';
 import useForm from '../hooks/useForm';
+import authService, { RegisterData } from '../services/authService';
+import Notification from '../components/common/Notification';
+import FormError from '../components/common/FormError';
 
 interface RegisterFormValues {
   nombre: string;
@@ -77,23 +80,35 @@ const Register: React.FC = () => {
     setServerError(null);
     
     try {
-      // Mock API call - replace with actual API call
-      // const response = await api.post('/auth/register', {
-      //   email: values.email,
-      //   password: values.password,
-      //   username: values.username,
-      //   fullName: `${values.nombre} ${values.apellido}`
-      // });
+      // Prepare data for API 
+      const registerData: RegisterData = {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        fullName: `${values.nombre} ${values.apellido}`
+      };
       
-      console.log('Formulario de registro enviado:', values);
+      // Call register API
+      await authService.register(registerData);
       
-      // Simulate successful registration
-      setTimeout(() => {
-        setRegistrationSuccess(true);
-        setIsSubmitting(false);
-      }, 1000);
-    } catch (error) {
-      setServerError('Error en el registro. Por favor, inténtelo de nuevo.');
+      // Show success message
+      setRegistrationSuccess(true);
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      
+      // Handle different error types
+      if (error && error.status === 409) {
+        setServerError('El nombre de usuario o correo electrónico ya está registrado.');
+      } else if (error && error.errors) {
+        // Format validation errors from the server
+        const errorMessages = Object.values(error.errors).flat().join(' ');
+        setServerError(errorMessages);
+      } else if (error && error.message) {
+        setServerError(error.message);
+      } else {
+        setServerError('Error en el registro. Por favor, inténtelo de nuevo.');
+      }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -126,13 +141,6 @@ const Register: React.FC = () => {
     </svg>
   );
 
-  // User icon
-  const userIcon = (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  );
-
   return (
     <MainLayout title="Registro">
       <div className="flex justify-center items-center min-h-[calc(100vh-180px)] py-10 px-4">
@@ -143,31 +151,39 @@ const Register: React.FC = () => {
           </div>
           
           {serverError && (
-            <div className="mb-4 p-3 bg-red-1/10 border border-red-1 rounded-md text-red-1 text-sm">
-              {serverError}
-            </div>
+            <Notification 
+              type="error" 
+              message={serverError} 
+              onClose={() => setServerError(null)}
+              autoClose={true}
+              autoCloseTime={8000}
+            />
           )}
           
           {registrationSuccess ? (
             <div className="text-center py-6">
+              <Notification 
+                type="success" 
+                message="¡Su cuenta ha sido creada exitosamente! Ya puede iniciar sesión con sus credenciales."
+              />
               <div className="mb-4 p-4 bg-green-0-5 rounded-full inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <h2 className="text-xl font-semibold mb-2">¡Registro Exitoso!</h2>
-              <p className="text-gray-1 mb-4">Su cuenta ha sido creada exitosamente.</p>
+              <p className="text-gray-1 mb-6">Su cuenta ha sido creada exitosamente.</p>
               <AuthButton 
                 icon={loginIcon}
                 onClick={() => window.location.href = '/login'}
                 fullWidth={false}
-                className="mx-auto bg-green-1 text-white hover:bg-green-0-9"
+                className="mx-auto bg-green-1 text-white hover:bg-green-0-9 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 Iniciar Sesión
               </AuthButton>
             </div>
           ) : (
-            <form onSubmit={form.handleSubmit}>
+            <form onSubmit={form.handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Input
@@ -199,7 +215,7 @@ const Register: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-4">
+              <div>
                 <Input
                   label="Nombre de usuario"
                   type="text"
@@ -214,7 +230,7 @@ const Register: React.FC = () => {
                 />
               </div>
               
-              <div className="mt-4">
+              <div>
                 <Input
                   label="Correo electrónico"
                   type="email"
@@ -229,7 +245,7 @@ const Register: React.FC = () => {
                 />
               </div>
               
-              <div className="mt-4">
+              <div>
                 <Input
                   label="Contraseña"
                   type="password"
@@ -245,12 +261,12 @@ const Register: React.FC = () => {
                 />
               </div>
               
-              <div className="mt-4">
+              <div>
                 <Input
                   label="Confirmar contraseña"
                   type="password"
                   name="confirmPassword"
-                  placeholder="Repita su contraseña"
+                  placeholder="Confirme su contraseña"
                   value={form.values.confirmPassword}
                   onChange={form.handleChange}
                   onBlur={form.handleBlur}
@@ -261,24 +277,26 @@ const Register: React.FC = () => {
                 />
               </div>
               
-              <div className="mt-6 flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="acceptTerms"
-                    name="acceptTerms"
-                    type="checkbox"
-                    className="h-4 w-4 text-green-1 focus:ring-green-1 border-gray-0-5 rounded"
-                    checked={form.values.acceptTerms}
-                    onChange={form.handleChange}
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="acceptTerms" className="font-medium text-gray-1">
-                    Acepto los <a href="#" className="text-green-1 hover:underline">Términos y Condiciones</a>
-                  </label>
-                  {form.touched.acceptTerms && form.errors.acceptTerms && (
-                    <p className="mt-1 text-red-1">{form.errors.acceptTerms}</p>
-                  )}
+              <div className="mt-4">
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="acceptTerms"
+                      name="acceptTerms"
+                      type="checkbox"
+                      className="h-4 w-4 text-green-1 focus:ring-green-1 border-gray-0-5 rounded transition-colors"
+                      checked={form.values.acceptTerms}
+                      onChange={form.handleChange}
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="acceptTerms" className="text-gray-1">
+                      Acepto los <a href="/terminos" className="text-green-1 hover:underline font-medium">términos y condiciones</a>
+                    </label>
+                    {form.touched.acceptTerms && form.errors.acceptTerms && (
+                      <FormError message={form.errors.acceptTerms} />
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -287,15 +305,15 @@ const Register: React.FC = () => {
                   type="submit"
                   isLoading={isSubmitting}
                   icon={registerIcon}
-                  className="bg-green-1 text-white hover:bg-green-0-9"
+                  className="bg-green-1 text-white hover:bg-green-0-9 w-full py-2.5 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {isSubmitting ? 'Registrando' : 'Registrarse'} {!isSubmitting && <span className="ml-2">→</span>}
+                  {isSubmitting ? 'Registrando' : 'Registrarse'}
                 </AuthButton>
               </div>
               
-              <div className="text-center mt-6">
+              <div className="text-center mt-4">
                 <p className="text-sm text-gray-1">
-                  ¿Ya tienes cuenta? <a href="/login" className="text-green-1 hover:underline">Inicia Sesión</a>
+                  ¿Ya tienes una cuenta? <a href="/login" className="text-green-1 hover:underline font-medium transition-colors">Iniciar sesión</a>
                 </p>
               </div>
             </form>

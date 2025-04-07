@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import useForm from '../hooks/useForm';
 import { useAppContext } from '../context/AppContext';
 import AuthButton from '../components/common/AuthButton';
+import authService, { LoginData } from '../services/authService';
+import Notification from '../components/common/Notification';
+import FormError from '../components/common/FormError';
 
 interface LoginFormValues {
   username: string;
@@ -12,6 +16,7 @@ interface LoginFormValues {
 
 const Login: React.FC = () => {
   const { login } = useAppContext();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -36,18 +41,56 @@ const Login: React.FC = () => {
     setServerError(null);
     
     try {
-      // Mock API call - replace with actual API call
-      // const response = await api.post('/auth/login', values);
-      console.log('Formulario de inicio de sesión enviado:', values);
+      // Prepare login data
+      const loginData: LoginData = {
+        username: values.username,
+        password: values.password,
+        remember: true // Siempre recordar para mantener la sesión persistente
+      };
       
-      // Simulate successful login
+      console.log("Login - Iniciando sesión con:", values.username);
+      
+      // Call the API to login
+      const response = await authService.login(loginData);
+      console.log("Login - Respuesta recibida:", response ? "Respuesta válida" : "Respuesta inválida");
+      
+      // Verificar que la respuesta contiene token y datos de usuario
+      if (!response || !response.token) {
+        throw new Error('Respuesta del servidor inválida: falta el token de autenticación');
+      }
+      
+      if (!response.user) {
+        throw new Error('Respuesta del servidor inválida: faltan los datos del usuario');
+      }
+      
+      // Log para depuración
+      console.log("Login - Token:", response.token ? "Presente" : "Ausente");
+      console.log("Login - User:", response.user ? 
+        `ID: ${response.user.id || 'no id'}, Username: ${response.user.username || 'no username'}` : 
+        "Ausente");
+      
+      // Store auth info in context
+      login(response.token, response.user);
+      
+      console.log("Login - Estado actualizado, redirección pendiente");
+      
+      // Small delay to ensure state updates
       setTimeout(() => {
-        login();
-        // Redirect would happen here in a real app
-        setIsSubmitting(false);
-      }, 1000);
-    } catch (error) {
-      setServerError('Nombre de usuario o contraseña inválidos. Por favor, inténtalo de nuevo.');
+        // Redirect to home page on success
+        console.log("Login - Redirigiendo a home");
+        window.location.href = '/';
+      }, 200);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      // Handle different error types
+      if (error && error.status === 401) {
+        setServerError('Nombre de usuario o contraseña inválidos. Por favor, inténtalo de nuevo.');
+      } else if (error && error.message) {
+        setServerError(error.message);
+      } else {
+        setServerError('Error al iniciar sesión. Por favor, inténtalo de nuevo más tarde.');
+      }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -79,13 +122,17 @@ const Login: React.FC = () => {
           </div>
           
           {serverError && (
-            <div className="mb-4 p-3 bg-red-1/10 border border-red-1 rounded-md text-red-1 text-sm">
-              {serverError}
-            </div>
+            <Notification 
+              type="error" 
+              message={serverError} 
+              onClose={() => setServerError(null)}
+              autoClose={true}
+              autoCloseTime={8000}
+            />
           )}
           
-          <form onSubmit={form.handleSubmit}>
-            <div className="mb-4">
+          <form onSubmit={form.handleSubmit} className="space-y-4">
+            <div>
               <label className="block text-sm font-medium text-gray-1 mb-2">
                 Nombre de usuario
               </label>
@@ -98,7 +145,11 @@ const Login: React.FC = () => {
                 <input
                   type="text"
                   name="username"
-                  className="w-full px-4 py-2 pl-10 border border-gray-0-5 rounded-md focus:outline-none focus:border-green-1"
+                  className={`w-full px-4 py-2 pl-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors ${
+                    form.touched.username && form.errors.username 
+                      ? 'border-red-1 focus:ring-red-1/20' 
+                      : 'border-gray-0-5 focus:border-green-1 focus:ring-green-1/20'
+                  }`}
                   placeholder="Ingrese su nombre de usuario"
                   value={form.values.username}
                   onChange={form.handleChange}
@@ -106,11 +157,11 @@ const Login: React.FC = () => {
                 />
               </div>
               {form.touched.username && form.errors.username && (
-                <p className="mt-1 text-sm text-red-1">{form.errors.username}</p>
+                <FormError message={form.errors.username} />
               )}
             </div>
             
-            <div className="mb-4">
+            <div>
               <label className="block text-sm font-medium text-gray-1 mb-2">
                 Contraseña
               </label>
@@ -123,7 +174,11 @@ const Login: React.FC = () => {
                 <input
                   type="password"
                   name="password"
-                  className="w-full px-4 py-2 pl-10 border border-gray-0-5 rounded-md focus:outline-none focus:border-green-1"
+                  className={`w-full px-4 py-2 pl-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors ${
+                    form.touched.password && form.errors.password 
+                      ? 'border-red-1 focus:ring-red-1/20' 
+                      : 'border-gray-0-5 focus:border-green-1 focus:ring-green-1/20'
+                  }`}
                   placeholder="Ingrese su contraseña"
                   value={form.values.password}
                   onChange={form.handleChange}
@@ -131,11 +186,11 @@ const Login: React.FC = () => {
                 />
               </div>
               {form.touched.password && form.errors.password && (
-                <p className="mt-1 text-sm text-red-1">{form.errors.password}</p>
+                <FormError message={form.errors.password} />
               )}
             </div>
             
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mt-2">
               <input
                 id="rememberMe"
                 name="rememberMe"
@@ -149,14 +204,16 @@ const Login: React.FC = () => {
               </label>
             </div>
             
-            <AuthButton
-              type="submit"
-              isLoading={isSubmitting}
-              icon={loginIcon}
-              className="bg-green-1 text-white hover:bg-green-0-9"
-            >
-              {isSubmitting ? 'Ingresando' : 'Ingresar'}
-            </AuthButton>
+            <div className="mt-2">
+              <AuthButton
+                type="submit"
+                isLoading={isSubmitting}
+                icon={loginIcon}
+                className="bg-green-1 text-white hover:bg-green-0-9 w-full py-2.5 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {isSubmitting ? 'Ingresando' : 'Ingresar'}
+              </AuthButton>
+            </div>
             
             <div className="text-center mt-6">
               <p className="text-sm text-gray-1">
@@ -166,7 +223,7 @@ const Login: React.FC = () => {
             
             <div className="text-center mt-4">
               <p className="text-sm text-gray-1">
-                ¿No tienes cuenta? <a href="/register" className="text-green-1 hover:underline">Regístrate</a>
+                ¿No tienes cuenta? <a href="/register" className="text-green-1 hover:underline font-medium transition-colors">Regístrate</a>
               </p>
             </div>
           </form>

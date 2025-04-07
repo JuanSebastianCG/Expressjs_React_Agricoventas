@@ -1,98 +1,62 @@
-// API base URL - would typically come from environment variables
-const API_BASE_URL = '/api';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
-// Interface for API error responses
-interface ApiError {
-  message: string;
-  status?: number;
-  errors?: Record<string, string[]>;
-}
+// Base API configuration
+const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
-// Type guard to check if response is an ApiError
-const isApiError = (error: any): error is ApiError => {
-  return error && typeof error.message === 'string';
-};
+// Token storage key
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
 
-// Common options for fetch
-const defaultOptions: RequestInit = {
+// Create axios instance with default config
+const api: AxiosInstance = axios.create({
+  baseURL,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
-  credentials: 'include', // Includes cookies in cross-origin requests
-};
+});
 
-// Helper to handle API responses
-const handleResponse = async <T>(response: Response): Promise<T> => {
-  const contentType = response.headers.get('content-type');
-  const isJson = contentType && contentType.includes('application/json');
-  
-  // Parse the response based on content type
-  const data = isJson ? await response.json() : await response.text();
-  
-  // Check if the response is successful
-  if (!response.ok) {
-    const error: ApiError = isJson && isApiError(data) 
-      ? data 
-      : { message: data || response.statusText, status: response.status };
+// Request interceptor for API calls
+api.interceptors.request.use(
+  (config) => {
+    // Obtener token directamente de localStorage
+    const token = localStorage.getItem(TOKEN_KEY);
     
-    throw error;
+    // Si token existe, añadir a los headers
+    if (token && config.headers) {
+      console.log('API Request: Añadiendo token a la petición');
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.log('API Request: No hay token disponible');
+    }
+    return config;
+  },
+  (error) => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
   }
-  
-  return data as T;
-};
+);
 
-// GET request
-const get = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-    method: 'GET',
-  });
-  
-  return handleResponse<T>(response);
-};
-
-// POST request
-const post = async <T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  
-  return handleResponse<T>(response);
-};
-
-// PUT request
-const put = async <T>(endpoint: string, data: any, options: RequestInit = {}): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-  
-  return handleResponse<T>(response);
-};
-
-// DELETE request
-const del = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-    method: 'DELETE',
-  });
-  
-  return handleResponse<T>(response);
-};
-
-// API client
-const api = {
-  get,
-  post,
-  put,
-  delete: del,
-};
+// Response interceptor for API calls
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error: AxiosError) => {
+    const originalRequest = error.config;
+    
+    // Handle 401 Unauthorized responses
+    if (error.response && error.response.status === 401 && originalRequest) {
+      console.log('API Response: 401 Unauthorized - Redirigiendo a login');
+      // Clear invalid tokens
+      localStorage.removeItem(TOKEN_KEY);
+      
+      // Redirect to login
+      window.location.href = '/login';
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export default api; 

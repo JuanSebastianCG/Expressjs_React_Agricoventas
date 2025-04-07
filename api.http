@@ -25,8 +25,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-    "username": "{{username}}",
-    "password": "{{password}}"
+    "username": "juanperez",
+    "password": "Password123!"
 }
 
 ### Obtener perfil del usuario
