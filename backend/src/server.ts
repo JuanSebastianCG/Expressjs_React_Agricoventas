@@ -18,7 +18,8 @@ import { CORS_CONFIG, ROUTES_CONFIG } from './config/app';
 // Routes
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
-
+import productRoutes from './routes/product.routes';
+import orderRoutes from './routes/order.routes';
 /**
  * Middleware para manejar errores específicos de CORS
  */
@@ -89,6 +90,8 @@ export function createApp(): Express {
   // Routes
   app.use(ROUTES_CONFIG.auth, authRoutes);
   app.use(ROUTES_CONFIG.users, userRoutes);
+  app.use(ROUTES_CONFIG.products, productRoutes);
+  app.use(ROUTES_CONFIG.orders, orderRoutes); 
 
   // Root route
   app.get('/', (req: Request, res: Response) => {
