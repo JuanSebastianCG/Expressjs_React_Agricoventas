@@ -1,29 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { AppProvider } from './context/AppContext';
+import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
 
 function App() {
-  const [count, setCount] = useState(0)
+  // For a real application, you would use react-router-dom here
+  // This is a simplified version just for demonstration
+  const [currentPage, setCurrentPage] = React.useState<'home' | 'dashboard'>('home');
 
   return (
-    <>
-
-
-<div className="bg-white dark:bg-gray-800 rounded-lg px-6 py-8 ring shadow-xl ring-gray-900/5">
-  <div>
-    <span className="inline-flex items-center justify-center rounded-md bg-indigo-500 p-2 shadow-lg">
-      <svg className="h-6 w-6 stroke-white" >
-      </svg>
-    </span>
-  </div>
-  <h3 className="text-gray-900 dark:text-white mt-5 text-base font-medium tracking-tight ">Writes upside-down</h3>
-  <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm ">
-    The Zero Gravity Pen can be used to write in any orientation, including upside-down. It even works in outer space.
-  </p>
-</div>
-    </>
-  )
+    <AppProvider>
+      {currentPage === 'home' && <Home />}
+      {currentPage === 'dashboard' && <Dashboard />}
+      
+      {/* Simple navigation controls for demo purposes */}
+      <div className="fixed bottom-4 right-4 flex space-x-2">
+        <button 
+          onClick={() => setCurrentPage('home')}
+          className={`px-4 py-2 rounded-md shadow-md ${
+            currentPage === 'home' 
+              ? 'bg-blue-3 text-white' 
+              : 'bg-gray-0-5 text-white hover:bg-gray-1'
+          }`}
+        >
+          Home
+        </button>
+        <button 
+          onClick={() => setCurrentPage('dashboard')}
+          className={`px-4 py-2 rounded-md shadow-md ${
+            currentPage === 'dashboard' 
+              ? 'bg-blue-3 text-white' 
+              : 'bg-gray-0-5 text-white hover:bg-gray-1'
+          }`}
+        >
+          Dashboard
+        </button>
+      </div>
+    </AppProvider>
+  );
 }
 
-export default App
+export default App;
