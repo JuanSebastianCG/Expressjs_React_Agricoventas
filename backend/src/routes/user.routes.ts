@@ -3,7 +3,6 @@ import { UserController } from '../controllers/user.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { updateUserSchema, userIdSchema } from '../schemas/user.schema';
-
 const router = Router();
 const userController = new UserController();
 

@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   fullName     String
@@ -21,9 +20,216 @@ model User {
   updatedAt    DateTime @updatedAt
 }
 
+model Product {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  name                   String
+  description            String?
+  price                  Float
+  quantity               Int
+  photos                 String[]
+  category               String   @db.ObjectId
+  availability_start_date DateTime
+  availability_end_date   DateTime
+  farmer_id              String   @db.ObjectId
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("products")
+}
+
+model Category {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String    @unique
+  description String?
+  parentId    String?   @db.ObjectId
+  level       Int       @default(1)
+  path        String[]  @db.ObjectId
+  isActive    Boolean   @default(true)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("categories")
+  @@index([parentId])
+  // Eliminado el índice duplicado: @@index([slug])
+}
+
+model Order {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  orderNumber       String          @unique
+  customerId        String          @db.ObjectId
+  status            OrderStatus     @default(PENDING)
+  totalAmount       Float
+  subtotal          Float
+  tax               Float
+  shippingCost      Float
+  discount          Float           @default(0)
+  notes             String?
+  shippingAddress   Address
+  billingAddress    Address?
+  paymentMethod     PaymentMethod
+  paymentStatus     PaymentStatus   @default(PENDING)
+  paymentDetails    Json?
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  trackingNumber    String?
+  shippingProvider  String?
+  estimatedDelivery DateTime?
+  deliveredAt       DateTime?
+  canceledAt        DateTime?
+  cancelReason      String?
+  refundAmount      Float?
+  refundReason      String?
+  refundedAt        DateTime?
+  metadata          Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  items             OrderItem[]
+
+  @@map("orders")
+  @@index([customerId])
+  // Eliminado el índice duplicado: @@index([orderNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId     String   @db.ObjectId
+  productId   String   @db.ObjectId
+  productName String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  farmerId    String   @db.ObjectId
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+  @@index([orderId])
+  @@index([productId])
+  @@index([farmerId])
+}
+
+model Invoice {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceNumber String        @unique
+  orderId       String        @db.ObjectId
+  customerId    String        @db.ObjectId
+  amount        Float
+  status        InvoiceStatus @default(PENDING)
+  dueDate       DateTime?
+  paidAt        DateTime?
+  pdfUrl        String?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("invoices")
+  @@index([orderId])
+  @@index([customerId])
+  // Eliminado el índice duplicado: @@index([invoiceNumber])
+}
+
+model Shipment {
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  orderId          String         @db.ObjectId
+  trackingNumber   String?
+  carrier          String?
+  status           ShipmentStatus @default(PROCESSING)
+  shippingMethod   String
+  shippingCost     Float
+  estimatedDelivery DateTime?
+  actualDelivery   DateTime?
+  shippingAddress  Address
+  metadata         Json?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("shipments")
+  @@index([orderId])
+  @@index([trackingNumber])
+}
+
+type Address {
+  fullName    String
+  line1       String
+  line2       String?
+  city        String
+  state       String
+  postalCode  String
+  country     String
+  phoneNumber String?
+  email       String?
+  isDefault   Boolean @default(false)
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELED
+  REFUNDED
+  ON_HOLD
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  PAYPAL
+  CASH_ON_DELIVERY
+  MOBILE_PAYMENT
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  RETURNED
+  PARTIALLY_RETURNED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELED
+  REFUNDED
+}
+
+enum ShipmentStatus {
+  PROCESSING
+  READY_FOR_PICKUP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
 model BlacklistedToken {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  FARMER
+  BUYER
 }
