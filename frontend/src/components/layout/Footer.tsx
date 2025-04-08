@@ -1,4 +1,5 @@
 import React from 'react';
+import IconNoBackground from '../../assets/IconNoBackground.png';
 
 const Footer: React.FC = () => {
   const year = new Date().getFullYear();
@@ -10,16 +11,11 @@ const Footer: React.FC = () => {
           {/* Logo & Brief Description */}
           <div className="md:col-span-1">
             <div className="flex items-center mb-4">
-              <div className="text-white mr-2">
-                {/* Simple leaf icon */}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold">
-                <span className="text-white">Agric</span>
-                <span className="text-yellow-1">oventas</span>
-              </h2>
+              <img 
+                src={IconNoBackground} 
+                alt="Agricoventas Logo" 
+                className="h-12 w-auto"
+              />
             </div>
             <p className="text-gray-0-5 mb-4">
               Conectando el campo colombiano con el futuro digital, eliminando intermediarios y garantizando precios justos.
@@ -104,8 +100,13 @@ const Footer: React.FC = () => {
           </div>
         </div>
         
-        {/* Social Media Icons */}
-        <div className="mt-8 pt-6 border-t border-gray-0-5/30 flex flex-col md:flex-row justify-between items-center">
+        {/* Copyright and Social Links */}
+        <div className="mt-8 pt-8 border-t border-gray-0-5 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-gray-0-5 text-sm mb-4 md:mb-0">
+            &copy; {year} Agricoventas. Todos los derechos reservados.
+          </p>
+          
+          {/* Social Media Icons */}
           <div className="flex space-x-4">
             <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="text-gray-0-5 hover:text-white transition-colors">
               <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

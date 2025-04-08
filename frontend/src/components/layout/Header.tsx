@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import IconNoBackground from '../../assets/IconNoBackground.png';
 
 interface HeaderProps {
   title?: string;
@@ -8,11 +9,27 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   const { isAuthenticated, user, logout } = useAppContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     console.log('Header - Estado de autenticación:', isAuthenticated);
     console.log('Header - Usuario:', user?.username || 'no hay usuario');
   }, [isAuthenticated, user]);
+
+  // Agregar event listener para cerrar menu al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Extraer iniciales del nombre del usuario
   const getUserInitials = () => {
@@ -32,8 +49,13 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
+  const toggleUserMenu = () => {
+    setUserMenuOpen(!userMenuOpen);
+  };
+
   const handleLogout = () => {
     logout();
+    setUserMenuOpen(false);
     window.location.href = '/';
   };
 
@@ -42,14 +64,11 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center cursor-pointer" onClick={() => navigate('home')}>
-          <svg width="30" height="30" viewBox="0 0 24 24" className="mr-2">
-            <path d="M4.99 7.96c.2-1.01.84-1.83 1.8-2.27l3.99-1.86c.18-.08.38-.08.56 0l4.01 1.86c1.83.84 2.66 3.01 1.82 4.85-.38.82-1.07 1.47-1.92 1.77" fill="#E3E986" />
-            <path d="M10.35 8.5c.2-1.01.84-1.83 1.8-2.27l3.99-1.86c.18-.08.38-.08.56 0l4.01 1.86c1.83.84 2.66 3.01 1.82 4.85-.38.82-1.07 1.47-1.92 1.77" fill="#046B4D" />
-          </svg>
-          <h1 className="text-xl font-bold">
-            <span className="text-green-1">Agric</span>
-            <span className="text-yellow-1">oventas</span>
-          </h1>
+          <img 
+            src={IconNoBackground} 
+            alt="Agricoventas Logo" 
+            className="h-12"
+          />
         </div>
 
         {isAuthenticated ? (
@@ -70,19 +89,52 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
               </a>
             </nav>
 
-            {/* User profile - Desktop */}
-            <div className="hidden md:flex items-center">
-              <div className="relative flex items-center">
-                <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
-                  <span>{getUserInitials()}</span>
-                </div>
-                <span className="text-gray-1 mr-1">Hola, {user?.fullName || 'Usuario'}</span>
+            {/* User profile dropdown - Desktop */}
+            <div className="hidden md:flex items-center" ref={userMenuRef}>
+              <div className="relative">
                 <button 
-                  onClick={handleLogout}
-                  className="ml-4 px-4 py-2 bg-red-1 text-white rounded-md hover:bg-red-600 transition-colors"
+                  onClick={toggleUserMenu}
+                  className="flex items-center space-x-2 text-gray-1 hover:text-green-1 focus:outline-none"
                 >
-                  Salir
+                  <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white">
+                    <span>{getUserInitials()}</span>
+                  </div>
+                  <span>Hola, {user?.fullName || 'Usuario'}</span>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-5 w-5 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+                
+                {/* Dropdown menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-0-5">
+                    <a 
+                      href="/perfil" 
+                      className="block px-4 py-2 text-gray-1 hover:bg-gray-0-2 hover:text-green-1"
+                    >
+                      Mi Perfil
+                    </a>
+                    <a 
+                      href="/configuracion" 
+                      className="block px-4 py-2 text-gray-1 hover:bg-gray-0-2 hover:text-green-1"
+                    >
+                      Configuración
+                    </a>
+                    <div className="border-t border-gray-0-5 my-1"></div>
+                    <button 
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-red-1 hover:bg-gray-0-2 hover:text-red-700"
+                    >
+                      Cerrar Sesión
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -143,16 +195,36 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
             {isAuthenticated ? (
               <>
                 {/* User info for mobile */}
-                <div className="flex items-center py-2 mb-2 border-b border-gray-0-5">
-                  <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
-                    <span>{getUserInitials()}</span>
+                <div className="flex items-center justify-between py-2 mb-2 border-b border-gray-0-5">
+                  <div className="flex items-center">
+                    <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
+                      <span>{getUserInitials()}</span>
+                    </div>
+                    <span className="text-gray-1">{user?.fullName || 'Usuario'}</span>
                   </div>
-                  <span className="text-gray-1">{user?.fullName || 'Usuario'}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-red-1 hover:text-red-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </button>
                 </div>
                 
                 {/* Navigation links for logged-in users on mobile */}
                 <nav>
                   <ul className="space-y-2">
+                    <li>
+                      <a href="/perfil" className="block py-2 text-gray-1 hover:text-green-1">
+                        Mi Perfil
+                      </a>
+                    </li>
+                    <li>
+                      <a href="/configuracion" className="block py-2 text-gray-1 hover:text-green-1">
+                        Configuración
+                      </a>
+                    </li>
                     <li>
                       <a href="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
                         Mercado General
@@ -172,11 +244,6 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       <a href="/insights" className="block py-2 text-gray-1 hover:text-green-1">
                         Insights
                       </a>
-                    </li>
-                    <li>
-                      <button onClick={handleLogout} className="block w-full text-left py-2 text-red-1 hover:text-red-700">
-                        Cerrar Sesión
-                      </button>
                     </li>
                   </ul>
                 </nav>
