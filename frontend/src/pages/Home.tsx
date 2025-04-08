@@ -58,7 +58,7 @@ const Home: React.FC = () => {
   return (
     <MainLayout title="Agricoventas">
       {/* Hero Section */}
-      <div className="bg-green-0-5/30">
+      <div className="bg-green-0-5/30 w-full">
         <div className="container mx-auto px-4 py-16 flex flex-col md:flex-row items-center">
           <div className="md:w-1/2 md:pr-8 mb-8 md:mb-0">
             <h1 className="text-3xl md:text-4xl font-bold text-blue-3 mb-4">
