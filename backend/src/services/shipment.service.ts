@@ -1,4 +1,12 @@
-import { PrismaClient, ShipmentStatus } from "@prisma/client"
+import { PrismaClient } from "@prisma/client"
+
+// Define ShipmentStatus enum if not already defined in @prisma/client
+export enum ShipmentStatus {
+  PROCESSING = "PROCESSING",
+  IN_TRANSIT = "IN_TRANSIT",
+  DELIVERED = "DELIVERED",
+  CANCELLED = "CANCELLED",
+}
 import type { UpdateShipmentDto } from "../schemas/order.schema"
 import { ShippingProviderFactory } from "../utils/shippingProviderFactory"
 
@@ -15,7 +23,7 @@ export class ShipmentService {
   async createOrUpdateShipment(order: any, shipmentData: UpdateShipmentDto) {
     try {
       // Check if shipment already exists
-      const existingShipment = await prisma.Shipment.findFirst({
+      const existingShipment = await prisma.shipment.findFirst({
         where: { orderId: order.id },
       })
 
@@ -37,12 +45,12 @@ export class ShipmentService {
       // Determine shipment status
       let status = ShipmentStatus.PROCESSING
       if (shipmentData.trackingNumber) {
-        status = ShipmentStatus.IN_TRANSIT
+        status = ShipmentStatus.IN_TRANSIT // Ensure the enum value is accessed correctly
       }
 
       if (existingShipment) {
         // Update existing shipment
-        return prisma.Shipment.update({
+        return prisma.shipment.update({
           where: { id: existingShipment.id },
           data: {
             trackingNumber: shipmentData.trackingNumber || existingShipment.trackingNumber,
@@ -53,7 +61,9 @@ export class ShipmentService {
               : existingShipment.estimatedDelivery,
             metadata: shippingProviderResult
               ? {
-                  ...existingShipment.metadata,
+                  ...(typeof existingShipment.metadata === 'object' && existingShipment.metadata !== null
+                    ? existingShipment.metadata
+                    : {}),
                   ...shippingProviderResult,
                 }
               : existingShipment.metadata,
@@ -61,7 +71,7 @@ export class ShipmentService {
         })
       } else {
         // Create new shipment
-        return prisma.Shipment.create({
+        return prisma.shipment.create({
           data: {
             orderId: order.id,
             trackingNumber: shipmentData.trackingNumber,
@@ -107,7 +117,7 @@ export class ShipmentService {
    * @returns Shipment if found, null otherwise
    */
   async getShipmentByOrderId(orderId: string) {
-    return prisma.Shipment.findFirst({
+    return prisma.shipment.findFirst({
       where: { orderId },
     })
   }

@@ -1,7 +1,7 @@
 import { Router } from "express"
 import { OrderController } from "../controllers/order.controller"
 import { OrderMiddleware } from "../middleware/order.middleware"
-import { AuthMiddleware } from "../middleware/auth.middleware"
+import { authenticate, authorize } from "../middleware/auth.middleware"
 
 const router = Router()
 const orderController = new OrderController()
@@ -103,7 +103,7 @@ const orderController = new OrderController()
  */
 router.post(
   "/orders",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateCreateOrder,
   orderController.createOrder.bind(orderController),
 )
@@ -137,7 +137,7 @@ router.post(
  */
 router.get(
   "/orders/:order_id",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateOrderId,
   orderController.getOrderById.bind(orderController),
 )
@@ -171,7 +171,7 @@ router.get(
  */
 router.get(
   "/orders/number/:order_number",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateOrderNumber,
   orderController.getOrderByNumber.bind(orderController),
 )
@@ -271,7 +271,7 @@ router.get(
  */
 router.get(
   "/orders",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateOrderQuery,
   orderController.getOrders.bind(orderController),
 )
@@ -332,7 +332,7 @@ router.get(
  */
 router.put(
   "/orders/:order_id",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.isAdmin,
   OrderMiddleware.validateOrderId,
   OrderMiddleware.validateUpdateOrder,
@@ -384,7 +384,7 @@ router.put(
  */
 router.post(
   "/orders/:order_id/payment",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateOrderId,
   OrderMiddleware.validatePaymentUpdate,
   orderController.processPayment.bind(orderController),
@@ -438,7 +438,7 @@ router.post(
  */
 router.post(
   "/orders/:order_id/shipment",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.isAdmin,
   OrderMiddleware.validateOrderId,
   OrderMiddleware.validateShipmentUpdate,
@@ -487,7 +487,7 @@ router.post(
  */
 router.post(
   "/orders/:order_id/cancel",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateOrderId,
   OrderMiddleware.validateCancelOrder,
   orderController.cancelOrder.bind(orderController),
@@ -538,7 +538,7 @@ router.post(
  */
 router.post(
   "/orders/:order_id/refund",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.isAdmin,
   OrderMiddleware.validateOrderId,
   OrderMiddleware.validateRefundOrder,
@@ -576,7 +576,7 @@ router.post(
  */
 router.post(
   "/orders/:order_id/delivered",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.isAdmin,
   OrderMiddleware.validateOrderId,
   orderController.markAsDelivered.bind(orderController),
@@ -616,7 +616,7 @@ router.post(
  *       500:
  *         description: Server error
  */
-router.get("/orders/analytics", AuthMiddleware.authenticate, orderController.getOrderAnalytics.bind(orderController))
+router.get("/orders/analytics", authenticate, orderController.getOrderAnalytics.bind(orderController))
 
 /**
  * @swagger
@@ -718,7 +718,7 @@ router.get("/shipping/track/:tracking_number", orderController.trackShipment.bin
  */
 router.get(
   "/orders/:order_id/invoice",
-  AuthMiddleware.authenticate,
+  authenticate,
   OrderMiddleware.validateOrderId,
   orderController.getInvoice.bind(orderController),
 )

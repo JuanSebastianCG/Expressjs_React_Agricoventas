@@ -45,7 +45,7 @@ export class OrderService {
 
       // Fetch products and validate availability
       for (const item of data.items) {
-        const product = await tx.Product.findUnique({
+        const product = await tx.product.findUnique({
           where: { id: item.productId },
         })
 
@@ -76,7 +76,7 @@ export class OrderService {
         })
 
         // Update product quantity
-        await tx.Product.update({
+        await tx.product.update({
           where: { id: product.id },
           data: { quantity: product.quantity - item.quantity },
         })
@@ -89,7 +89,7 @@ export class OrderService {
       const orderNumber = generateOrderNumber()
 
       // 4. Create the order
-      const order = await tx.Order.create({
+      const order = await tx.order.create({
         data: {
           orderNumber,
           customerId: data.customerId,
@@ -130,7 +130,7 @@ export class OrderService {
    * @returns Order if found, null otherwise
    */
   async findById(id: string) {
-    return prisma.Order.findUnique({
+    return prisma.order.findUnique({
       where: { id },
       include: {
         items: true,
@@ -144,7 +144,7 @@ export class OrderService {
    * @returns Order if found, null otherwise
    */
   async findByOrderNumber(orderNumber: string) {
-    return prisma.Order.findUnique({
+    return prisma.order.findUnique({
       where: { orderNumber },
       include: {
         items: true,
@@ -216,7 +216,7 @@ export class OrderService {
 
     // Get orders and total count
     const [orders, total] = await Promise.all([
-      prisma.Order.findMany({
+      prisma.order.findMany({
         where,
         include: {
           items: true,
@@ -225,7 +225,7 @@ export class OrderService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
       }),
-      prisma.Order.count({ where }),
+      prisma.order.count({ where }),
     ])
 
     return {
@@ -246,7 +246,7 @@ export class OrderService {
    * @returns Updated order
    */
   async update(id: string, data: UpdateOrderDto) {
-    return prisma.Order.update({
+    return prisma.order.update({
       where: { id },
       data,
       include: {
@@ -272,7 +272,7 @@ export class OrderService {
     const paymentResult = await this.paymentService.processPayment(order, paymentData)
 
     // Update order with payment result
-    const updatedOrder = await prisma.Order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id },
       data: {
         paymentStatus: paymentResult.status,
@@ -312,7 +312,7 @@ export class OrderService {
     const shipmentResult = await this.shipmentService.createOrUpdateShipment(order, shipmentData)
 
     // Update order with shipment result
-    const updatedOrder = await prisma.Order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id },
       data: {
         trackingNumber: shipmentData.trackingNumber,
@@ -360,7 +360,7 @@ export class OrderService {
     return prisma.$transaction(async (tx) => {
       // Restore product quantities
       for (const item of order.items) {
-        await tx.Product.update({
+        await tx.product.update({
           where: { id: item.productId },
           data: {
             quantity: {
@@ -371,7 +371,7 @@ export class OrderService {
       }
 
       // Update order status
-      const updatedOrder = await tx.Order.update({
+      const updatedOrder = await tx.order.update({
         where: { id },
         data: {
           status: OrderStatus.CANCELED,
@@ -424,7 +424,7 @@ export class OrderService {
     const refundResult = await this.paymentService.processRefund(order, refundData)
 
     // Update order with refund result
-    const updatedOrder = await prisma.Order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id },
       data: {
         status: OrderStatus.REFUNDED,
@@ -467,7 +467,7 @@ export class OrderService {
       throw new Error("Only completed orders can be marked as delivered")
     }
 
-    const updatedOrder = await prisma.Order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id },
       data: {
         deliveredAt: new Date(),
@@ -491,24 +491,25 @@ export class OrderService {
    * @param toDate - End date for analytics
    * @returns Order analytics data
    */
+  
   async getOrderAnalytics(customerId?: string, fromDate?: string, toDate?: string) {
     const where: any = {}
-
+  
     if (customerId) {
       where.customerId = customerId
     }
-
+  
     // Date range filter
     if (fromDate || toDate) {
       where.createdAt = {}
       if (fromDate) where.createdAt.gte = new Date(fromDate)
       if (toDate) where.createdAt.lte = new Date(toDate)
     }
-
+  
     // Get total orders and revenue
     const [totalOrders, totalRevenue, ordersByStatus, ordersByPaymentMethod] = await Promise.all([
-      prisma.Order.count({ where }),
-      prisma.Order.aggregate({
+      prisma.order.count({ where }),
+      prisma.order.aggregate({
         where: {
           ...where,
           status: { not: OrderStatus.CANCELED },
@@ -517,12 +518,12 @@ export class OrderService {
           totalAmount: true,
         },
       }),
-      prisma.Order.groupBy({
+      prisma.order.groupBy({
         by: ["status"],
         where,
         _count: true,
       }),
-      prisma.Order.groupBy({
+      prisma.order.groupBy({
         by: ["paymentMethod"],
         where,
         _count: true,
@@ -531,9 +532,9 @@ export class OrderService {
         },
       }),
     ])
-
+  
     // Get top products
-    const topProducts = await prisma.OrderItem.groupBy({
+    const topProducts = await prisma.orderItem.groupBy({
       by: ["productId", "productName"],
       where: {
         order: {
@@ -552,22 +553,52 @@ export class OrderService {
       },
       take: 10,
     })
-
-    // Get sales by date
-    const salesByDate = await prisma.$queryRaw`
-      SELECT 
-        DATE_TRUNC('day', "createdAt") as date,
-        COUNT(*) as "orderCount",
-        SUM("totalAmount") as "totalSales"
-      FROM "orders"
-      WHERE "status" != ${OrderStatus.CANCELED}
-      ${customerId ? `AND "customerId" = ${customerId}` : ""}
-      ${fromDate ? `AND "createdAt" >= ${new Date(fromDate)}` : ""}
-      ${toDate ? `AND "createdAt" <= ${new Date(toDate)}` : ""}
-      GROUP BY DATE_TRUNC('day', "createdAt")
-      ORDER BY date ASC
-    `
-
+  
+    // Get sales by date using MongoDB aggregation
+    const salesByDate = await prisma.order.aggregateRaw({
+      pipeline: [
+        // Match orders that aren't canceled
+        {
+          $match: {
+            status: { $ne: OrderStatus.CANCELED },
+            ...(customerId ? { customerId: customerId } : {}),
+            ...(fromDate || toDate ? {
+              createdAt: {
+                ...(fromDate ? { $gte: new Date(fromDate) } : {}),
+                ...(toDate ? { $lte: new Date(toDate) } : {})
+              }
+            } : {})
+          }
+        },
+        // Group by date
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+              day: { $dayOfMonth: "$createdAt" }
+            },
+            date: { $first: "$createdAt" },
+            orderCount: { $sum: 1 },
+            totalSales: { $sum: "$totalAmount" }
+          }
+        },
+        // Project to format the output
+        {
+          $project: {
+            _id: 0,
+            date: 1,
+            orderCount: 1,
+            totalSales: 1
+          }
+        },
+        // Sort by date
+        {
+          $sort: { date: 1 }
+        }
+      ]
+    });
+  
     return {
       totalOrders,
       totalRevenue: totalRevenue._sum.totalAmount || 0,
@@ -629,7 +660,7 @@ export class OrderService {
 
     // Get orders and total count
     const [orders, total] = await Promise.all([
-      prisma.Order.findMany({
+      prisma.order.findMany({
         where,
         include: {
           items: {
@@ -642,7 +673,7 @@ export class OrderService {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
       }),
-      prisma.Order.count({ where }),
+      prisma.order.count({ where }),
     ])
 
     return {

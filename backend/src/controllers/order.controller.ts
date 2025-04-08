@@ -30,7 +30,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async createOrder(req: Request, res: Response) {
+  async createOrder(req: Request, res: Response): Promise<void> {
     try {
       const orderData: CreateOrderDto = req.body
 
@@ -41,15 +41,15 @@ export class OrderController {
 
       const order = await this.orderService.create(orderData)
 
-      return sendSuccessResponse(res, order, HttpStatusCode.CREATED)
+      sendSuccessResponse(res, order, HttpStatusCode.CREATED)
     } catch (error) {
       console.error("Error creating order:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to create order", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to create order", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -58,13 +58,14 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async getOrderById(req: Request, res: Response) {
+  async getOrderById(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
       const order = await this.orderService.findById(orderId)
 
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Check if user has permission to view this order
@@ -73,19 +74,20 @@ export class OrderController {
         const isFarmerWithItems = order.items.some((item: any) => item.farmerId === req.user?.userId)
 
         if (!isFarmerWithItems) {
-          return sendErrorResponse(
+          sendErrorResponse(
             res,
             "You don't have permission to view this order",
             HttpStatusCode.FORBIDDEN,
-            "FORBIDDEN",
+            "FORBIDDEN"
           )
+          return
         }
       }
 
-      return sendSuccessResponse(res, order)
+      sendSuccessResponse(res, order)
     } catch (error) {
       console.error("Error retrieving order:", error)
-      return sendErrorResponse(res, "Failed to retrieve order", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      sendErrorResponse(res, "Failed to retrieve order", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -94,34 +96,36 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async getOrderByNumber(req: Request, res: Response) {
+  async getOrderByNumber(req: Request, res: Response): Promise<void> {
     try {
       const orderNumber = req.params.order_number
       const order = await this.orderService.findByOrderNumber(orderNumber)
 
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Check if user has permission to view this order
       if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
         // Check if user is a farmer with items in this order
-        const isFarmerWithItems = order.items.some((item: any) => item.farmerId === req.user?.id)
+        const isFarmerWithItems = order.items.some((item: any) => item.farmerId === req.user?.userId)
 
         if (!isFarmerWithItems) {
-          return sendErrorResponse(
+          sendErrorResponse(
             res,
             "You don't have permission to view this order",
             HttpStatusCode.FORBIDDEN,
-            "FORBIDDEN",
+            "FORBIDDEN"
           )
+          return
         }
       }
 
-      return sendSuccessResponse(res, order)
+      sendSuccessResponse(res, order)
     } catch (error) {
       console.error("Error retrieving order:", error)
-      return sendErrorResponse(res, "Failed to retrieve order", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      sendErrorResponse(res, "Failed to retrieve order", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -130,7 +134,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async getOrders(req: Request, res: Response) {
+  async getOrders(req: Request, res: Response): Promise<void> {
     try {
       const queryParams: OrderQueryParams = {
         customerId: req.query.customerId as string,
@@ -151,20 +155,20 @@ export class OrderController {
       // If user is not admin, restrict to their own orders
       if (req.user && req.user.role !== "admin") {
         if (req.user.role === "buyer") {
-          queryParams.customerId = req.user.id
+          queryParams.customerId = req.user.userId
         } else if (req.user.role === "farmer") {
           // For farmers, use a different method to get their orders
-          const result = await this.orderService.getFarmerOrders(req.user.id, queryParams)
-          return sendSuccessResponse(res, result)
+          const result = await this.orderService.getFarmerOrders(req.user.userId, queryParams)
+          sendSuccessResponse(res, result)
+          return
         }
       }
 
       const result = await this.orderService.findAll(queryParams)
-
-      return sendSuccessResponse(res, result)
+      sendSuccessResponse(res, result)
     } catch (error) {
       console.error("Error retrieving orders:", error)
-      return sendErrorResponse(res, "Failed to retrieve orders", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      sendErrorResponse(res, "Failed to retrieve orders", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -173,7 +177,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async updateOrder(req: Request, res: Response) {
+  async updateOrder(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
       const updateData: UpdateOrderDto = req.body
@@ -181,21 +185,21 @@ export class OrderController {
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Update order
       const updatedOrder = await this.orderService.update(orderId, updateData)
-
-      return sendSuccessResponse(res, updatedOrder)
+      sendSuccessResponse(res, updatedOrder)
     } catch (error) {
       console.error("Error updating order:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to update order", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to update order", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -204,7 +208,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async processPayment(req: Request, res: Response) {
+  async processPayment(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
       const paymentData: UpdatePaymentDto = req.body
@@ -212,21 +216,21 @@ export class OrderController {
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Process payment
       const updatedOrder = await this.orderService.processPayment(orderId, paymentData)
-
-      return sendSuccessResponse(res, updatedOrder)
+      sendSuccessResponse(res, updatedOrder)
     } catch (error) {
       console.error("Error processing payment:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to process payment", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to process payment", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -235,7 +239,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async updateShipment(req: Request, res: Response) {
+  async updateShipment(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
       const shipmentData: UpdateShipmentDto = req.body
@@ -243,21 +247,21 @@ export class OrderController {
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Update shipment
       const updatedOrder = await this.orderService.updateShipment(orderId, shipmentData)
-
-      return sendSuccessResponse(res, updatedOrder)
+      sendSuccessResponse(res, updatedOrder)
     } catch (error) {
       console.error("Error updating shipment:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to update shipment", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to update shipment", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -266,7 +270,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async cancelOrder(req: Request, res: Response) {
+  async cancelOrder(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
       const cancelData: CancelOrderDto = req.body
@@ -274,31 +278,32 @@ export class OrderController {
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Check if user has permission to cancel this order
-      if (req.user && req.user.role !== "admin" && req.user.id !== order.customerId) {
-        return sendErrorResponse(
+      if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
+        sendErrorResponse(
           res,
           "You don't have permission to cancel this order",
           HttpStatusCode.FORBIDDEN,
-          "FORBIDDEN",
+          "FORBIDDEN"
         )
+        return
       }
 
       // Cancel order
       const updatedOrder = await this.orderService.cancelOrder(orderId, cancelData)
-
-      return sendSuccessResponse(res, updatedOrder)
+      sendSuccessResponse(res, updatedOrder)
     } catch (error) {
       console.error("Error canceling order:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to cancel order", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to cancel order", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -307,7 +312,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async processRefund(req: Request, res: Response) {
+  async processRefund(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
       const refundData: RefundOrderDto = req.body
@@ -315,21 +320,21 @@ export class OrderController {
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Process refund
       const updatedOrder = await this.orderService.processRefund(orderId, refundData)
-
-      return sendSuccessResponse(res, updatedOrder)
+      sendSuccessResponse(res, updatedOrder)
     } catch (error) {
       console.error("Error processing refund:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to process refund", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to process refund", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -338,28 +343,28 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async markAsDelivered(req: Request, res: Response) {
+  async markAsDelivered(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
 
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Mark as delivered
       const updatedOrder = await this.orderService.markAsDelivered(orderId)
-
-      return sendSuccessResponse(res, updatedOrder)
+      sendSuccessResponse(res, updatedOrder)
     } catch (error) {
       console.error("Error marking order as delivered:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to mark order as delivered", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to mark order as delivered", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -368,7 +373,7 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async getOrderAnalytics(req: Request, res: Response) {
+  async getOrderAnalytics(req: Request, res: Response): Promise<void> {
     try {
       const customerId = req.query.customerId as string
       const fromDate = req.query.fromDate as string
@@ -376,16 +381,16 @@ export class OrderController {
 
       // If user is not admin, restrict to their own analytics
       if (req.user && req.user.role !== "admin" && req.user.role === "buyer") {
-        const analytics = await this.orderService.getOrderAnalytics(req.user.id, fromDate, toDate)
-        return sendSuccessResponse(res, analytics)
+        const analytics = await this.orderService.getOrderAnalytics(req.user.userId, fromDate, toDate)
+        sendSuccessResponse(res, analytics)
+        return
       }
 
       const analytics = await this.orderService.getOrderAnalytics(customerId, fromDate, toDate)
-
-      return sendSuccessResponse(res, analytics)
+      sendSuccessResponse(res, analytics)
     } catch (error) {
       console.error("Error retrieving order analytics:", error)
-      return sendErrorResponse(res, "Failed to retrieve order analytics", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      sendErrorResponse(res, "Failed to retrieve order analytics", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -394,17 +399,16 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async getShippingMethods(req: Request, res: Response) {
+  async getShippingMethods(req: Request, res: Response): Promise<void> {
     try {
       const items = req.body.items
       const shippingAddress = req.body.shippingAddress
 
       const shippingMethods = await this.shipmentService.getShippingMethods(items, shippingAddress)
-
-      return sendSuccessResponse(res, shippingMethods)
+      sendSuccessResponse(res, shippingMethods)
     } catch (error) {
       console.error("Error retrieving shipping methods:", error)
-      return sendErrorResponse(res, "Failed to retrieve shipping methods", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      sendErrorResponse(res, "Failed to retrieve shipping methods", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -413,22 +417,21 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async trackShipment(req: Request, res: Response) {
+  async trackShipment(req: Request, res: Response): Promise<void> {
     try {
       const trackingNumber = req.params.tracking_number
       const carrier = req.query.carrier as string
 
       const trackingInfo = await this.shipmentService.trackShipment(trackingNumber, carrier)
-
-      return sendSuccessResponse(res, trackingInfo)
+      sendSuccessResponse(res, trackingInfo)
     } catch (error) {
       console.error("Error tracking shipment:", error)
 
       if (error instanceof Error) {
-        return sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
+      } else {
+        sendErrorResponse(res, "Failed to track shipment", HttpStatusCode.INTERNAL_SERVER_ERROR)
       }
-
-      return sendErrorResponse(res, "Failed to track shipment", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 
@@ -437,36 +440,38 @@ export class OrderController {
    * @param req - Express request
    * @param res - Express response
    */
-  async getInvoice(req: Request, res: Response) {
+  async getInvoice(req: Request, res: Response): Promise<void> {
     try {
       const orderId = req.params.order_id
 
       // Check if order exists
       const order = await this.orderService.findById(orderId)
       if (!order) {
-        return sendNotFoundResponse(res, "Order not found")
+        sendNotFoundResponse(res, "Order not found")
+        return
       }
 
       // Check if user has permission to view this invoice
-      if (req.user && req.user.role !== "admin" && req.user.id !== order.customerId) {
-        return sendErrorResponse(
+      if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
+        sendErrorResponse(
           res,
           "You don't have permission to view this invoice",
           HttpStatusCode.FORBIDDEN,
-          "FORBIDDEN",
+          "FORBIDDEN"
         )
+        return
       }
 
       const invoice = await this.invoiceService.getInvoiceByOrderNumber(order.orderNumber)
       if (!invoice) {
-        return sendNotFoundResponse(res, "Invoice not found")
+        sendNotFoundResponse(res, "Invoice not found")
+        return
       }
 
-      return sendSuccessResponse(res, invoice)
+      sendSuccessResponse(res, invoice)
     } catch (error) {
       console.error("Error retrieving invoice:", error)
-      return sendErrorResponse(res, "Failed to retrieve invoice", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      sendErrorResponse(res, "Failed to retrieve invoice", HttpStatusCode.INTERNAL_SERVER_ERROR)
     }
   }
 }
-

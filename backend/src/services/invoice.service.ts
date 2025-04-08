@@ -46,7 +46,7 @@ export class InvoiceService {
       const pdfUrl = await generateInvoicePdf(order)
 
       // Update invoice with PDF URL
-      await prisma.Invoice.update({
+      await prisma.invoice.update({
         where: { id: invoiceId },
         data: { pdfUrl },
       })
@@ -61,7 +61,7 @@ export class InvoiceService {
    * @returns Invoice if found, null otherwise
    */
   async getInvoiceByOrderNumber(orderNumber: string) {
-    const order = await prisma.Order.findUnique({
+    const order = await prisma.order.findUnique({
       where: { orderNumber },
       select: { id: true },
     })
@@ -70,7 +70,7 @@ export class InvoiceService {
       return null
     }
 
-    return prisma.Invoice.findFirst({
+    return prisma.invoice.findFirst({
       where: { orderId: order.id },
     })
   }
@@ -88,7 +88,7 @@ export class InvoiceService {
       throw new Error("Invoice not found")
     }
 
-    return prisma.Invoice.update({
+    return prisma.invoice.update({
       where: { id: invoice.id },
       data: {
         status: status as InvoiceStatus,
@@ -103,7 +103,7 @@ export class InvoiceService {
    * @returns Invoice if found, null otherwise
    */
   async getInvoiceById(id: string) {
-    return prisma.Invoice.findUnique({
+    return prisma.invoice.findUnique({
       where: { id },
     })
   }
@@ -138,13 +138,13 @@ export class InvoiceService {
 
     // Get invoices and total count
     const [invoices, total] = await Promise.all([
-      prisma.Invoice.findMany({
+      prisma.invoice.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
       }),
-      prisma.Invoice.count({ where }),
+      prisma.invoice.count({ where }),
     ])
 
     return {
