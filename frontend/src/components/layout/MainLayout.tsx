@@ -54,9 +54,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         )}
         
         <main className="flex-1 w-full">
-          <div className="max-w-7xl mx-auto  sm:px-6 lg:px-8 py-8">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
       
