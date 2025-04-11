@@ -19,6 +19,7 @@ describe("AuthController", () => {
   let mockResponse: Partial<Response>
 
   beforeEach(() => {
+    
   jest.clearAllMocks()
   mockAuthService = new AuthService() as jest.Mocked<AuthService>
   mockTokenService = new TokenService() as jest.Mocked<TokenService>
@@ -40,6 +41,7 @@ describe("AuthController", () => {
   ;(sendSuccessNoDataResponse as jest.Mock).mockImplementation(() => {})
   ;(sendErrorResponse as jest.Mock).mockImplementation(() => {})
 })
+
 
 
   describe("register", () => {

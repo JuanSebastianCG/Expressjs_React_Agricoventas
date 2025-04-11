@@ -1,3 +1,4 @@
+
 import request from "supertest";
 import express from "express";
 import { Router } from "express";
@@ -114,6 +115,7 @@ describe("Auth Routes Integration", () => {
     app.use("/api/auth", router);
   });
 
+
   describe("POST /api/auth/register", () => {
     it("should call register controller method", async () => {
       // Arrange
@@ -136,12 +138,14 @@ describe("Auth Routes Integration", () => {
     });
   });
 
+
   describe("POST /api/auth/login", () => {
     it("should call login controller method", async () => {
       // Arrange
       const loginData = {
         username: "testuser",
         password: "Password123!",
+
       };
 
       // Act
@@ -195,3 +199,4 @@ describe("Auth Routes Integration", () => {
     });
   });
 });
+

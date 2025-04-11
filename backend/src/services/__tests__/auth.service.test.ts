@@ -1,3 +1,4 @@
+
 import { AuthService } from '../auth.service';
 import { UserService } from '../user.service';
 import * as tokenUtils from '../../utils/tokenUtils';
@@ -18,17 +19,20 @@ type User = {
 };
 
 // Mock dependencies
+
 jest.mock('../user.service');
 jest.mock('../../utils/tokenUtils');
 jest.mock('../../utils/passwordUtils');
 
 describe('AuthService', () => {
+
   let authService: AuthService;
   let mockUserService: jest.Mocked<UserService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
+
     // Create mock UserService
     mockUserService = {
       findByUsername: jest.fn(),
@@ -61,12 +65,14 @@ describe('AuthService', () => {
         ...registerData,
         password: 'hashed-password',
         role: 'user',
+
         isActive: true,
         refreshToken: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       
+
       mockUserService.findByUsername.mockResolvedValue(null);
       mockUserService.findByEmail.mockResolvedValue(null);
       mockUserService.create.mockResolvedValue(mockUser);
@@ -75,6 +81,7 @@ describe('AuthService', () => {
       (tokenUtils.generateTokens as jest.Mock).mockReturnValue({
         accessToken: 'test-access-token',
         refreshToken: 'test-refresh-token',
+
       });
 
       // Act
@@ -85,6 +92,7 @@ describe('AuthService', () => {
       expect(mockUserService.findByEmail).toHaveBeenCalledWith(registerData.email);
       expect(mockUserService.create).toHaveBeenCalledWith(registerData);
       expect(tokenUtils.generateTokens).toHaveBeenCalled();
+
       expect(mockUserService.saveRefreshToken).toHaveBeenCalledWith('4', 'test-refresh-token');
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('tokens');
@@ -98,4 +106,5 @@ describe('AuthService', () => {
   });
 
   // Other describe blocks...
+
 });
