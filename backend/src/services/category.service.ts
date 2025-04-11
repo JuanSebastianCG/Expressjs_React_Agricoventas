@@ -22,7 +22,7 @@ export class CategoryService {
 
     if (data.parentId) {
       // Find parent category to get its level and path
-      const parentCategory = await prisma.Category.findUnique({
+      const parentCategory = await prisma.category.findUnique({
         where: { id: data.parentId },
       })
 
@@ -38,7 +38,7 @@ export class CategoryService {
     }
 
     // Create the category
-    return prisma.Category.create({
+    return prisma.category.create({
       data: {
         name: data.name,
         slug: data.slug,
@@ -57,7 +57,7 @@ export class CategoryService {
    * @returns Category if found, null otherwise
    */
   async findById(id: string) {
-    return prisma.Category.findUnique({
+    return prisma.category.findUnique({
       where: { id },
     })
   }
@@ -68,7 +68,7 @@ export class CategoryService {
    * @returns Category if found, null otherwise
    */
   async findBySlug(slug: string) {
-    return prisma.Category.findUnique({
+    return prisma.category.findUnique({
       where: { slug },
     })
   }
@@ -100,13 +100,13 @@ export class CategoryService {
 
     // Get categories and total count
     const [categories, total] = await Promise.all([
-      prisma.Category.findMany({
+      prisma.category.findMany({
         where,
         skip,
         take: limit,
         orderBy: { name: "asc" },
       }),
-      prisma.Category.count({ where }),
+      prisma.category.count({ where }),
     ])
 
     return {
@@ -126,7 +126,7 @@ export class CategoryService {
    */
   async getTree() {
     // Get all active categories
-    const allCategories = await prisma.Category.findMany({
+    const allCategories = await prisma.category.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
     })
@@ -164,7 +164,7 @@ export class CategoryService {
    * @returns Child categories
    */
   async getChildren(parentId: string) {
-    return prisma.Category.findMany({
+    return prisma.category.findMany({
       where: {
         parentId,
         isActive: true,
@@ -179,7 +179,7 @@ export class CategoryService {
    * @returns Ancestor categories
    */
   async getAncestors(categoryId: string) {
-    const category = await prisma.Category.findUnique({
+    const category = await prisma.category.findUnique({
       where: { id: categoryId },
     })
 
@@ -188,7 +188,7 @@ export class CategoryService {
     }
 
     // Get all ancestors using the path array
-    return prisma.Category.findMany({
+    return prisma.category.findMany({
       where: {
         id: { in: category.path },
       },
@@ -212,7 +212,7 @@ export class CategoryService {
 
       // Check if the new parent exists
       if (data.parentId) {
-        const newParent = await prisma.Category.findUnique({
+        const newParent = await prisma.category.findUnique({
           where: { id: data.parentId },
         })
 
@@ -239,7 +239,7 @@ export class CategoryService {
     }
 
     // Update the category
-    return prisma.Category.update({
+    return prisma.category.update({
       where: { id },
       data,
     })
@@ -253,7 +253,7 @@ export class CategoryService {
    */
   private async updateCategoryHierarchy(categoryId: string, newLevel: number, newPath: string[]) {
     // Update the category itself
-    await prisma.Category.update({
+    await prisma.category.update({
       where: { id: categoryId },
       data: {
         level: newLevel,
@@ -262,7 +262,7 @@ export class CategoryService {
     })
 
     // Get direct children
-    const children = await prisma.Category.findMany({
+    const children = await prisma.category.findMany({
       where: { parentId: categoryId },
     })
 
@@ -278,7 +278,7 @@ export class CategoryService {
    * @returns Descendant categories
    */
   async getDescendants(categoryId: string) {
-    return prisma.Category.findMany({
+    return prisma.category.findMany({
       where: {
         path: { has: categoryId },
       },
@@ -293,7 +293,7 @@ export class CategoryService {
    */
   async delete(id: string) {
     // Check if category has children
-    const childrenCount = await prisma.Category.count({
+    const childrenCount = await prisma.category.count({
       where: { parentId: id, isActive: true },
     })
 
@@ -302,7 +302,7 @@ export class CategoryService {
     }
 
     // Check if category has products
-    const productsCount = await prisma.Product.count({
+    const productsCount = await prisma.product.count({
       where: { category: id, isActive: true },
     })
 
@@ -311,7 +311,7 @@ export class CategoryService {
     }
 
     // Soft delete the category
-    return prisma.Category.update({
+    return prisma.category.update({
       where: { id },
       data: { isActive: false },
     })
@@ -324,7 +324,7 @@ export class CategoryService {
    */
   async hardDelete(id: string) {
     // Check if category has children
-    const childrenCount = await prisma.Category.count({
+    const childrenCount = await prisma.category.count({
       where: { parentId: id },
     })
 
@@ -333,7 +333,7 @@ export class CategoryService {
     }
 
     // Check if category has products
-    const productsCount = await prisma.Product.count({
+    const productsCount = await prisma.product.count({
       where: { category: id },
     })
 
@@ -342,7 +342,7 @@ export class CategoryService {
     }
 
     // Hard delete the category
-    return prisma.Category.delete({
+    return prisma.category.delete({
       where: { id },
     })
   }
@@ -357,7 +357,7 @@ export class CategoryService {
     // Exclude parentId from bulk updates to avoid hierarchy issues
     const { parentId, ...updateData } = data
 
-    const result = await prisma.Category.updateMany({
+    const result = await prisma.category.updateMany({
       where: {
         id: { in: ids },
       },
@@ -380,7 +380,7 @@ export class CategoryService {
       where.id = { not: excludeId }
     }
 
-    const count = await prisma.Category.count({ where })
+    const count = await prisma.category.count({ where })
     return count === 0
   }
 }

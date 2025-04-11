@@ -21,7 +21,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateCreateOrder(req: Request, res: Response, next: NextFunction) {
+  static validateCreateOrder(req: Request, res: Response, next: NextFunction): void {
     try {
       createOrderSchema.parse(req.body)
       next()
@@ -32,16 +32,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid order data",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid order data", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid order data", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -51,7 +52,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateUpdateOrder(req: Request, res: Response, next: NextFunction) {
+  static validateUpdateOrder(req: Request, res: Response, next: NextFunction): void {
     try {
       updateOrderSchema.parse(req.body)
       next()
@@ -62,16 +63,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid order data",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid order data", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid order data", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -81,7 +83,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateOrderQuery(req: Request, res: Response, next: NextFunction) {
+  static validateOrderQuery(req: Request, res: Response, next: NextFunction): void {
     try {
       const query = orderQuerySchema.parse({
         customerId: req.query.customerId,
@@ -100,7 +102,12 @@ export class OrderMiddleware {
       })
 
       // Add parsed values back to req.query
-      req.query = { ...req.query, ...query }
+      req.query = { 
+        ...req.query, 
+        ...Object.fromEntries(
+          Object.entries(query).map(([key, value]) => [key, value?.toString()])
+        ) 
+      }
       next()
     } catch (error) {
       if (error instanceof ZodError) {
@@ -109,16 +116,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid query parameters",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid query parameters", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid query parameters", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -128,12 +136,12 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateOrderId(req: Request, res: Response, next: NextFunction) {
+  static validateOrderId(req: Request, res: Response, next: NextFunction): void {
     try {
       orderIdSchema.parse({ order_id: req.params.order_id })
       next()
     } catch (error) {
-      return sendErrorResponse(res, "Invalid order ID", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid order ID", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -143,12 +151,12 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateOrderNumber(req: Request, res: Response, next: NextFunction) {
+  static validateOrderNumber(req: Request, res: Response, next: NextFunction): void {
     try {
       orderNumberSchema.parse({ order_number: req.params.order_number })
       next()
     } catch (error) {
-      return sendErrorResponse(res, "Invalid order number", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid order number", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -158,7 +166,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateCancelOrder(req: Request, res: Response, next: NextFunction) {
+  static validateCancelOrder(req: Request, res: Response, next: NextFunction): void {
     try {
       cancelOrderSchema.parse(req.body)
       next()
@@ -169,16 +177,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid cancel data",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid cancel data", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid cancel data", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -188,7 +197,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateRefundOrder(req: Request, res: Response, next: NextFunction) {
+  static validateRefundOrder(req: Request, res: Response, next: NextFunction): void {
     try {
       refundOrderSchema.parse(req.body)
       next()
@@ -199,16 +208,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid refund data",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid refund data", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid refund data", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -218,7 +228,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validatePaymentUpdate(req: Request, res: Response, next: NextFunction) {
+  static validatePaymentUpdate(req: Request, res: Response, next: NextFunction): void {
     try {
       updatePaymentSchema.parse(req.body)
       next()
@@ -229,16 +239,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid payment data",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid payment data", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid payment data", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -248,7 +259,7 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static validateShipmentUpdate(req: Request, res: Response, next: NextFunction) {
+  static validateShipmentUpdate(req: Request, res: Response, next: NextFunction): void {
     try {
       updateShipmentSchema.parse(req.body)
       next()
@@ -259,16 +270,17 @@ export class OrderMiddleware {
           message: err.message,
         }))
 
-        return sendErrorResponse(
+        sendErrorResponse(
           res,
           "Invalid shipment data",
           HttpStatusCode.BAD_REQUEST,
           "VALIDATION_ERROR",
           errorMessages,
         )
+        return
       }
 
-      return sendErrorResponse(res, "Invalid shipment data", HttpStatusCode.BAD_REQUEST)
+      sendErrorResponse(res, "Invalid shipment data", HttpStatusCode.BAD_REQUEST)
     }
   }
 
@@ -278,9 +290,10 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  static isAuthenticated(req: Request, res: Response, next: NextFunction): void {
     if (!req.user) {
-      return sendErrorResponse(res, "Authentication required", HttpStatusCode.UNAUTHORIZED, "UNAUTHORIZED")
+      sendErrorResponse(res, "Authentication required", HttpStatusCode.UNAUTHORIZED, "UNAUTHORIZED")
+      return
     }
 
     next()
@@ -292,9 +305,10 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static isAdmin(req: Request, res: Response, next: NextFunction) {
+  static isAdmin(req: Request, res: Response, next: NextFunction): void {
     if (!req.user || req.user.role !== "admin") {
-      return sendErrorResponse(res, "Admin access required", HttpStatusCode.FORBIDDEN, "FORBIDDEN")
+      sendErrorResponse(res, "Admin access required", HttpStatusCode.FORBIDDEN, "FORBIDDEN")
+      return
     }
 
     next()
@@ -306,12 +320,12 @@ export class OrderMiddleware {
    * @param res - Express response
    * @param next - Express next function
    */
-  static isBuyer(req: Request, res: Response, next: NextFunction) {
+  static isBuyer(req: Request, res: Response, next: NextFunction): void {
     if (!req.user || req.user.role !== "buyer") {
-      return sendErrorResponse(res, "Buyer access required", HttpStatusCode.FORBIDDEN, "FORBIDDEN")
+      sendErrorResponse(res, "Buyer access required", HttpStatusCode.FORBIDDEN, "FORBIDDEN")
+      return
     }
 
     next()
   }
 }
-
