@@ -19,26 +19,30 @@ describe("AuthController", () => {
   let mockResponse: Partial<Response>
 
   beforeEach(() => {
-    jest.clearAllMocks()
-    mockAuthService = new AuthService() as jest.Mocked<AuthService>
-    mockTokenService = new TokenService() as jest.Mocked<TokenService>
-    authController = new AuthController()
+    
+  jest.clearAllMocks()
+  mockAuthService = new AuthService() as jest.Mocked<AuthService>
+  mockTokenService = new TokenService() as jest.Mocked<TokenService>
+  authController = new AuthController(mockAuthService, mockTokenService)
 
-    mockRequest = {
-      body: {},
-      cookies: {},
-      headers: {},
-      user: undefined,
-    }
+  mockRequest = {
+    body: {},
+    cookies: {},
+    headers: {},
+    user: undefined,
+  }
 
-    mockResponse = {
-      cookie: jest.fn(),
-      clearCookie: jest.fn(),
-    }
-    ;(sendSuccessResponse as jest.Mock).mockImplementation(() => {})
-    ;(sendSuccessNoDataResponse as jest.Mock).mockImplementation(() => {})
-    ;(sendErrorResponse as jest.Mock).mockImplementation(() => {})
-  })
+  mockResponse = {
+    cookie: jest.fn(),
+    clearCookie: jest.fn(),
+  }
+
+  ;(sendSuccessResponse as jest.Mock).mockImplementation(() => {})
+  ;(sendSuccessNoDataResponse as jest.Mock).mockImplementation(() => {})
+  ;(sendErrorResponse as jest.Mock).mockImplementation(() => {})
+})
+
+
 
   describe("register", () => {
     it("should register a user successfully", async () => {

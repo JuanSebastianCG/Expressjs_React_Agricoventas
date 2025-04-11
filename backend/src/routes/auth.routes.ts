@@ -3,9 +3,15 @@ import { AuthController } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { loginSchema, registerSchema } from '../schemas/user.schema';
+import { AuthService } from '../services/auth.service';
+import { TokenService } from '../services/token.service';
 
 const router = Router();
-const authController = new AuthController();
+
+const authService = new AuthService();
+const tokenService = new TokenService();
+
+const authController = new AuthController(authService, tokenService);
 
 /**
  * @swagger
