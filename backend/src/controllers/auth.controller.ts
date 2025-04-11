@@ -14,9 +14,9 @@ export class AuthController {
   private authService: AuthService;
   private tokenService: TokenService;
 
-  constructor() {
-    this.authService = new AuthService();
-    this.tokenService = new TokenService();
+  constructor(authService: AuthService, tokenService: TokenService) {
+    this.authService = authService;
+    this.tokenService = tokenService;
   }
 
   /**
