@@ -20,6 +20,7 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
+import locationRoutes from './routes/location.routes';
 /**
  * Middleware para manejar errores específicos de CORS
  */
@@ -92,6 +93,7 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.users, userRoutes);
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes); 
+  app.use(ROUTES_CONFIG.locations, locationRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

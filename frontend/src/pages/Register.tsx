@@ -15,6 +15,14 @@ interface RegisterFormValues {
   password: string;
   confirmPassword: string;
   acceptTerms: boolean;
+  // Location fields
+  showLocation: boolean;
+  locationName: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  description: string;
 }
 
 const Register: React.FC = () => {
@@ -71,6 +79,13 @@ const Register: React.FC = () => {
       errors.acceptTerms = 'Debe aceptar los términos y condiciones';
     }
     
+    // Only validate location fields if showLocation is true
+    if (values.showLocation) {
+      if (values.city && !values.state) {
+        errors.state = 'El estado/departamento es requerido si la ciudad está especificada';
+      }
+    }
+    
     return errors;
   };
 
@@ -87,6 +102,22 @@ const Register: React.FC = () => {
         password: values.password,
         fullName: `${values.nombre} ${values.apellido}`
       };
+
+      // Add location data if provided
+      if (values.showLocation) {
+        // Only include location if at least one field has a value
+        if (values.locationName || values.address || values.city || values.state) {
+          registerData.location = {
+            name: values.locationName || `Ubicación de ${values.nombre}`,
+            address: values.address || '',
+            city: values.city || '',
+            state: values.state || '',
+            country: 'Colombia', // Hardcoded for Colombia
+            postalCode: values.postalCode || '',
+            description: values.description || ''
+          };
+        }
+      }
       
       // Call register API
       await authService.register(registerData);
@@ -99,8 +130,11 @@ const Register: React.FC = () => {
       // Handle different error types
       if (error && error.status === 409) {
         setServerError('El nombre de usuario o correo electrónico ya está registrado.');
-      } else if (error && error.errors) {
-        // Format validation errors from the server
+      } else if (error && error.errors && Array.isArray(error.errors)) {
+        // Format validation errors array from the server
+        setServerError(error.errors.join(' '));
+      } else if (error && typeof error.errors === 'object') {
+        // Format validation errors object from the server
         const errorMessages = Object.values(error.errors).flat().join(' ');
         setServerError(errorMessages);
       } else if (error && error.message) {
@@ -122,10 +156,23 @@ const Register: React.FC = () => {
       password: '',
       confirmPassword: '',
       acceptTerms: false,
+      // Location fields
+      showLocation: false,
+      locationName: '',
+      address: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      description: ''
     },
     validate: validateForm,
     onSubmit: handleSubmit,
   });
+
+  // Toggle location section
+  const toggleLocationSection = () => {
+    form.setFieldValue('showLocation', !form.values.showLocation);
+  };
 
   // Register icon
   const registerIcon = (
@@ -138,6 +185,14 @@ const Register: React.FC = () => {
   const loginIcon = (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+    </svg>
+  );
+
+  // Location icon
+  const locationIcon = (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
 
@@ -250,14 +305,13 @@ const Register: React.FC = () => {
                   label="Contraseña"
                   type="password"
                   name="password"
-                  placeholder="Ingrese su contraseña"
+                  placeholder="Cree una contraseña segura"
                   value={form.values.password}
                   onChange={form.handleChange}
                   onBlur={form.handleBlur}
                   error={form.touched.password && !!form.errors.password}
                   helperText={form.touched.password ? form.errors.password : ''}
                   fullWidth
-                  showPasswordToggle
                 />
               </div>
               
@@ -266,54 +320,173 @@ const Register: React.FC = () => {
                   label="Confirmar contraseña"
                   type="password"
                   name="confirmPassword"
-                  placeholder="Confirme su contraseña"
+                  placeholder="Repita su contraseña"
                   value={form.values.confirmPassword}
                   onChange={form.handleChange}
                   onBlur={form.handleBlur}
                   error={form.touched.confirmPassword && !!form.errors.confirmPassword}
                   helperText={form.touched.confirmPassword ? form.errors.confirmPassword : ''}
                   fullWidth
-                  showPasswordToggle
                 />
               </div>
               
-              <div className="mt-4">
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <input
-                      id="acceptTerms"
-                      name="acceptTerms"
-                      type="checkbox"
-                      className="h-4 w-4 text-green-1 focus:ring-green-1 border-gray-0-5 rounded transition-colors"
-                      checked={form.values.acceptTerms}
+              {/* Location toggle section */}
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={toggleLocationSection}
+                  className="flex items-center text-green-1 font-medium hover:text-green-0-9 focus:outline-none transition-colors"
+                >
+                  {locationIcon}
+                  <span className="ml-2">
+                    {form.values.showLocation ? 'Ocultar información de ubicación' : 'Agregar información de ubicación (opcional)'}
+                  </span>
+                  <svg
+                    className={`ml-2 h-5 w-5 transition-transform ${form.values.showLocation ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Collapsible location fields */}
+              {form.values.showLocation && (
+                <div className="bg-white border border-gray-0-5 p-4 rounded-md mt-2 space-y-4 animate-fadeIn shadow-sm">
+                  <div>
+                    <Input
+                      label="Nombre de la ubicación"
+                      type="text"
+                      name="locationName"
+                      placeholder="Ej. Mi Finca, Mi Casa"
+                      value={form.values.locationName}
                       onChange={form.handleChange}
+                      onBlur={form.handleBlur}
+                      error={form.touched.locationName && !!form.errors.locationName}
+                      helperText={form.touched.locationName ? form.errors.locationName : ''}
+                      fullWidth
                     />
                   </div>
-                  <div className="ml-3 text-sm">
-                    <label htmlFor="acceptTerms" className="text-gray-1">
-                      Acepto los <a href="/terminos" className="text-green-1 hover:underline font-medium">términos y condiciones</a>
-                    </label>
-                    {form.touched.acceptTerms && form.errors.acceptTerms && (
-                      <FormError message={form.errors.acceptTerms} />
-                    )}
+                  
+                  <div>
+                    <Input
+                      label="Dirección"
+                      type="text"
+                      name="address"
+                      placeholder="Ej. Calle 123 #45-67"
+                      value={form.values.address}
+                      onChange={form.handleChange}
+                      onBlur={form.handleBlur}
+                      error={form.touched.address && !!form.errors.address}
+                      helperText={form.touched.address ? form.errors.address : ''}
+                      fullWidth
+                    />
                   </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Input
+                        label="Ciudad"
+                        type="text"
+                        name="city"
+                        placeholder="Ej. Medellín"
+                        value={form.values.city}
+                        onChange={form.handleChange}
+                        onBlur={form.handleBlur}
+                        error={form.touched.city && !!form.errors.city}
+                        helperText={form.touched.city ? form.errors.city : ''}
+                        fullWidth
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        label="Departamento"
+                        type="text"
+                        name="state"
+                        placeholder="Ej. Antioquia"
+                        value={form.values.state}
+                        onChange={form.handleChange}
+                        onBlur={form.handleBlur}
+                        error={form.touched.state && !!form.errors.state}
+                        helperText={form.touched.state ? form.errors.state : ''}
+                        fullWidth
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Input
+                        label="Código Postal"
+                        type="text"
+                        name="postalCode"
+                        placeholder="Ej. 050001"
+                        value={form.values.postalCode}
+                        onChange={form.handleChange}
+                        onBlur={form.handleBlur}
+                        error={form.touched.postalCode && !!form.errors.postalCode}
+                        helperText={form.touched.postalCode ? form.errors.postalCode : ''}
+                        fullWidth
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        label="Descripción"
+                        type="text"
+                        name="description"
+                        placeholder="Descripción breve"
+                        value={form.values.description}
+                        onChange={form.handleChange}
+                        onBlur={form.handleBlur}
+                        error={form.touched.description && !!form.errors.description}
+                        helperText={form.touched.description ? form.errors.description : ''}
+                        fullWidth
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start my-4">
+                <div className="flex items-center h-5">
+                  <input
+                    type="checkbox"
+                    name="acceptTerms"
+                    checked={form.values.acceptTerms}
+                    onChange={form.handleChange}
+                    className="w-4 h-4 border border-gray-0-9 rounded bg-gray-0-5 accent-green-1 cursor-pointer"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="acceptTerms" className="font-medium text-gray-1 cursor-pointer">
+                    Acepto los términos y condiciones
+                  </label>
+                  {form.touched.acceptTerms && form.errors.acceptTerms && (
+                    <FormError message={form.errors.acceptTerms} />
+                  )}
                 </div>
               </div>
               
-              <div className="mt-6">
+              <div className="pt-4">
                 <AuthButton
                   type="submit"
-                  isLoading={isSubmitting}
                   icon={registerIcon}
-                  className="bg-green-1 text-white hover:bg-green-0-9 w-full py-2.5 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                  isLoading={isSubmitting}
+                  fullWidth
+                  className="bg-green-1 text-white hover:bg-green-0-9 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {isSubmitting ? 'Registrando' : 'Registrarse'}
+                  Crear Cuenta
                 </AuthButton>
               </div>
               
               <div className="text-center mt-4">
-                <p className="text-sm text-gray-1">
-                  ¿Ya tienes una cuenta? <a href="/login" className="text-green-1 hover:underline font-medium transition-colors">Iniciar sesión</a>
+                <p className="text-gray-1">
+                  ¿Ya tienes una cuenta?{' '}
+                  <a href="/login" className="text-green-1 font-medium hover:text-green-0-9">
+                    Iniciar Sesión
+                  </a>
                 </p>
               </div>
             </form>

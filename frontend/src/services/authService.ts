@@ -10,6 +10,15 @@ export interface RegisterData {
   email: string;
   password: string;
   fullName: string;
+  location?: {
+    name?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+    description?: string;
+  };
 }
 
 export interface LoginData {
@@ -175,6 +184,17 @@ const parseApiError = (error: AxiosError): any => {
   if (error.response) {
     console.error('authService - Error de respuesta API:', error.response.status, error.response.data);
     const errorData = error.response.data as Record<string, any>;
+    
+    // Handle nested error structure
+    if (errorData.error && errorData.error.errors) {
+      return { 
+        status: error.response.status,
+        message: errorData.error.message || 'Error de validación',
+        errors: errorData.error.errors 
+      };
+    }
+    
+    // Handle standard error structure
     // Manejar posibles estructuras de error (directa o anidada)
     return errorData.data?.error || errorData.error || errorData.message || errorData;
   }

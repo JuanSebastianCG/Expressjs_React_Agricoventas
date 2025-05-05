@@ -11,15 +11,18 @@ import {
   userToSafeUser,
 } from '../schemas/user.schema';
 import { generateTokens, verifyRefreshToken } from '../utils/tokenUtils';
+import { LocationService } from './location.service';
 
 /**
  * Authentication service
  */
 export class AuthService {
   private userService: UserService;
+  private locationService: LocationService;
 
   constructor() {
     this.userService = new UserService();
+    this.locationService = new LocationService();
   }
 
   /**
@@ -42,6 +45,28 @@ export class AuthService {
 
     // Create user
     const user = await this.userService.create(userData);
+
+    // If location data is provided, create location and associate it with the user
+    if (userData.location) {
+      try {
+        const location = await this.locationService.createLocation({
+          name: userData.location.name || `${userData.fullName}'s Location`,
+          address: userData.location.address || '',
+          city: userData.location.city || '',
+          state: userData.location.state || '',
+          country: 'Colombia',
+          postalCode: userData.location.postalCode,
+          description: userData.location.description,
+          isActive: true
+        });
+
+        // Associate location with user as primary
+        await this.locationService.addLocationToUser(user.id, location.id, true);
+      } catch (error) {
+        console.error('Error creating location for user:', error);
+        // We don't throw here to avoid blocking registration if location creation fails
+      }
+    }
 
     // Generate tokens
     const payload: JwtPayload = {

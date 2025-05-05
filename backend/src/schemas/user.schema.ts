@@ -19,29 +19,41 @@ import { User } from '@prisma/client';
 export const registerSchema = z.object({
   fullName: z
     .string()
-    .min(3, { message: 'Full name must be at least 3 characters long' })
-    .max(100, { message: 'Full name cannot exceed 100 characters' })
+    .min(3, { message: 'El nombre completo debe tener al menos 3 caracteres' })
+    .max(100, { message: 'El nombre completo no puede exceder los 100 caracteres' })
     .trim(),
 
   username: z
     .string()
-    .min(3, { message: 'Username must be at least 3 characters long' })
-    .max(30, { message: 'Username cannot exceed 30 characters' })
+    .min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres' })
+    .max(30, { message: 'El nombre de usuario no puede exceder los 30 caracteres' })
     .regex(/^[a-zA-Z0-9_]+$/, {
-      message: 'Username can only contain letters, numbers and underscores',
+      message: 'El nombre de usuario solo puede contener letras, números y guiones bajos',
     })
     .trim(),
 
-  email: z.string().email({ message: 'Please provide a valid email address' }).trim().toLowerCase(),
+  email: z.string().email({ message: 'Por favor proporcione un correo electrónico válido' }).trim().toLowerCase(),
 
   password: z
     .string()
-    .min(8, { message: 'Password must be at least 8 characters long' })
-    .max(100, { message: 'Password cannot exceed 100 characters' })
-    .regex(/[A-Z]/, { message: 'Password must contain at least one uppercase letter' })
-    .regex(/[a-z]/, { message: 'Password must contain at least one lowercase letter' })
-    .regex(/[0-9]/, { message: 'Password must contain at least one number' })
-    .regex(/[^A-Za-z0-9]/, { message: 'Password must contain at least one special character' }),
+    .min(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+    .max(100, { message: 'La contraseña no puede exceder los 100 caracteres' })
+    .regex(/[A-Z]/, { message: 'La contraseña debe contener al menos una letra mayúscula' })
+    .regex(/[a-z]/, { message: 'La contraseña debe contener al menos una letra minúscula' })
+    .regex(/[0-9]/, { message: 'La contraseña debe contener al menos un número' })
+    .regex(/[^A-Za-z0-9]/, { message: 'La contraseña debe contener al menos un carácter especial' }),
+    
+  location: z.object({
+    name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').optional(),
+    address: z.string().min(5, 'La dirección debe tener al menos 5 caracteres').optional(),
+    city: z.string().min(2, 'La ciudad debe tener al menos 2 caracteres').optional(),
+    state: z.string().min(2, 'El departamento debe tener al menos 2 caracteres').optional(),
+    country: z.string().default('Colombia'),
+    postalCode: z.string().optional(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+    description: z.string().optional(),
+  }).optional(),
 });
 
 export type RegisterUserDto = z.infer<typeof registerSchema>;
@@ -52,8 +64,8 @@ export type RegisterUserDto = z.infer<typeof registerSchema>;
  * Validates user login requests
  */
 export const loginSchema = z.object({
-  username: z.string().min(1, { message: 'Username is required' }).trim(),
-  password: z.string().min(1, { message: 'Password is required' }),
+  username: z.string().min(1, { message: 'El nombre de usuario es requerido' }).trim(),
+  password: z.string().min(1, { message: 'La contraseña es requerida' }),
 });
 
 export type LoginCredentials = z.infer<typeof loginSchema>;
@@ -140,26 +152,26 @@ export const mapRegisterDtoToPrisma = (data: RegisterUserDto) => {
 export const updateUserSchema = z.object({
   fullName: z
     .string()
-    .min(3, { message: 'Full name must be at least 3 characters long' })
-    .max(100, { message: 'Full name cannot exceed 100 characters' })
+    .min(3, { message: 'El nombre completo debe tener al menos 3 caracteres' })
+    .max(100, { message: 'El nombre completo no puede exceder los 100 caracteres' })
     .trim()
     .optional(),
 
-  email: z.string().email({ message: 'Please provide a valid email address' }).trim().toLowerCase().optional(),
+  email: z.string().email({ message: 'Por favor proporcione un correo electrónico válido' }).trim().toLowerCase().optional(),
 
   password: z
     .string()
-    .min(8, { message: 'Password must be at least 8 characters long' })
-    .max(100, { message: 'Password cannot exceed 100 characters' })
-    .regex(/[A-Z]/, { message: 'Password must contain at least one uppercase letter' })
-    .regex(/[a-z]/, { message: 'Password must contain at least one lowercase letter' })
-    .regex(/[0-9]/, { message: 'Password must contain at least one number' })
-    .regex(/[^A-Za-z0-9]/, { message: 'Password must contain at least one special character' })
+    .min(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+    .max(100, { message: 'La contraseña no puede exceder los 100 caracteres' })
+    .regex(/[A-Z]/, { message: 'La contraseña debe contener al menos una letra mayúscula' })
+    .regex(/[a-z]/, { message: 'La contraseña debe contener al menos una letra minúscula' })
+    .regex(/[0-9]/, { message: 'La contraseña debe contener al menos un número' })
+    .regex(/[^A-Za-z0-9]/, { message: 'La contraseña debe contener al menos un carácter especial' })
     .optional(),
 
   role: z
     .enum(['user', 'admin'], {
-      errorMap: () => ({ message: 'Role must be either "user" or "admin"' }),
+      errorMap: () => ({ message: 'El rol debe ser "user" o "admin"' }),
     })
     .optional(),
 
@@ -176,9 +188,9 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export const userIdSchema = z.object({
   id: z
     .string()
-    .min(1, { message: 'User ID is required' })
+    .min(1, { message: 'El ID de usuario es requerido' })
     .regex(/^[0-9a-fA-F]{24}$/, {
-      message: 'Invalid user ID format',
+      message: 'Formato de ID de usuario inválido',
     }),
 });
 
