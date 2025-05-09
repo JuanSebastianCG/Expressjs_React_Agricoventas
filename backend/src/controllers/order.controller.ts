@@ -82,7 +82,6 @@ export class OrderController {
             totalAmount,
             paymentMethod: orderData.paymentMethod,
             paymentStatus: "PENDING",
-            notes: orderData.notes,
             items: {
               create: orderItems
             }
@@ -181,8 +180,8 @@ export class OrderController {
     try {
       // Parse query parameters
       const queryParams = {
-        buyerUserId: req.query.buyerUserId as string,
-        sellerId: req.query.sellerId as string,
+        buyerUserId: req.query.buyerUserId as string | null,
+        sellerId: req.query.sellerId as string | null,
         status: req.query.status as string,
         paymentStatus: req.query.paymentStatus as string,
         fromDate: req.query.fromDate as string,
@@ -198,11 +197,11 @@ export class OrderController {
         if (req.user?.userType === "BUYER") {
           // Buyers can only see their own orders
           queryParams.buyerUserId = req.user.userId;
-          queryParams.sellerId = undefined;
+          queryParams.sellerId = null;
         } else if (req.user?.userType === "SELLER") {
           // Sellers can only see orders containing their products
           queryParams.sellerId = req.user.userId;
-          queryParams.buyerUserId = undefined;
+          queryParams.buyerUserId = null;
         }
       }
 
@@ -463,7 +462,7 @@ export class OrderController {
           where: { id: orderId },
           data: {
             status: "CANCELLED",
-            notes: order.notes ? `${order.notes}\nCancelled: ${cancelReason}` : `Cancelled: ${cancelReason}`
+            updatedAt: new Date()
           },
           include: {
             items: {
@@ -509,7 +508,6 @@ export class OrderController {
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
       trackingNumber: order.trackingNumber,
-      notes: order.notes,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       items: order.items.map((item: any) => ({

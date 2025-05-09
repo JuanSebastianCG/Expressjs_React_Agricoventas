@@ -32,6 +32,7 @@ export const validateRequest = (schema: z.ZodType<any, any>) => {
           res,
           "Validation error",
           HttpStatusCode.BAD_REQUEST,
+          "VALIDATION_ERROR",
           errorMessages
         );
         return;
@@ -72,6 +73,7 @@ export const validateQuery = (schema: z.ZodType<any, any>) => {
           res,
           "Query validation error",
           HttpStatusCode.BAD_REQUEST,
+          "VALIDATION_ERROR",
           errorMessages
         );
         return;
@@ -112,6 +114,7 @@ export const validateParams = (schema: z.ZodType<any, any>) => {
           res,
           "Parameter validation error",
           HttpStatusCode.BAD_REQUEST,
+          "VALIDATION_ERROR",
           errorMessages
         );
         return;

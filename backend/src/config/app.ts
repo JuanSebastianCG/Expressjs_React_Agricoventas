@@ -48,7 +48,6 @@ export const ROUTES_CONFIG = {
   users: '/api/users',
   products: '/api/products',
   orders: '/api/orders',
-  locations: '/api/locations',
   farmers: '/api/farmers',
   payments: '/api/payments',
   messages: '/api/messages',
@@ -56,6 +55,5 @@ export const ROUTES_CONFIG = {
   analitycs: '/api/analytics',
   weather: '/api/weather',
   market: '/api/market',
-  productTypes: '/api/product-types',
   docs: '/api-docs',
 };
