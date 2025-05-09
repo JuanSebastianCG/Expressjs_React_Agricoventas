@@ -45,7 +45,7 @@ const Login: React.FC = () => {
       const loginData: LoginData = {
         username: values.username,
         password: values.password,
-        remember: true // Siempre recordar para mantener la sesión persistente
+        remember: values.rememberMe
       };
       
       console.log("Login - Iniciando sesión con:", values.username);

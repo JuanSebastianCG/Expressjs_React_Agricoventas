@@ -108,13 +108,13 @@ export class AuthController {
     try {
       const loginData: LoginDto = req.body;
       
-      // Find user by email
+      // Find user by username
       const user = await prisma.user.findUnique({
-        where: { email: loginData.email }
+        where: { username: loginData.username }
       });
       
       if (!user) {
-        sendErrorResponse(res, "Invalid email or password", HttpStatusCode.UNAUTHORIZED);
+        sendErrorResponse(res, "Invalid username or password", HttpStatusCode.UNAUTHORIZED);
         return;
       }
 
@@ -127,7 +127,7 @@ export class AuthController {
       // Verify password
       const isPasswordValid = await bcrypt.compare(loginData.password, user.passwordHash);
       if (!isPasswordValid) {
-        sendErrorResponse(res, "Invalid email or password", HttpStatusCode.UNAUTHORIZED);
+        sendErrorResponse(res, "Invalid username or password", HttpStatusCode.UNAUTHORIZED);
         return;
       }
 

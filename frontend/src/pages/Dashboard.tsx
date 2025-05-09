@@ -6,7 +6,7 @@ import MainLayout from '../components/layout/MainLayout';
 
 const Dashboard: React.FC = () => {
   const { user } = useAppContext();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.userType === 'admin';
 
   return (
     <MainLayout>
@@ -17,7 +17,7 @@ const Dashboard: React.FC = () => {
           {/* Tarjeta de bienvenida */}
           <Card className="col-span-full bg-white shadow-sm">
             <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">Bienvenido, {user?.fullName}</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Bienvenido, {user?.firstName}</h2>
               <p className="text-gray-600">
                 Este es tu panel de control donde puedes gestionar tus productos, pedidos y más.
               </p>

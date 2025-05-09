@@ -71,4 +71,28 @@ Para más detalles sobre cómo usar la documentación, consulta [la guía de Swa
 - `npm run build`: Construye la aplicación para producción
 - `npm start`: Inicia la aplicación en modo producción
 - `npx prisma generate`: Genera el cliente Prisma basado en el schema
-- `npx prisma db push`: Actualiza la base de datos con el schema actual 
+- `npx prisma db push`: Actualiza la base de datos con el schema actual
+
+# Scripts de Utilidad - Agricoventas Backend
+
+## Crear Usuario Administrador
+
+Para crear un usuario administrador rápidamente, ejecute:
+
+```bash
+npm run create-admin
+```
+
+El script le pedirá un nombre de usuario y contraseña. Esto creará un usuario con rol ADMIN en la base de datos.
+
+### ¿Cómo funciona?
+
+- Solo necesita proporcionar un nombre de usuario y contraseña
+- El script genera automáticamente un correo electrónico basado en el nombre de usuario
+- El usuario creado tendrá permisos de administrador
+- No es necesario proporcionar otros datos del usuario
+
+### Requisitos
+
+- La base de datos debe estar configurada correctamente (verificar variables de entorno)
+- Prisma debe estar inicializado y conectado a la base de datos 

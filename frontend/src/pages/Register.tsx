@@ -121,6 +121,8 @@ const Register: React.FC = () => {
         }
       }
       
+      console.log("Register - Enviando datos:", registerData.username);
+      
       // Call register API
       await authService.register(registerData);
       
