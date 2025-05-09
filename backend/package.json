@@ -13,8 +13,9 @@
     "format": "prettier --write 'src/**/*.ts'",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
-    
+    "test:coverage": "jest --coverage",
+    "create-admin": "ts-node src/scripts/createAdminUser.ts",
+    "create-admin-cli": "ts-node src/scripts/createAdminCLI.ts"
   },
   "keywords": [],
   "author": "",
@@ -52,6 +53,7 @@
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.13.10",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^10.0.0",

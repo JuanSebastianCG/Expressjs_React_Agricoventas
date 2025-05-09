@@ -34,6 +34,7 @@ export interface UserData {
   fullName: string;
   role?: string;
   isActive?: boolean;
+  profileImage?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -115,6 +116,7 @@ const authService = {
         fullName: user.fullName || user.username,
         role: user.role || 'user',
         isActive: user.isActive,
+        profileImage: user.profileImage,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       };

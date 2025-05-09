@@ -9,6 +9,8 @@ dotenv.config();
 
 // Core dependencies
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 
 // Configuration
 import { logger } from './config/logger';
@@ -17,6 +19,20 @@ import { SERVER_CONFIG, ROUTES_CONFIG } from './config/app';
 
 // Application
 import { createApp } from './server';
+
+// Ensure uploads directories exist
+const uploadsDir = path.join(__dirname, '../uploads');
+const profilesDir = path.join(uploadsDir, 'profiles');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+  logger.info('Created uploads directory');
+}
+
+if (!fs.existsSync(profilesDir)) {
+  fs.mkdirSync(profilesDir);
+  logger.info('Created profiles directory');
+}
 
 /**
  * Normalizes port value to handle various input formats

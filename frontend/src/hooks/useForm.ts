@@ -23,7 +23,7 @@ interface UseFormReturn<T> {
 /**
  * A custom hook for managing form state and validation
  */
-function useForm<T extends Record<string, any>>({
+export function useForm<T extends Record<string, any>>({
   initialValues,
   onSubmit,
   validate,
@@ -135,4 +135,5 @@ function useForm<T extends Record<string, any>>({
   };
 }
 
+// Mantener la exportación por defecto para compatibilidad con código existente
 export default useForm; 

@@ -1,5 +1,6 @@
 // Core dependencies
 import express, { Express, Request, Response, NextFunction, ErrorRequestHandler } from 'express';
+import path from 'path';
 
 // Middleware packages
 import cors from 'cors';
@@ -94,6 +95,9 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes); 
   app.use(ROUTES_CONFIG.locations, locationRoutes);
+
+  // Configurar el servicio de archivos estáticos
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

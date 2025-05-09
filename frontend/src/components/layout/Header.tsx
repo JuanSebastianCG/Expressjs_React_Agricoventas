@@ -100,6 +100,12 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                     <span>{getUserInitials()}</span>
                   </div>
                   <span>Hola, {user?.fullName || 'Usuario'}</span>
+                  {/* Badge de administrador */}
+                  {user?.role === 'admin' && (
+                    <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                      Admin
+                    </span>
+                  )}
                   <svg 
                     xmlns="http://www.w3.org/2000/svg" 
                     className={`h-5 w-5 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} 
@@ -121,11 +127,20 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       Mi Perfil
                     </a>
                     <a 
-                      href="/configuracion" 
+                      href="/dashboard" 
                       className="block px-4 py-2 text-gray-1 hover:bg-gray-0-2 hover:text-green-1"
                     >
-                      Configuración
+                      Administrar
                     </a>
+                    {/* Opción de Administrador - solo visible para administradores */}
+                    {user?.role === 'admin' && (
+                      <a 
+                        href="/admin/users" 
+                        className="block px-4 py-2 text-purple-700 hover:bg-gray-0-2 hover:text-purple-900 font-medium"
+                      >
+                        Admin
+                      </a>
+                    )}
                     <div className="border-t border-gray-0-5 my-1"></div>
                     <button 
                       onClick={handleLogout}
@@ -201,6 +216,12 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       <span>{getUserInitials()}</span>
                     </div>
                     <span className="text-gray-1">{user?.fullName || 'Usuario'}</span>
+                    {/* Badge de administrador en móvil */}
+                    {user?.role === 'admin' && (
+                      <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                        Admin
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={handleLogout}
@@ -221,10 +242,18 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       </a>
                     </li>
                     <li>
-                      <a href="/configuracion" className="block py-2 text-gray-1 hover:text-green-1">
-                        Configuración
+                      <a href="/dashboard" className="block py-2 text-gray-1 hover:text-green-1">
+                        Administrar
                       </a>
                     </li>
+                    {/* Opción de Administrador en móvil - solo visible para administradores */}
+                    {user?.role === 'admin' && (
+                      <li>
+                        <a href="/admin/users" className="block py-2 text-purple-700 hover:text-purple-900 font-medium">
+                          Admin
+                        </a>
+                      </li>
+                    )}
                     <li>
                       <a href="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
                         Mercado General

@@ -100,6 +100,7 @@ export interface SafeUser {
   email: string;
   role: string;
   isActive: boolean;
+  profileImage?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -125,6 +126,7 @@ export const userToSafeUser = (user: any): SafeUser => {
     email: user.email,
     role: user.role || 'user',
     isActive: typeof user.isActive === 'boolean' ? user.isActive : true,
+    profileImage: user.profileImage || null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -176,6 +178,8 @@ export const updateUserSchema = z.object({
     .optional(),
 
   isActive: z.boolean().optional(),
+  
+  profileImage: z.string().optional(),
 });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

@@ -9,7 +9,7 @@ import { logger } from './logger';
 export const SERVER_CONFIG = {
   port: process.env.PORT || '4000',
   env: process.env.NODE_ENV || 'development',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  //frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3005',
 };
 
 // Log configuration loading for debugging
