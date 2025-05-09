@@ -56,5 +56,6 @@ export const ROUTES_CONFIG = {
   analitycs: '/api/analytics',
   weather: '/api/weather',
   market: '/api/market',
+  productTypes: '/api/product-types',
   docs: '/api-docs',
 };

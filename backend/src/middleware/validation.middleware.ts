@@ -6,49 +6,126 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { z } from 'zod';
+import { sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 
 /**
- * Creates a middleware that validates request data against a Zod schema
- *
- * @param schema - The Zod schema to validate against
- * @param source - The part of the request to validate (body, query, params)
+ * Middleware for validating request data using Zod schemas
+ * @param schema Zod schema to validate against
  * @returns Express middleware function
  */
-export const validate = (schema: AnyZodObject, source: 'body' | 'query' | 'params' = 'body') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const validateRequest = (schema: z.ZodType<any, any>) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      // Get the data from the specified request source
-      const data = req[source];
-
-      // Validate the data against the schema
-      const validatedData = await schema.parseAsync(data);
-
-      // Replace the request data with the validated data
-      req[source] = validatedData;
-
-      // Continue to the next middleware/controller
-      next();
-    } catch (error) {
-      // Handle Zod validation errors
-      if (error instanceof ZodError) {
-        // Format validation errors
-        const formattedErrors = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`);
-
-        // Send a standardized validation error response
-        res.status(HttpStatusCode.BAD_REQUEST).json({
-          success: false,
-          error: {
-            message: 'Validation failed',
-            errors: formattedErrors,
-          },
-        });
+      // Validate request body against schema
+      const result = schema.safeParse(req.body);
+      
+      if (!result.success) {
+        // Format error messages
+        const errorMessages = result.error.errors.map((error) => ({
+          path: error.path.join("."),
+          message: error.message,
+        }));
+        
+        sendErrorResponse(
+          res,
+          "Validation error",
+          HttpStatusCode.BAD_REQUEST,
+          errorMessages
+        );
         return;
       }
+      
+      // Replace req.body with validated data
+      req.body = result.data;
+      next();
+    } catch (error: any) {
+      sendErrorResponse(
+        res,
+        error.message || "Validation error",
+        HttpStatusCode.BAD_REQUEST
+      );
+    }
+  };
+};
 
-      // If not a validation error, pass to the next error handler
-      next(error);
+/**
+ * Middleware for validating query parameters using Zod schemas
+ * @param schema Zod schema to validate against
+ * @returns Express middleware function
+ */
+export const validateQuery = (schema: z.ZodType<any, any>) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      // Validate query parameters against schema
+      const result = schema.safeParse(req.query);
+      
+      if (!result.success) {
+        // Format error messages
+        const errorMessages = result.error.errors.map((error) => ({
+          path: error.path.join("."),
+          message: error.message,
+        }));
+        
+        sendErrorResponse(
+          res,
+          "Query validation error",
+          HttpStatusCode.BAD_REQUEST,
+          errorMessages
+        );
+        return;
+      }
+      
+      // Replace req.query with validated data
+      req.query = result.data;
+      next();
+    } catch (error: any) {
+      sendErrorResponse(
+        res,
+        error.message || "Query validation error",
+        HttpStatusCode.BAD_REQUEST
+      );
+    }
+  };
+};
+
+/**
+ * Middleware for validating URL parameters using Zod schemas
+ * @param schema Zod schema to validate against
+ * @returns Express middleware function
+ */
+export const validateParams = (schema: z.ZodType<any, any>) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      // Validate URL parameters against schema
+      const result = schema.safeParse(req.params);
+      
+      if (!result.success) {
+        // Format error messages
+        const errorMessages = result.error.errors.map((error) => ({
+          path: error.path.join("."),
+          message: error.message,
+        }));
+        
+        sendErrorResponse(
+          res,
+          "Parameter validation error",
+          HttpStatusCode.BAD_REQUEST,
+          errorMessages
+        );
+        return;
+      }
+      
+      // Replace req.params with validated data
+      req.params = result.data;
+      next();
+    } catch (error: any) {
+      sendErrorResponse(
+        res,
+        error.message || "Parameter validation error",
+        HttpStatusCode.BAD_REQUEST
+      );
     }
   };
 };

@@ -15,14 +15,15 @@ interface RegisterFormValues {
   password: string;
   confirmPassword: string;
   acceptTerms: boolean;
+  userType: 'BUYER' | 'SELLER';
   // Location fields
   showLocation: boolean;
-  locationName: string;
-  address: string;
+  addressLine1: string;
+  addressLine2: string;
   city: string;
-  state: string;
+  department: string;
   postalCode: string;
-  description: string;
+  country: string;
 }
 
 const Register: React.FC = () => {
@@ -81,8 +82,8 @@ const Register: React.FC = () => {
     
     // Only validate location fields if showLocation is true
     if (values.showLocation) {
-      if (values.city && !values.state) {
-        errors.state = 'El estado/departamento es requerido si la ciudad está especificada';
+      if (values.city && !values.department) {
+        errors.department = 'El departamento es requerido si la ciudad está especificada';
       }
     }
     
@@ -95,26 +96,27 @@ const Register: React.FC = () => {
     setServerError(null);
     
     try {
-      // Prepare data for API 
+      // Create register data
       const registerData: RegisterData = {
         username: values.username,
         email: values.email,
         password: values.password,
-        fullName: `${values.nombre} ${values.apellido}`
+        firstName: values.nombre,
+        lastName: values.apellido,
+        userType: values.userType || 'BUYER'
       };
 
       // Add location data if provided
       if (values.showLocation) {
         // Only include location if at least one field has a value
-        if (values.locationName || values.address || values.city || values.state) {
+        if (values.addressLine1 || values.city || values.department) {
           registerData.location = {
-            name: values.locationName || `Ubicación de ${values.nombre}`,
-            address: values.address || '',
+            addressLine1: values.addressLine1 || '',
+            addressLine2: values.addressLine2 || '',
             city: values.city || '',
-            state: values.state || '',
-            country: 'Colombia', // Hardcoded for Colombia
-            postalCode: values.postalCode || '',
-            description: values.description || ''
+            department: values.department || '',
+            country: values.country || 'Colombia',
+            postalCode: values.postalCode || ''
           };
         }
       }
@@ -156,14 +158,15 @@ const Register: React.FC = () => {
       password: '',
       confirmPassword: '',
       acceptTerms: false,
+      userType: 'BUYER',
       // Location fields
       showLocation: false,
-      locationName: '',
-      address: '',
+      addressLine1: '',
+      addressLine2: '',
       city: '',
-      state: '',
+      department: '',
       postalCode: '',
-      description: ''
+      country: 'Colombia'
     },
     validate: validateForm,
     onSubmit: handleSubmit,
@@ -357,63 +360,47 @@ const Register: React.FC = () => {
                 <div className="bg-white border border-gray-0-5 p-4 rounded-md mt-2 space-y-4 animate-fadeIn shadow-sm">
                   <div>
                     <Input
-                      label="Nombre de la ubicación"
+                      label="Dirección"
                       type="text"
-                      name="locationName"
-                      placeholder="Ej. Mi Finca, Mi Casa"
-                      value={form.values.locationName}
+                      name="addressLine1"
+                      placeholder="Ej. Calle 123 #45-67"
+                      value={form.values.addressLine1}
                       onChange={form.handleChange}
                       onBlur={form.handleBlur}
-                      error={form.touched.locationName && !!form.errors.locationName}
-                      helperText={form.touched.locationName ? form.errors.locationName : ''}
+                      error={form.touched.addressLine1 && !!form.errors.addressLine1}
+                      helperText={form.touched.addressLine1 ? form.errors.addressLine1 : ''}
                       fullWidth
                     />
                   </div>
                   
                   <div>
                     <Input
-                      label="Dirección"
+                      label="Ciudad"
                       type="text"
-                      name="address"
-                      placeholder="Ej. Calle 123 #45-67"
-                      value={form.values.address}
+                      name="city"
+                      placeholder="Ej. Medellín"
+                      value={form.values.city}
                       onChange={form.handleChange}
                       onBlur={form.handleBlur}
-                      error={form.touched.address && !!form.errors.address}
-                      helperText={form.touched.address ? form.errors.address : ''}
+                      error={form.touched.city && !!form.errors.city}
+                      helperText={form.touched.city ? form.errors.city : ''}
                       fullWidth
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Input
-                        label="Ciudad"
-                        type="text"
-                        name="city"
-                        placeholder="Ej. Medellín"
-                        value={form.values.city}
-                        onChange={form.handleChange}
-                        onBlur={form.handleBlur}
-                        error={form.touched.city && !!form.errors.city}
-                        helperText={form.touched.city ? form.errors.city : ''}
-                        fullWidth
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        label="Departamento"
-                        type="text"
-                        name="state"
-                        placeholder="Ej. Antioquia"
-                        value={form.values.state}
-                        onChange={form.handleChange}
-                        onBlur={form.handleBlur}
-                        error={form.touched.state && !!form.errors.state}
-                        helperText={form.touched.state ? form.errors.state : ''}
-                        fullWidth
-                      />
-                    </div>
+                  <div>
+                    <Input
+                      label="Departamento"
+                      type="text"
+                      name="department"
+                      placeholder="Ej. Antioquia"
+                      value={form.values.department}
+                      onChange={form.handleChange}
+                      onBlur={form.handleBlur}
+                      error={form.touched.department && !!form.errors.department}
+                      helperText={form.touched.department ? form.errors.department : ''}
+                      fullWidth
+                    />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -433,15 +420,15 @@ const Register: React.FC = () => {
                     </div>
                     <div>
                       <Input
-                        label="Descripción"
+                        label="País"
                         type="text"
-                        name="description"
-                        placeholder="Descripción breve"
-                        value={form.values.description}
+                        name="country"
+                        placeholder="Ej. Colombia"
+                        value={form.values.country}
                         onChange={form.handleChange}
                         onBlur={form.handleBlur}
-                        error={form.touched.description && !!form.errors.description}
-                        helperText={form.touched.description ? form.errors.description : ''}
+                        error={form.touched.country && !!form.errors.country}
+                        helperText={form.touched.country ? form.errors.country : ''}
                         fullWidth
                       />
                     </div>

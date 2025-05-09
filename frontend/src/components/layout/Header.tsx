@@ -33,11 +33,15 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
 
   // Extraer iniciales del nombre del usuario
   const getUserInitials = () => {
-    if (!user || !user.fullName) return '?';
-    const names = user.fullName.split(' ');
-    return names.length > 1 
-      ? `${names[0][0]}${names[1][0]}`.toUpperCase()
-      : names[0][0].toUpperCase();
+    if (!user) return '?';
+    
+    // Use firstName and lastName if available
+    if (user.firstName && user.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    
+    // Fallback to username
+    return user.username ? user.username[0].toUpperCase() : '?';
   };
 
   // Function to navigate between pages
@@ -99,9 +103,9 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                   <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white">
                     <span>{getUserInitials()}</span>
                   </div>
-                  <span>Hola, {user?.fullName || 'Usuario'}</span>
+                  <span>Hola, {user ? `${user.firstName} ${user.lastName}` : 'Usuario'}</span>
                   {/* Badge de administrador */}
-                  {user?.role === 'admin' && (
+                  {user?.userType === 'ADMIN' && (
                     <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
                       Admin
                     </span>
@@ -133,7 +137,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       Administrar
                     </a>
                     {/* Opción de Administrador - solo visible para administradores */}
-                    {user?.role === 'admin' && (
+                    {user?.userType === 'ADMIN' && (
                       <a 
                         href="/admin/users" 
                         className="block px-4 py-2 text-purple-700 hover:bg-gray-0-2 hover:text-purple-900 font-medium"
@@ -215,9 +219,9 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                     <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
                       <span>{getUserInitials()}</span>
                     </div>
-                    <span className="text-gray-1">{user?.fullName || 'Usuario'}</span>
+                    <span className="text-gray-1">{user ? `${user.firstName} ${user.lastName}` : 'Usuario'}</span>
                     {/* Badge de administrador en móvil */}
-                    {user?.role === 'admin' && (
+                    {user?.userType === 'ADMIN' && (
                       <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
                         Admin
                       </span>
@@ -247,7 +251,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       </a>
                     </li>
                     {/* Opción de Administrador en móvil - solo visible para administradores */}
-                    {user?.role === 'admin' && (
+                    {user?.userType === 'ADMIN' && (
                       <li>
                         <a href="/admin/users" className="block py-2 text-purple-700 hover:text-purple-900 font-medium">
                           Admin

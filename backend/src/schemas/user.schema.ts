@@ -1,212 +1,64 @@
-/**
- * Zod Schema Definitions
- *
- * This file contains all Zod schemas and type definitions used throughout the application.
- * Schemas are organized by domain entities (auth, user, etc.) and include validation rules
- * and error messages.
- */
+import { z } from "zod";
 
-import { z } from 'zod';
-import { User } from '@prisma/client';
-
-// ==================== AUTH SCHEMAS & TYPES ====================
-
-/**
- * User Registration Schema
- *
- * Validates user registration requests
- */
-export const registerSchema = z.object({
-  fullName: z
-    .string()
-    .min(3, { message: 'El nombre completo debe tener al menos 3 caracteres' })
-    .max(100, { message: 'El nombre completo no puede exceder los 100 caracteres' })
-    .trim(),
-
-  username: z
-    .string()
-    .min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres' })
-    .max(30, { message: 'El nombre de usuario no puede exceder los 30 caracteres' })
-    .regex(/^[a-zA-Z0-9_]+$/, {
-      message: 'El nombre de usuario solo puede contener letras, números y guiones bajos',
-    })
-    .trim(),
-
-  email: z.string().email({ message: 'Por favor proporcione un correo electrónico válido' }).trim().toLowerCase(),
-
+// Base schema for user validation
+export const userSchema = z.object({
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  email: z.string().email({ message: "Invalid email address" }),
   password: z
     .string()
-    .min(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
-    .max(100, { message: 'La contraseña no puede exceder los 100 caracteres' })
-    .regex(/[A-Z]/, { message: 'La contraseña debe contener al menos una letra mayúscula' })
-    .regex(/[a-z]/, { message: 'La contraseña debe contener al menos una letra minúscula' })
-    .regex(/[0-9]/, { message: 'La contraseña debe contener al menos un número' })
-    .regex(/[^A-Za-z0-9]/, { message: 'La contraseña debe contener al menos un carácter especial' }),
-    
-  location: z.object({
-    name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').optional(),
-    address: z.string().min(5, 'La dirección debe tener al menos 5 caracteres').optional(),
-    city: z.string().min(2, 'La ciudad debe tener al menos 2 caracteres').optional(),
-    state: z.string().min(2, 'El departamento debe tener al menos 2 caracteres').optional(),
-    country: z.string().default('Colombia'),
-    postalCode: z.string().optional(),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
-    description: z.string().optional(),
-  }).optional(),
+    .min(8, { message: "Password must be at least 8 characters" })
+    .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
+    .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
+    .regex(/[0-9]/, { message: "Password must contain at least one number" }),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  userType: z.enum(["SELLER", "BUYER", "ADMIN"]).default("BUYER"),
+  primaryLocationId: z.string().optional(),
 });
 
-export type RegisterUserDto = z.infer<typeof registerSchema>;
+// Schema for creating a user
+export const createUserSchema = userSchema;
 
-/**
- * User Login Schema
- *
- * Validates user login requests
- */
+// Schema for updating a user - all fields are optional except for id
+export const updateUserSchema = userSchema.partial().extend({
+  // Don't allow changing username
+  username: z.string().optional(),
+});
+
+// Schema for user login
 export const loginSchema = z.object({
-  username: z.string().min(1, { message: 'El nombre de usuario es requerido' }).trim(),
-  password: z.string().min(1, { message: 'La contraseña es requerida' }),
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z.string().min(1, { message: "Password is required" }),
 });
 
-export type LoginCredentials = z.infer<typeof loginSchema>;
+// Schema for change password
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, { message: "Current password is required" }),
+  newPassword: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters" })
+    .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
+    .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
+    .regex(/[0-9]/, { message: "Password must contain at least one number" }),
+});
 
-/**
- * JWT and Token related types
- */
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
+// Types derived from schemas
+export type CreateUserDto = z.infer<typeof createUserSchema>;
+export type UpdateUserDto = z.infer<typeof updateUserSchema>;
+export type LoginDto = z.infer<typeof loginSchema>;
+export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
 
-export interface JwtPayload {
-  userId: string;
-  username: string;
-  role: string;
-  exp?: number;
-}
-
-export interface RefreshTokenPayload {
-  userId: string;
-  tokenId: string;
-}
-
-/**
- * User related types
- */
-export interface SafeUser {
+// User response type (excludes sensitive data)
+export interface UserResponse {
   id: string;
-  fullName: string;
   username: string;
   email: string;
-  role: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  userType: string;
+  primaryLocationId?: string;
   isActive: boolean;
-  profileImage?: string;
   createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface UserResponse {
-  user: SafeUser;
-  tokens?: AuthTokens;
-}
-
-/**
- * Transform functions between Prisma and API types
- */
-
-/**
- * Converts a Prisma User to a SafeUser (excludes sensitive data)
- */
-export const userToSafeUser = (user: any): SafeUser => {
-  // Usar tipado flexible para evitar problemas entre Prisma y SafeUser
-  return {
-    id: user.id,
-    fullName: user.fullName || user.name || '',
-    username: user.username || user.email?.split('@')[0] || '',
-    email: user.email,
-    role: user.role || 'user',
-    isActive: typeof user.isActive === 'boolean' ? user.isActive : true,
-    profileImage: user.profileImage || null,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
-};
-
-/**
- * Map RegisterUserDto to Prisma User create input
- */
-export const mapRegisterDtoToPrisma = (data: RegisterUserDto) => {
-  return {
-    fullName: data.fullName,
-    username: data.username,
-    email: data.email,
-    password: data.password, // will be hashed in the service
-  };
-};
-
-// ==================== USER SCHEMAS ====================
-
-/**
- * User Update Schema
- *
- * Validates user update requests
- */
-export const updateUserSchema = z.object({
-  fullName: z
-    .string()
-    .min(3, { message: 'El nombre completo debe tener al menos 3 caracteres' })
-    .max(100, { message: 'El nombre completo no puede exceder los 100 caracteres' })
-    .trim()
-    .optional(),
-
-  email: z.string().email({ message: 'Por favor proporcione un correo electrónico válido' }).trim().toLowerCase().optional(),
-
-  password: z
-    .string()
-    .min(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
-    .max(100, { message: 'La contraseña no puede exceder los 100 caracteres' })
-    .regex(/[A-Z]/, { message: 'La contraseña debe contener al menos una letra mayúscula' })
-    .regex(/[a-z]/, { message: 'La contraseña debe contener al menos una letra minúscula' })
-    .regex(/[0-9]/, { message: 'La contraseña debe contener al menos un número' })
-    .regex(/[^A-Za-z0-9]/, { message: 'La contraseña debe contener al menos un carácter especial' })
-    .optional(),
-
-  role: z
-    .enum(['user', 'admin'], {
-      errorMap: () => ({ message: 'El rol debe ser "user" o "admin"' }),
-    })
-    .optional(),
-
-  isActive: z.boolean().optional(),
-  
-  profileImage: z.string().optional(),
-});
-
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;
-
-/**
- * User ID Parameter Schema
- *
- * Validates user ID in route parameters
- */
-export const userIdSchema = z.object({
-  id: z
-    .string()
-    .min(1, { message: 'El ID de usuario es requerido' })
-    .regex(/^[0-9a-fA-F]{24}$/, {
-      message: 'Formato de ID de usuario inválido',
-    }),
-});
-
-export type UserIdParam = z.infer<typeof userIdSchema>;
-
-// _____________  Author Schema  _____________
-
-export const authorSchema = z.object({
-  firstName: z.string().min(1, { message: 'Your first name must be at least 1 characters long' }).max(30, {
-    message: 'your first name cannot be longer than 30 characters',
-  }),
-  lastName: z.string().min(1, { message: 'Your last name must be at least 1 characters long' }).max(30, {
-    message: 'your last name cannot be longer than 30 characters',
-  }),
-});
+} 

@@ -1,170 +1,118 @@
-import { Router } from "express"
-import { ProductController } from "../controllers/product.controller"
-import { ProductMiddleware } from "../middleware/product.middleware"
-import { authenticate,authorize } from "../middleware/auth.middleware"
+import { Router } from "express";
+import { ProductController } from "../controllers/product.controller";
+import { authenticate, authorize } from "../middleware/auth.middleware";
+import { validateRequest } from "../middleware/validation.middleware";
+import { createProductSchema, updateProductSchema } from "../schemas/product.schema";
 
-const router = Router()
-const productController = new ProductController()
+const router = Router();
+const productController = new ProductController();
 
 /**
  * @swagger
- * tags:
- *   name: Products
- *   description: Product management endpoints
+ * /products:
+ *   post:
+ *     summary: Create a new product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateProductDto'
+ *     responses:
+ *       201:
+ *         description: Product created successfully
  */
-
-
 router.post(
-  "/products",
+  "/",
   authenticate,
-  ProductMiddleware.isFarmer,
-  ProductMiddleware.validateCreateProduct,
-  async (req, res, next) => {
-    try {
-      await productController.createProduct(req, res)
-    } catch (error) {
-      next(error)
-    }
-  }
-)
+  authorize(["SELLER", "ADMIN"]),
+  validateRequest(createProductSchema),
+  (req, res) => productController.createProduct(req, res)
+);
 
 /**
  * @swagger
- * /api/products/{product_id}:
+ * /products/{productId}:
  *   get:
  *     summary: Get a product by ID
  *     tags: [Products]
  *     parameters:
  *       - in: path
- *         name: product_id
+ *         name: productId
  *         schema:
  *           type: string
  *         required: true
- *         description: ID of the product to retrieve
+ *         description: Product ID
  *     responses:
  *       200:
- *         description: Product retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Product'
- *       404:
- *         description: Product not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Product details
  */
-router.get(
-  "/products/:product_id",
-  ProductMiddleware.validateProductId,
-  async (req, res, next) => {
-    try {
-      await productController.getProductById(req, res)
-    } catch (error) {
-      next(error)
-    }
-  }
-)
+router.get("/:productId", (req, res) => productController.getProductById(req, res));
 
 /**
  * @swagger
- * /api/products:
+ * /products:
  *   get:
- *     summary: Get products with filtering and pagination
+ *     summary: Get all products with filtering and pagination
  *     tags: [Products]
  *     parameters:
  *       - in: query
- *         name: category
+ *         name: productTypeId
  *         schema:
  *           type: string
- *         description: Filter by product category
+ *       - in: query
+ *         name: sellerId
+ *         schema:
+ *           type: string
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         description: Search by product name or description
  *       - in: query
- *         name: min_price
+ *         name: minPrice
  *         schema:
  *           type: number
- *         description: Filter by minimum price
  *       - in: query
- *         name: max_price
+ *         name: maxPrice
  *         schema:
  *           type: number
- *         description: Filter by maximum price
  *       - in: query
- *         name: availability_date
+ *         name: isFeatured
  *         schema:
- *           type: string
- *           format: date-time
- *         description: Filter by availability date (ISO format)
+ *           type: boolean
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Page number for pagination
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
- *         description: Number of products per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           default: createdAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
  *     responses:
  *       200:
- *         description: Products retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/PaginatedProductsResponse'
- *       400:
- *         description: Invalid query parameters
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: List of products
  */
-router.get("/products", 
-    ProductMiddleware.validateProductQuery,
-    async (req, res, next) => {
-        try {
-            await productController.getProducts(req, res)
-        } catch (error) {
-            next(error)
-        }
-    }
-
-)
+router.get("/", (req, res) => productController.getProducts(req, res));
 
 /**
  * @swagger
- * /api/products/{product_id}:
+ * /products/{productId}:
  *   put:
  *     summary: Update a product
  *     tags: [Products]
@@ -172,80 +120,31 @@ router.get("/products",
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: product_id
+ *         name: productId
  *         schema:
  *           type: string
  *         required: true
- *         description: ID of the product to update
+ *         description: Product ID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ProductUpdateInput'
+ *             $ref: '#/components/schemas/UpdateProductDto'
  *     responses:
  *       200:
  *         description: Product updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/Product'
- *       400:
- *         description: Invalid input data
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       401:
- *         description: Unauthorized - User not authenticated
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       403:
- *         description: Forbidden - User is not a farmer or not the owner
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Product not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
 router.put(
-  "/products/:product_id",
+  "/:productId",
   authenticate,
-  ProductMiddleware.isFarmer,
-  ProductMiddleware.validateProductId,
-  ProductMiddleware.validateUpdateProduct,
-  async (req, res, next) => {
-    try {
-      await productController.updateProduct(req, res)
-    } catch (error) {
-      next(error)
-    }
-  }
-
-)
+  validateRequest(updateProductSchema),
+  (req, res) => productController.updateProduct(req, res)
+);
 
 /**
  * @swagger
- * /api/products/{product_id}:
+ * /products/{productId}:
  *   delete:
  *     summary: Delete a product
  *     tags: [Products]
@@ -253,52 +152,33 @@ router.put(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: product_id
+ *         name: productId
  *         schema:
  *           type: string
  *         required: true
- *         description: ID of the product to delete
+ *         description: Product ID
  *     responses:
- *       204:
+ *       200:
  *         description: Product deleted successfully
- *       401:
- *         description: Unauthorized - User not authenticated
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       403:
- *         description: Forbidden - User is not a farmer or not the owner
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Product not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
-router.delete(
-    "/products/:product_id",
-    authenticate,
-    ProductMiddleware.isFarmer,
-    ProductMiddleware.validateProductId,
-    async (req, res, next) => {
-        try {
-            await productController.deleteProduct(req, res);
-        } catch (error) {
-            next(error);
-        }
-    }
-);
+router.delete("/:productId", authenticate, (req, res) => productController.deleteProduct(req, res));
 
-export default router
+/**
+ * @swagger
+ * /products/featured:
+ *   get:
+ *     summary: Get featured products
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 6
+ *     responses:
+ *       200:
+ *         description: List of featured products
+ */
+router.get("/featured", (req, res) => productController.getFeaturedProducts(req, res));
 
+export default router; 

@@ -1,202 +1,111 @@
-import { Router } from 'express';
-import { AuthController } from '../controllers/auth.controller';
-import { authenticate } from '../middleware/auth.middleware';
-import { validate } from '../middleware/validation.middleware';
-import { loginSchema, registerSchema } from '../schemas/user.schema';
-import { AuthService } from '../services/auth.service';
-import { TokenService } from '../services/token.service';
+import { Router } from "express";
+import { AuthController } from "../controllers/auth.controller";
+import { validateRequest } from "../middleware/validation.middleware";
+import { createUserSchema, loginSchema, changePasswordSchema } from "../schemas/user.schema";
+import { authenticate } from "../middleware/auth.middleware";
 
 const router = Router();
-
-const authService = new AuthService();
-const tokenService = new TokenService();
-
-const authController = new AuthController(authService, tokenService);
+const authController = new AuthController();
 
 /**
  * @swagger
- * /api/auth/register:
+ * /auth/register:
  *   post:
- *     summary: Registrar un nuevo usuario
- *     tags: [Auth]
+ *     summary: Register a new user
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - fullName
- *               - username
- *               - email
- *               - password
- *             properties:
- *               fullName:
- *                 type: string
- *                 example: Juan Pérez
- *               username:
- *                 type: string
- *                 example: juanperez
- *               email:
- *                 type: string
- *                 format: email
- *                 example: juan@example.com
- *               password:
- *                 type: string
- *                 format: password
- *                 example: Password123!
+ *             $ref: '#/components/schemas/CreateUserDto'
  *     responses:
  *       201:
- *         description: Usuario registrado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     accessToken:
- *                       type: string
- *       400:
- *         description: Datos de entrada inválidos
- *       409:
- *         description: El usuario ya existe
+ *         description: User registered successfully
  */
-router.post('/register', validate(registerSchema), authController.register);
+router.post("/register", validateRequest(createUserSchema), (req, res) => authController.register(req, res));
 
 /**
  * @swagger
- * /api/auth/login:
+ * /auth/login:
  *   post:
- *     summary: Iniciar sesión
- *     tags: [Auth]
+ *     summary: Login a user
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - username
- *               - password
- *             properties:
- *               username:
- *                 type: string
- *                 example: juanperez
- *               password:
- *                 type: string
- *                 format: password
- *                 example: Password123!
+ *             $ref: '#/components/schemas/LoginDto'
  *     responses:
  *       200:
- *         description: Sesión iniciada exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                     accessToken:
- *                       type: string
- *       401:
- *         description: Credenciales inválidas
+ *         description: Login successful
  */
-router.post('/login', validate(loginSchema), authController.login);
+router.post("/login", validateRequest(loginSchema), (req, res) => authController.login(req, res));
 
 /**
  * @swagger
- * /api/auth/logout:
+ * /auth/logout:
  *   post:
- *     summary: Cerrar sesión
- *     tags: [Auth]
+ *     summary: Logout a user
+ *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Sesión cerrada exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Logout successful
- *       401:
- *         description: No autenticado
+ *         description: Logout successful
  */
-router.post('/logout', authenticate, authController.logout);
+router.post("/logout", authenticate, (req, res) => authController.logout(req, res));
 
 /**
  * @swagger
- * /api/auth/refresh:
+ * /auth/refresh:
  *   post:
- *     summary: Refrescar tokens
- *     tags: [Auth]
+ *     summary: Refresh access token
+ *     tags: [Authentication]
  *     responses:
  *       200:
- *         description: Token refrescado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     accessToken:
- *                       type: string
- *       401:
- *         description: Token de refresco no encontrado o inválido
+ *         description: Token refreshed successfully
  */
-router.post('/refresh', authController.refreshTokens);
+router.post("/refresh", (req, res) => authController.refreshToken(req, res));
 
 /**
  * @swagger
- * /api/auth/profile:
+ * /auth/me:
  *   get:
- *     summary: Obtener perfil del usuario actual
- *     tags: [Auth]
+ *     summary: Get current user profile
+ *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Perfil recuperado exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *       401:
- *         description: No autenticado
+ *         description: Current user profile
  */
-router.get('/profile', authenticate, authController.getProfile);
+router.get("/me", authenticate, (req, res) => authController.getCurrentUser(req, res));
 
-export default router;
+/**
+ * @swagger
+ * /auth/change-password:
+ *   post:
+ *     summary: Change user password
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ChangePasswordDto'
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ */
+router.post(
+  "/change-password",
+  authenticate,
+  validateRequest(changePasswordSchema),
+  (req, res) => authController.changePassword(req, res)
+);
+
+export default router; 

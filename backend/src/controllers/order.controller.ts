@@ -1,477 +1,533 @@
-import type { Request, Response } from "express"
-import { OrderService } from "../services/order.service"
-import { ShipmentService } from "../services/shipment.service"
-import { InvoiceService } from "../services/invoice.service"
-import type {
-  CreateOrderDto,
-  UpdateOrderDto,
-  OrderQueryParams,
-  CancelOrderDto,
-  RefundOrderDto,
-  UpdatePaymentDto,
-  UpdateShipmentDto,
-} from "../schemas/order.schema"
-import HttpStatusCode from "../utils/HttpStatusCode"
-import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler"
+import { Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
+import { CreateOrderDto, UpdateOrderDto, CancelOrderDto } from "../schemas/order.schema";
+import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
+import HttpStatusCode from "../utils/HttpStatusCode";
+
+const prisma = new PrismaClient();
 
 export class OrderController {
-  private orderService: OrderService
-  private shipmentService: ShipmentService
-  private invoiceService: InvoiceService
-
-  constructor() {
-    this.orderService = new OrderService()
-    this.shipmentService = new ShipmentService()
-    this.invoiceService = new InvoiceService()
-  }
-
   /**
    * Create a new order
-   * @param req - Express request
-   * @param res - Express response
+   * @param req Express request
+   * @param res Express response
    */
   async createOrder(req: Request, res: Response): Promise<void> {
     try {
-      const orderData: CreateOrderDto = req.body
+      const orderData: CreateOrderDto = req.body;
 
-      // Set customer ID from authenticated user if not provided
-      if (!orderData.customerId && req.user) {
-        orderData.customerId = req.user.userId
+      // Set buyer ID from authenticated user if not provided
+      if (!orderData.buyerUserId && req.user?.userId) {
+        orderData.buyerUserId = req.user.userId;
       }
 
-      const order = await this.orderService.create(orderData)
-
-      sendSuccessResponse(res, order, HttpStatusCode.CREATED)
-    } catch (error) {
-      console.error("Error creating order:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to create order", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      // Ensure user can only create orders for themselves unless they're an admin
+      if (req.user?.userType !== "ADMIN" && orderData.buyerUserId !== req.user?.userId) {
+        sendErrorResponse(res, "You can only create orders for yourself", HttpStatusCode.FORBIDDEN);
+        return;
       }
+
+      // Create order with transaction to ensure atomicity
+      const order = await prisma.$transaction(async (tx) => {
+        // Calculate total amount
+        let totalAmount = 0;
+
+        // Process order items
+        const orderItems = [];
+        
+        for (const item of orderData.items) {
+          // Get product
+          const product = await tx.product.findUnique({
+            where: { id: item.productId },
+          });
+
+          if (!product) {
+            throw new Error(`Product with ID ${item.productId} not found`);
+          }
+
+          if (!product.isActive) {
+            throw new Error(`Product ${product.name} is not available`);
+          }
+
+          if (product.stockQuantity < item.quantity) {
+            throw new Error(`Insufficient quantity for product ${product.name}`);
+          }
+
+          // Calculate item total
+          const itemTotal = product.basePrice * item.quantity;
+          totalAmount += itemTotal;
+
+          // Create order item
+          orderItems.push({
+            productId: product.id,
+            quantity: item.quantity,
+            unitPrice: product.basePrice,
+            subtotal: itemTotal
+          });
+
+          // Update product quantity
+          await tx.product.update({
+            where: { id: product.id },
+            data: { 
+              stockQuantity: product.stockQuantity - item.quantity
+            },
+          });
+        }
+
+        // Create the order
+        return tx.order.create({
+          data: {
+            buyerUserId: orderData.buyerUserId,
+            status: "PENDING",
+            totalAmount,
+            paymentMethod: orderData.paymentMethod,
+            paymentStatus: "PENDING",
+            notes: orderData.notes,
+            items: {
+              create: orderItems
+            }
+          },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    sellerId: true
+                  }
+                }
+              }
+            },
+            buyer: {
+              select: {
+                id: true,
+                username: true,
+                email: true
+              }
+            }
+          },
+        });
+      });
+
+      // Map order to response object
+      const orderResponse = this.mapToOrderResponse(order);
+      sendSuccessResponse(res, orderResponse, HttpStatusCode.CREATED);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST);
     }
   }
 
   /**
    * Get an order by ID
-   * @param req - Express request
-   * @param res - Express response
+   * @param req Express request
+   * @param res Express response
    */
   async getOrderById(req: Request, res: Response): Promise<void> {
     try {
-      const orderId = req.params.order_id
-      const order = await this.orderService.findById(orderId)
+      const orderId = req.params.orderId;
+      
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  sellerId: true
+                }
+              }
+            }
+          },
+          buyer: {
+            select: {
+              id: true,
+              username: true,
+              email: true
+            }
+          }
+        }
+      });
 
       if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
+        sendNotFoundResponse(res, "Order not found");
+        return;
       }
 
-      // Check if user has permission to view this order
-      if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
-        // Check if user is a farmer with items in this order
-        const isFarmerWithItems = order.items.some((item: any) => item.farmerId === req.user?.userId)
+      // Only allow buyer, seller of products in the order, or admin to view the order
+      const isAdmin = req.user?.userType === "ADMIN";
+      const isBuyer = order.buyerUserId === req.user?.userId;
+      const isSeller = order.items.some((item) => item.product?.sellerId === req.user?.userId);
 
-        if (!isFarmerWithItems) {
-          sendErrorResponse(
-            res,
-            "You don't have permission to view this order",
-            HttpStatusCode.FORBIDDEN,
-            "FORBIDDEN"
-          )
-          return
-        }
+      if (!isAdmin && !isBuyer && !isSeller) {
+        sendErrorResponse(res, "You don't have permission to view this order", HttpStatusCode.FORBIDDEN);
+        return;
       }
 
-      sendSuccessResponse(res, order)
-    } catch (error) {
-      console.error("Error retrieving order:", error)
-      sendErrorResponse(res, "Failed to retrieve order", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      // Map order to response object
+      const orderResponse = this.mapToOrderResponse(order);
+      sendSuccessResponse(res, orderResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
-   * Get an order by order number
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async getOrderByNumber(req: Request, res: Response): Promise<void> {
-    try {
-      const orderNumber = req.params.order_number
-      const order = await this.orderService.findByOrderNumber(orderNumber)
-
-      if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
-      }
-
-      // Check if user has permission to view this order
-      if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
-        // Check if user is a farmer with items in this order
-        const isFarmerWithItems = order.items.some((item: any) => item.farmerId === req.user?.userId)
-
-        if (!isFarmerWithItems) {
-          sendErrorResponse(
-            res,
-            "You don't have permission to view this order",
-            HttpStatusCode.FORBIDDEN,
-            "FORBIDDEN"
-          )
-          return
-        }
-      }
-
-      sendSuccessResponse(res, order)
-    } catch (error) {
-      console.error("Error retrieving order:", error)
-      sendErrorResponse(res, "Failed to retrieve order", HttpStatusCode.INTERNAL_SERVER_ERROR)
-    }
-  }
-
-  /**
-   * Get orders with filtering and pagination
-   * @param req - Express request
-   * @param res - Express response
+   * Get all orders
+   * @param req Express request
+   * @param res Express response
    */
   async getOrders(req: Request, res: Response): Promise<void> {
     try {
-      const queryParams: OrderQueryParams = {
-        customerId: req.query.customerId as string,
-        status: req.query.status as any,
-        paymentStatus: req.query.paymentStatus as any,
-        fulfillmentStatus: req.query.fulfillmentStatus as any,
+      // Parse query parameters
+      const queryParams = {
+        buyerUserId: req.query.buyerUserId as string,
+        sellerId: req.query.sellerId as string,
+        status: req.query.status as string,
+        paymentStatus: req.query.paymentStatus as string,
         fromDate: req.query.fromDate as string,
         toDate: req.query.toDate as string,
-        minAmount: req.query.minAmount ? Number(req.query.minAmount) : undefined,
-        maxAmount: req.query.maxAmount ? Number(req.query.maxAmount) : undefined,
-        search: req.query.search as string,
         page: req.query.page ? Number(req.query.page) : 1,
         limit: req.query.limit ? Number(req.query.limit) : 10,
-        sortBy: (req.query.sortBy as any) || "createdAt",
-        sortOrder: (req.query.sortOrder as any) || "desc",
-      }
+        sortBy: (req.query.sortBy as string) || "createdAt",
+        sortOrder: (req.query.sortOrder as "asc" | "desc") || "desc",
+      };
 
-      // If user is not admin, restrict to their own orders
-      if (req.user && req.user.role !== "admin") {
-        if (req.user.role === "buyer") {
-          queryParams.customerId = req.user.userId
-        } else if (req.user.role === "farmer") {
-          // For farmers, use a different method to get their orders
-          const result = await this.orderService.getFarmerOrders(req.user.userId, queryParams)
-          sendSuccessResponse(res, result)
-          return
+      // If not admin, restrict to user's own orders
+      if (req.user?.userType !== "ADMIN") {
+        if (req.user?.userType === "BUYER") {
+          // Buyers can only see their own orders
+          queryParams.buyerUserId = req.user.userId;
+          queryParams.sellerId = undefined;
+        } else if (req.user?.userType === "SELLER") {
+          // Sellers can only see orders containing their products
+          queryParams.sellerId = req.user.userId;
+          queryParams.buyerUserId = undefined;
         }
       }
 
-      const result = await this.orderService.findAll(queryParams)
-      sendSuccessResponse(res, result)
-    } catch (error) {
-      console.error("Error retrieving orders:", error)
-      sendErrorResponse(res, "Failed to retrieve orders", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      const {
+        buyerUserId,
+        sellerId,
+        status,
+        paymentStatus,
+        fromDate,
+        toDate,
+        page = 1,
+        limit = 10,
+        sortBy = "createdAt",
+        sortOrder = "desc",
+      } = queryParams;
+
+      const skip = (page - 1) * limit;
+
+      // Build where clause for filtering
+      const where: any = {};
+
+      if (buyerUserId) {
+        where.buyerUserId = buyerUserId;
+      }
+
+      if (status) {
+        where.status = status;
+      }
+
+      if (paymentStatus) {
+        where.paymentStatus = paymentStatus;
+      }
+
+      // Date range filter
+      if (fromDate || toDate) {
+        where.createdAt = {};
+        if (fromDate) where.createdAt.gte = new Date(fromDate);
+        if (toDate) where.createdAt.lte = new Date(toDate);
+      }
+
+      // Handle seller ID (find orders containing products sold by the seller)
+      let orders;
+      let total;
+
+      if (sellerId) {
+        orders = await prisma.order.findMany({
+          where: {
+            ...where,
+            items: {
+              some: {
+                product: {
+                  sellerId
+                }
+              }
+            }
+          },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    sellerId: true
+                  }
+                }
+              }
+            },
+            buyer: {
+              select: {
+                id: true,
+                username: true,
+                email: true
+              }
+            }
+          },
+          skip,
+          take: limit,
+          orderBy: { [sortBy]: sortOrder }
+        });
+
+        total = await prisma.order.count({
+          where: {
+            ...where,
+            items: {
+              some: {
+                product: {
+                  sellerId
+                }
+              }
+            }
+          }
+        });
+      } else {
+        [orders, total] = await Promise.all([
+          prisma.order.findMany({
+            where,
+            include: {
+              items: {
+                include: {
+                  product: {
+                    select: {
+                      name: true,
+                      sellerId: true
+                    }
+                  }
+                }
+              },
+              buyer: {
+                select: {
+                  id: true,
+                  username: true,
+                  email: true
+                }
+              }
+            },
+            skip,
+            take: limit,
+            orderBy: { [sortBy]: sortOrder }
+          }),
+          prisma.order.count({ where })
+        ]);
+      }
+
+      sendSuccessResponse(res, {
+        orders: orders.map(this.mapToOrderResponse),
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit),
+        }
+      });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
    * Update an order
-   * @param req - Express request
-   * @param res - Express response
+   * @param req Express request
+   * @param res Express response
    */
   async updateOrder(req: Request, res: Response): Promise<void> {
     try {
-      const orderId = req.params.order_id
-      const updateData: UpdateOrderDto = req.body
+      const orderId = req.params.orderId;
+      const updateData: UpdateOrderDto = req.body;
 
       // Check if order exists
-      const order = await this.orderService.findById(orderId)
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: true
+        }
+      });
+      
       if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
+        sendNotFoundResponse(res, "Order not found");
+        return;
+      }
+
+      // Only allow admin to update order status
+      if (req.user?.userType !== "ADMIN") {
+        sendErrorResponse(res, "Only administrators can update orders", HttpStatusCode.FORBIDDEN);
+        return;
       }
 
       // Update order
-      const updatedOrder = await this.orderService.update(orderId, updateData)
-      sendSuccessResponse(res, updatedOrder)
-    } catch (error) {
-      console.error("Error updating order:", error)
+      const updatedOrder = await prisma.order.update({
+        where: { id: orderId },
+        data: updateData,
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  sellerId: true
+                }
+              }
+            }
+          },
+          buyer: {
+            select: {
+              id: true,
+              username: true,
+              email: true
+            }
+          }
+        }
+      });
 
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to update order", HttpStatusCode.INTERNAL_SERVER_ERROR)
-      }
-    }
-  }
-
-  /**
-   * Process payment for an order
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async processPayment(req: Request, res: Response): Promise<void> {
-    try {
-      const orderId = req.params.order_id
-      const paymentData: UpdatePaymentDto = req.body
-
-      // Check if order exists
-      const order = await this.orderService.findById(orderId)
-      if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
-      }
-
-      // Process payment
-      const updatedOrder = await this.orderService.processPayment(orderId, paymentData)
-      sendSuccessResponse(res, updatedOrder)
-    } catch (error) {
-      console.error("Error processing payment:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to process payment", HttpStatusCode.INTERNAL_SERVER_ERROR)
-      }
-    }
-  }
-
-  /**
-   * Update shipment information for an order
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async updateShipment(req: Request, res: Response): Promise<void> {
-    try {
-      const orderId = req.params.order_id
-      const shipmentData: UpdateShipmentDto = req.body
-
-      // Check if order exists
-      const order = await this.orderService.findById(orderId)
-      if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
-      }
-
-      // Update shipment
-      const updatedOrder = await this.orderService.updateShipment(orderId, shipmentData)
-      sendSuccessResponse(res, updatedOrder)
-    } catch (error) {
-      console.error("Error updating shipment:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to update shipment", HttpStatusCode.INTERNAL_SERVER_ERROR)
-      }
+      // Map order to response object
+      const orderResponse = this.mapToOrderResponse(updatedOrder);
+      sendSuccessResponse(res, orderResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
    * Cancel an order
-   * @param req - Express request
-   * @param res - Express response
+   * @param req Express request
+   * @param res Express response
    */
   async cancelOrder(req: Request, res: Response): Promise<void> {
     try {
-      const orderId = req.params.order_id
-      const cancelData: CancelOrderDto = req.body
+      const orderId = req.params.orderId;
+      const { cancelReason }: CancelOrderDto = req.body;
 
       // Check if order exists
-      const order = await this.orderService.findById(orderId)
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+      
       if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
+        sendNotFoundResponse(res, "Order not found");
+        return;
       }
 
-      // Check if user has permission to cancel this order
-      if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
-        sendErrorResponse(
-          res,
-          "You don't have permission to cancel this order",
-          HttpStatusCode.FORBIDDEN,
-          "FORBIDDEN"
-        )
-        return
+      // Only allow buyer or admin to cancel
+      const isAdmin = req.user?.userType === "ADMIN";
+      const isBuyer = order.buyerUserId === req.user?.userId;
+
+      if (!isAdmin && !isBuyer) {
+        sendErrorResponse(res, "Only the buyer or an administrator can cancel this order", HttpStatusCode.FORBIDDEN);
+        return;
       }
 
-      // Cancel order
-      const updatedOrder = await this.orderService.cancelOrder(orderId, cancelData)
-      sendSuccessResponse(res, updatedOrder)
-    } catch (error) {
-      console.error("Error canceling order:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to cancel order", HttpStatusCode.INTERNAL_SERVER_ERROR)
+      // Check if order can be canceled
+      if (["SHIPPED", "DELIVERED"].includes(order.status)) {
+        sendErrorResponse(res, "Cannot cancel an order that has been shipped or delivered", HttpStatusCode.BAD_REQUEST);
+        return;
       }
+
+      // Cancel order with transaction
+      const canceledOrder = await prisma.$transaction(async (tx) => {
+        // Restore product quantities
+        for (const item of order.items) {
+          if (item.product) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stockQuantity: item.product.stockQuantity + item.quantity
+              }
+            });
+          }
+        }
+
+        // Update order status
+        return tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: "CANCELLED",
+            notes: order.notes ? `${order.notes}\nCancelled: ${cancelReason}` : `Cancelled: ${cancelReason}`
+          },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    sellerId: true
+                  }
+                }
+              }
+            },
+            buyer: {
+              select: {
+                id: true,
+                username: true,
+                email: true
+              }
+            }
+          }
+        });
+      });
+
+      // Map order to response object
+      const orderResponse = this.mapToOrderResponse(canceledOrder);
+      sendSuccessResponse(res, orderResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST);
     }
   }
 
   /**
-   * Process refund for an order
-   * @param req - Express request
-   * @param res - Express response
+   * Map order entity to order response
+   * @param order Order entity with relations
+   * @returns Order response
    */
-  async processRefund(req: Request, res: Response): Promise<void> {
-    try {
-      const orderId = req.params.order_id
-      const refundData: RefundOrderDto = req.body
-
-      // Check if order exists
-      const order = await this.orderService.findById(orderId)
-      if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
-      }
-
-      // Process refund
-      const updatedOrder = await this.orderService.processRefund(orderId, refundData)
-      sendSuccessResponse(res, updatedOrder)
-    } catch (error) {
-      console.error("Error processing refund:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to process refund", HttpStatusCode.INTERNAL_SERVER_ERROR)
-      }
-    }
-  }
-
-  /**
-   * Mark order as delivered
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async markAsDelivered(req: Request, res: Response): Promise<void> {
-    try {
-      const orderId = req.params.order_id
-
-      // Check if order exists
-      const order = await this.orderService.findById(orderId)
-      if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
-      }
-
-      // Mark as delivered
-      const updatedOrder = await this.orderService.markAsDelivered(orderId)
-      sendSuccessResponse(res, updatedOrder)
-    } catch (error) {
-      console.error("Error marking order as delivered:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to mark order as delivered", HttpStatusCode.INTERNAL_SERVER_ERROR)
-      }
-    }
-  }
-
-  /**
-   * Get order analytics
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async getOrderAnalytics(req: Request, res: Response): Promise<void> {
-    try {
-      const customerId = req.query.customerId as string
-      const fromDate = req.query.fromDate as string
-      const toDate = req.query.toDate as string
-
-      // If user is not admin, restrict to their own analytics
-      if (req.user && req.user.role !== "admin" && req.user.role === "buyer") {
-        const analytics = await this.orderService.getOrderAnalytics(req.user.userId, fromDate, toDate)
-        sendSuccessResponse(res, analytics)
-        return
-      }
-
-      const analytics = await this.orderService.getOrderAnalytics(customerId, fromDate, toDate)
-      sendSuccessResponse(res, analytics)
-    } catch (error) {
-      console.error("Error retrieving order analytics:", error)
-      sendErrorResponse(res, "Failed to retrieve order analytics", HttpStatusCode.INTERNAL_SERVER_ERROR)
-    }
-  }
-
-  /**
-   * Get shipping methods
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async getShippingMethods(req: Request, res: Response): Promise<void> {
-    try {
-      const items = req.body.items
-      const shippingAddress = req.body.shippingAddress
-
-      const shippingMethods = await this.shipmentService.getShippingMethods(items, shippingAddress)
-      sendSuccessResponse(res, shippingMethods)
-    } catch (error) {
-      console.error("Error retrieving shipping methods:", error)
-      sendErrorResponse(res, "Failed to retrieve shipping methods", HttpStatusCode.INTERNAL_SERVER_ERROR)
-    }
-  }
-
-  /**
-   * Track shipment
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async trackShipment(req: Request, res: Response): Promise<void> {
-    try {
-      const trackingNumber = req.params.tracking_number
-      const carrier = req.query.carrier as string
-
-      const trackingInfo = await this.shipmentService.trackShipment(trackingNumber, carrier)
-      sendSuccessResponse(res, trackingInfo)
-    } catch (error) {
-      console.error("Error tracking shipment:", error)
-
-      if (error instanceof Error) {
-        sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST)
-      } else {
-        sendErrorResponse(res, "Failed to track shipment", HttpStatusCode.INTERNAL_SERVER_ERROR)
-      }
-    }
-  }
-
-  /**
-   * Get invoice by order ID
-   * @param req - Express request
-   * @param res - Express response
-   */
-  async getInvoice(req: Request, res: Response): Promise<void> {
-    try {
-      const orderId = req.params.order_id
-
-      // Check if order exists
-      const order = await this.orderService.findById(orderId)
-      if (!order) {
-        sendNotFoundResponse(res, "Order not found")
-        return
-      }
-
-      // Check if user has permission to view this invoice
-      if (req.user && req.user.role !== "admin" && req.user.userId !== order.customerId) {
-        sendErrorResponse(
-          res,
-          "You don't have permission to view this invoice",
-          HttpStatusCode.FORBIDDEN,
-          "FORBIDDEN"
-        )
-        return
-      }
-
-      const invoice = await this.invoiceService.getInvoiceByOrderNumber(order.orderNumber)
-      if (!invoice) {
-        sendNotFoundResponse(res, "Invoice not found")
-        return
-      }
-
-      sendSuccessResponse(res, invoice)
-    } catch (error) {
-      console.error("Error retrieving invoice:", error)
-      sendErrorResponse(res, "Failed to retrieve invoice", HttpStatusCode.INTERNAL_SERVER_ERROR)
-    }
+  private mapToOrderResponse(order: any): any {
+    return {
+      id: order.id,
+      buyerUserId: order.buyerUserId,
+      status: order.status,
+      totalAmount: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      trackingNumber: order.trackingNumber,
+      notes: order.notes,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      items: order.items.map((item: any) => ({
+        id: item.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+        product: item.product ? {
+          name: item.product.name,
+          sellerId: item.product.sellerId
+        } : undefined
+      })),
+      buyer: order.buyer ? {
+        id: order.buyer.id,
+        username: order.buyer.username,
+        email: order.buyer.email
+      } : undefined
+    };
   }
 }

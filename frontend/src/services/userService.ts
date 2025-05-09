@@ -9,21 +9,26 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  fullName: string;
-  role: string;
+  firstName: string;
+  lastName: string;
+  userType: string;
   isActive: boolean;
   profileImage?: string;
+  phoneNumber?: string;
+  primaryLocationId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface UserUpdateData {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   password?: string;
-  role?: 'user' | 'admin';
+  userType?: 'SELLER' | 'BUYER' | 'ADMIN';
   isActive?: boolean;
   profileImage?: string;
+  phoneNumber?: string;
 }
 
 // Función para manejar errores de API

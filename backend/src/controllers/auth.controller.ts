@@ -1,234 +1,387 @@
-import { Request, Response, CookieOptions } from 'express';
-import { AuthService } from '../services/auth.service';
-import { TokenService } from '../services/token.service';
-import { LoginCredentials, RegisterUserDto } from '../schemas/user.schema';
-import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
-import HttpStatusCode from '../utils/HttpStatusCode';
-import { COOKIE_CONFIG } from '../config/app';
-import { verifyAccessToken } from '../utils/tokenUtils';
+import { Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { LoginDto, CreateUserDto, ChangePasswordDto } from "../schemas/user.schema";
+import { sendSuccessResponse, sendErrorResponse } from "../utils/responseHandler";
+import HttpStatusCode from "../utils/HttpStatusCode";
 
-/**
- * Authentication controller
- */
+const prisma = new PrismaClient();
+
 export class AuthController {
-  private authService: AuthService;
-  private tokenService: TokenService;
+  private readonly jwtSecret: string;
+  private readonly jwtExpiresIn: string;
+  private readonly refreshTokenSecret: string;
+  private readonly refreshTokenExpiresIn: string;
 
-  constructor(authService: AuthService, tokenService: TokenService) {
-    this.authService = authService;
-    this.tokenService = tokenService;
-  }
-
-  /**
-   * Set refresh token cookie
-   */
-  private setRefreshTokenCookie(res: Response, token: string): void {
-    const cookieOptions: CookieOptions = {
-      ...(COOKIE_CONFIG as CookieOptions),
-      path: '/api/auth/refresh',
-    };
-    res.cookie('refreshToken', token, cookieOptions);
-  }
-
-  /**
-   * Clear refresh token cookie
-   */
-  private clearRefreshTokenCookie(res: Response): void {
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: COOKIE_CONFIG.secure,
-      path: '/api/auth/refresh',
-    });
+  constructor() {
+    this.jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || "1h";
+    this.refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || "your-refresh-secret-key";
+    this.refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
   }
 
   /**
    * Register a new user
+   * @param req Express request
+   * @param res Express response
    */
-  register = async (req: Request, res: Response): Promise<void> => {
+  async register(req: Request, res: Response): Promise<void> {
     try {
-      const userData: RegisterUserDto = req.body;
-
-      // Validate required fields
-      if (!userData.fullName || !userData.username || !userData.email || !userData.password) {
-        sendErrorResponse(res, { message: 'All fields are required' }, HttpStatusCode.BAD_REQUEST);
+      const userData: CreateUserDto = req.body;
+      
+      // Check if username or email already exists
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: userData.username }
+      });
+      
+      if (existingUsername) {
+        sendErrorResponse(res, "Username already exists", HttpStatusCode.BAD_REQUEST);
         return;
       }
 
-      const result = await this.authService.register(userData);
-
-      // Set refresh token cookie if available
-      if (result.tokens?.refreshToken) {
-        this.setRefreshTokenCookie(res, result.tokens.refreshToken);
+      const existingEmail = await prisma.user.findUnique({
+        where: { email: userData.email }
+      });
+      
+      if (existingEmail) {
+        sendErrorResponse(res, "Email already exists", HttpStatusCode.BAD_REQUEST);
+        return;
       }
 
-      // Return user data and access token with 201 Created status
+      // Hash password
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+
+      // Create user
+      const user = await prisma.user.create({
+        data: {
+          username: userData.username,
+          email: userData.email,
+          passwordHash: hashedPassword,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phoneNumber: userData.phoneNumber,
+          userType: userData.userType,
+          primaryLocationId: userData.primaryLocationId,
+        },
+      });
+
+      // Generate tokens
+      const accessToken = this.generateAccessToken(user.id, user.userType);
+      const refreshToken = this.generateRefreshToken(user.id);
+
+      // Store refresh token in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken },
+      });
+
+      // Set refresh token as HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/api/auth/refresh",
+      });
+
+      // Map user to response object (remove sensitive data)
+      const userResponse = this.mapToUserResponse(user);
+
       sendSuccessResponse(
         res,
         {
-          user: result.user,
-          accessToken: result.tokens?.accessToken,
+          user: userResponse,
+          token: accessToken,
         },
         HttpStatusCode.CREATED
       );
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('Username already exists')) {
-          sendErrorResponse(
-            res, 
-            { message: `Username "${req.body.username}" already exists. Please try a different username.` },
-            HttpStatusCode.CONFLICT
-          );
-        } else if (error.message.includes('Email already exists')) {
-          sendErrorResponse(
-            res, 
-            { message: `Email "${req.body.email}" already exists. Please use a different email or try to login.` },
-            HttpStatusCode.CONFLICT
-          );
-        } else {
-          sendErrorResponse(
-            res, 
-            { message: error.message },
-            HttpStatusCode.BAD_REQUEST
-          );
-        }
-      } else {
-        sendErrorResponse(
-          res, 
-          { message: 'An unknown error occurred' },
-          HttpStatusCode.INTERNAL_SERVER_ERROR
-        );
-      }
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST);
     }
-  };
+  }
 
   /**
-   * Login a user
+   * Log in a user
+   * @param req Express request
+   * @param res Express response
    */
-  login = async (req: Request, res: Response): Promise<void> => {
+  async login(req: Request, res: Response): Promise<void> {
     try {
-      const { username, password } = req.body;
-
-      // Validate required fields
-      if (!username || !password) {
-        sendErrorResponse(res, { message: 'Username and password are required' }, HttpStatusCode.BAD_REQUEST);
-        return;
-      }
-
-      const result = await this.authService.login({ username, password });
-
-      // Set refresh token cookie if available
-      if (result.tokens?.refreshToken) {
-        this.setRefreshTokenCookie(res, result.tokens.refreshToken);
-      }
-
-      // Return user data and access token
-      sendSuccessResponse(res, {
-        user: result.user,
-        accessToken: result.tokens?.accessToken,
+      const loginData: LoginDto = req.body;
+      
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email: loginData.email }
       });
-    } catch (error) {
-      // Use 401 for authentication errors
-      sendErrorResponse(
-        res,
-        { message: error instanceof Error ? error.message : 'Authentication failed' },
-        HttpStatusCode.UNAUTHORIZED
-      );
-    }
-  };
-
-  /**
-   * Logout a user
-   */
-  logout = async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Get user ID from request
-      const userId = req.user?.userId;
-      if (!userId) {
-        sendErrorResponse(res, { message: 'Not authenticated' }, HttpStatusCode.UNAUTHORIZED);
+      
+      if (!user) {
+        sendErrorResponse(res, "Invalid email or password", HttpStatusCode.UNAUTHORIZED);
         return;
       }
 
-      // Blacklist the current token if available
-      const authHeader = req.headers.authorization;
-      if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        const decoded = verifyAccessToken(token);
-        if (decoded && decoded.exp) {
-          await this.tokenService.blacklistToken(token, new Date(decoded.exp * 1000));
-        }
+      // Check if user is active
+      if (!user.isActive) {
+        sendErrorResponse(res, "Account is inactive", HttpStatusCode.UNAUTHORIZED);
+        return;
       }
 
-      // Logout user (remove refresh token from database)
-      await this.authService.logout(userId);
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(loginData.password, user.passwordHash);
+      if (!isPasswordValid) {
+        sendErrorResponse(res, "Invalid email or password", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      // Generate tokens
+      const accessToken = this.generateAccessToken(user.id, user.userType);
+      const refreshToken = this.generateRefreshToken(user.id);
+
+      // Store refresh token in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken },
+      });
+
+      // Set refresh token as HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/api/auth/refresh",
+      });
+
+      // Map user to response object
+      const userResponse = this.mapToUserResponse(user);
+
+      sendSuccessResponse(res, {
+        user: userResponse,
+        token: accessToken,
+      });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.UNAUTHORIZED);
+    }
+  }
+
+  /**
+   * Log out a user
+   * @param req Express request
+   * @param res Express response
+   */
+  async logout(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        sendErrorResponse(res, "User not authenticated", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      // Clear refresh token in database
+      await prisma.user.update({
+        where: { id: userId },
+        data: { refreshToken: null },
+      });
 
       // Clear refresh token cookie
-      this.clearRefreshTokenCookie(res);
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        path: "/api/auth/refresh",
+      });
 
-      // Send success response
-      sendSuccessNoDataResponse(res, 'Logout successful');
-    } catch (error) {
-      sendErrorResponse(
-        res,
-        { message: error instanceof Error ? error.message : 'Logout failed' },
-        HttpStatusCode.BAD_REQUEST
-      );
+      sendSuccessResponse(res, { message: "Logged out successfully" });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
-  };
+  }
 
   /**
-   * Refresh tokens
+   * Refresh access token
+   * @param req Express request
+   * @param res Express response
    */
-  refreshTokens = async (req: Request, res: Response): Promise<void> => {
+  async refreshToken(req: Request, res: Response): Promise<void> {
     try {
-      // Get refresh token from cookie
-      const refreshToken = req.cookies.refreshToken;
+      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
       if (!refreshToken) {
-        sendErrorResponse(res, { message: 'Refresh token not found' }, HttpStatusCode.UNAUTHORIZED);
+        sendErrorResponse(res, "Refresh token is required", HttpStatusCode.BAD_REQUEST);
         return;
       }
 
-      // Refresh tokens
-      const tokens = await this.authService.refreshTokens(refreshToken);
+      try {
+        // Verify refresh token
+        const decoded = jwt.verify(refreshToken, this.refreshTokenSecret) as { userId: string };
 
-      // Set new refresh token cookie
-      this.setRefreshTokenCookie(res, tokens.refreshToken);
+        // Find user with this refresh token
+        const user = await prisma.user.findFirst({
+          where: {
+            id: decoded.userId,
+            refreshToken,
+          },
+        });
 
-      // Return new access token
-      sendSuccessResponse(res, {
-        accessToken: tokens.accessToken,
-      });
-    } catch (error) {
-      sendErrorResponse(
-        res,
-        { message: error instanceof Error ? error.message : 'Token refresh failed' },
-        HttpStatusCode.UNAUTHORIZED
-      );
+        if (!user) {
+          sendErrorResponse(res, "Invalid refresh token", HttpStatusCode.UNAUTHORIZED);
+          return;
+        }
+
+        // Generate new tokens
+        const newAccessToken = this.generateAccessToken(user.id, user.userType);
+        const newRefreshToken = this.generateRefreshToken(user.id);
+
+        // Store new refresh token in database
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { refreshToken: newRefreshToken },
+        });
+
+        // Set new refresh token as HTTP-only cookie
+        res.cookie("refreshToken", newRefreshToken, {
+          httpOnly: true,
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          path: "/api/auth/refresh",
+        });
+
+        sendSuccessResponse(res, {
+          token: newAccessToken,
+        });
+      } catch (error) {
+        sendErrorResponse(res, "Invalid refresh token", HttpStatusCode.UNAUTHORIZED);
+      }
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.UNAUTHORIZED);
     }
-  };
+  }
 
   /**
    * Get current user profile
+   * @param req Express request
+   * @param res Express response
    */
-  getProfile = async (req: Request, res: Response): Promise<void> => {
+  async getCurrentUser(req: Request, res: Response): Promise<void> {
     try {
-      // Get user ID from request
       const userId = req.user?.userId;
+
       if (!userId) {
-        sendErrorResponse(res, { message: 'Not authenticated' }, HttpStatusCode.UNAUTHORIZED);
+        sendErrorResponse(res, "User not authenticated", HttpStatusCode.UNAUTHORIZED);
         return;
       }
 
-      // Get user profile
-      const user = await this.authService.getProfile(userId);
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          primaryLocation: true,
+        },
+      });
 
-      // Return user profile
-      sendSuccessResponse(res, { user });
-    } catch (error) {
-      sendErrorResponse(
-        res,
-        { message: error instanceof Error ? error.message : 'Failed to get profile' },
-        HttpStatusCode.BAD_REQUEST
-      );
+      if (!user) {
+        sendErrorResponse(res, "User not found", HttpStatusCode.NOT_FOUND);
+        return;
+      }
+
+      const userResponse = this.mapToUserResponse(user);
+      sendSuccessResponse(res, userResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
-  };
-}
+  }
+
+  /**
+   * Change user password
+   * @param req Express request
+   * @param res Express response
+   */
+  async changePassword(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        sendErrorResponse(res, "User not authenticated", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      const { currentPassword, newPassword }: ChangePasswordDto = req.body;
+
+      // Get user from database
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        sendErrorResponse(res, "User not found", HttpStatusCode.NOT_FOUND);
+        return;
+      }
+
+      // Validate current password
+      const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isValid) {
+        sendErrorResponse(res, "Current password is incorrect", HttpStatusCode.BAD_REQUEST);
+        return;
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: hashedPassword },
+      });
+
+      sendSuccessResponse(res, { message: "Password changed successfully" });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Generate an access token
+   * @param userId User ID
+   * @param userType User type
+   * @returns JWT access token
+   */
+  private generateAccessToken(userId: string, userType: string): string {
+    return jwt.sign(
+      {
+        userId,
+        userType,
+      },
+      this.jwtSecret,
+      {
+        expiresIn: this.jwtExpiresIn,
+      }
+    );
+  }
+
+  /**
+   * Generate a refresh token
+   * @param userId User ID
+   * @returns JWT refresh token
+   */
+  private generateRefreshToken(userId: string): string {
+    return jwt.sign(
+      {
+        userId,
+      },
+      this.refreshTokenSecret,
+      {
+        expiresIn: this.refreshTokenExpiresIn,
+      }
+    );
+  }
+
+  /**
+   * Map user entity to user response (remove sensitive data)
+   * @param user User entity
+   * @returns User response without sensitive data
+   */
+  private mapToUserResponse(user: any): any {
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName || undefined,
+      lastName: user.lastName || undefined,
+      phoneNumber: user.phoneNumber || undefined,
+      userType: user.userType,
+      primaryLocationId: user.primaryLocationId || undefined,
+      isActive: user.isActive,
+} 

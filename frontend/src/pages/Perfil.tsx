@@ -15,7 +15,8 @@ const Perfil: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<UserUpdateData>({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
   });
   
@@ -39,7 +40,8 @@ const Perfil: React.FC = () => {
         const userData = await userService.getCurrentUser();
         setUser(userData);
         setFormData({
-          fullName: userData.fullName || '',
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
           email: userData.email || '',
         });
         setLoading(false);
@@ -108,7 +110,8 @@ const Perfil: React.FC = () => {
       setUser(updatedUser);
       updateContextUser({
         ...contextUser!,
-        fullName: updatedUser.fullName,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
         email: updatedUser.email
       });
       
@@ -263,17 +266,18 @@ const Perfil: React.FC = () => {
                 ) : user?.profileImage ? (
                   <img 
                     src={user.profileImage} 
-                    alt={user.fullName} 
+                    alt={user.firstName + ' ' + user.lastName} 
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-4xl">
-                    {user?.fullName?.charAt(0).toUpperCase() || '?'}
+                    {user?.firstName?.charAt(0).toUpperCase() || '?'}
+                    {user?.lastName?.charAt(0).toUpperCase() || '?'}
                   </div>
                 )}
               </div>
               
-              <h2 className="text-xl font-semibold text-center mb-1">{user?.fullName}</h2>
+              <h2 className="text-xl font-semibold text-center mb-1">{user?.firstName + ' ' + user?.lastName}</h2>
               <p className="text-gray-500 text-center mb-4">{user?.email}</p>
               
               <div className="mt-2 w-full">
@@ -326,14 +330,29 @@ const Perfil: React.FC = () => {
               {isEditing ? (
                 <form onSubmit={handleSubmit}>
                   <div className="mb-4">
-                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre completo
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre
                     </label>
                     <input
                       type="text"
-                      id="fullName"
-                      name="fullName"
-                      value={formData.fullName}
+                      id="firstName"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Apellido
+                    </label>
+                    <input
+                      type="text"
+                      id="lastName"
+                      name="lastName"
+                      value={formData.lastName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
                       required
@@ -375,8 +394,13 @@ const Perfil: React.FC = () => {
               ) : (
                 <div>
                   <div className="mb-4">
-                    <p className="text-sm text-gray-500">Nombre completo</p>
-                    <p className="font-medium">{user?.fullName}</p>
+                    <p className="text-sm text-gray-500">Nombre</p>
+                    <p className="font-medium">{user?.firstName}</p>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-500">Apellido</p>
+                    <p className="font-medium">{user?.lastName}</p>
                   </div>
                   
                   <div className="mb-4">
@@ -390,13 +414,8 @@ const Perfil: React.FC = () => {
                   </div>
                   
                   <div className="mb-4">
-                    <p className="text-sm text-gray-500">Rol</p>
-                    <p className="font-medium capitalize">{user?.role}</p>
-                    {user?.role === 'admin' && (
-                      <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded-full">
-                        Administrador
-                      </span>
-                    )}
+                    <p className="text-sm text-gray-500">Tipo de usuario</p>
+                    <p className="font-medium">{user?.userType}</p>
                   </div>
                 </div>
               )}

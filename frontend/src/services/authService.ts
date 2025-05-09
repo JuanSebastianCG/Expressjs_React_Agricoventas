@@ -9,15 +9,19 @@ export interface RegisterData {
   username: string;
   email: string;
   password: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  userType?: 'SELLER' | 'BUYER' | 'ADMIN';
   location?: {
-    name?: string;
-    address?: string;
+    addressLine1?: string;
+    addressLine2?: string;
     city?: string;
-    state?: string;
+    department?: string;
     country?: string;
     postalCode?: string;
-    description?: string;
+    latitude?: number;
+    longitude?: number;
   };
 }
 
@@ -31,10 +35,13 @@ export interface UserData {
   id: string;
   username: string;
   email: string;
-  fullName: string;
-  role?: string;
+  firstName: string;
+  lastName: string;
+  userType?: string;
   isActive?: boolean;
   profileImage?: string;
+  phoneNumber?: string;
+  primaryLocationId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -113,10 +120,13 @@ const authService = {
         id: user.id,
         username: user.username,
         email: user.email || '',
-        fullName: user.fullName || user.username,
-        role: user.role || 'user',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        userType: user.userType,
         isActive: user.isActive,
         profileImage: user.profileImage,
+        phoneNumber: user.phoneNumber,
+        primaryLocationId: user.primaryLocationId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       };

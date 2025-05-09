@@ -7,286 +7,273 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- Core Models ---
 model User {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  fullName     String
-  username     String   @unique
-  password     String
-  email        String   @unique
-  role         String   @default("user")
-  isActive     Boolean  @default(true)
-  profileImage String?
-  refreshToken String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  locations    UserLocation[]
+  id                   String              @id @default(auto()) @map("_id") @db.ObjectId
+  username             String              @unique
+  email                String              @unique
+  passwordHash         String              @map("password_hash")
+  firstName            String?             @map("first_name")
+  lastName             String?             @map("last_name")
+  phoneNumber          String?             @unique @map("phone_number")
+  primaryLocationId    String?             @db.ObjectId @map("primary_location_id")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  isActive             Boolean             @default(true) @map("is_active")
+  userType             String              @map("user_type") // "SELLER", "BUYER", "ADMIN"
+  refreshToken         String?             @map("refresh_token")
+  
+  // Relations
+  primaryLocation      Location?           @relation(fields: [primaryLocationId], references: [id])
+  products             Product[]
+  carts                Cart[]
+  orders               Order[]
+  reviews              Review[]
+  receivedNotifications UserNotification[] @relation("RecipientUser")
+  certificationsSubmitted UserCertification[] @relation("CertificationSubmitter")
+  certificationsVerified UserCertification[] @relation("CertificationVerifier")
+
+  @@map("users")
+}
+
+model Location {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  addressLine1  String    @map("address_line1")
+  addressLine2  String?   @map("address_line2")
+  city          String
+  department    String
+  postalCode    String?   @map("postal_code")
+  country       String    @default("Colombia")
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime? @updatedAt @map("updated_at")
+  
+  // Relations
+  users         User[]
+  products      Product[]
+
+  @@map("locations")
+}
+
+model ProductType {
+  id                String                @id @default(auto()) @map("_id") @db.ObjectId
+  name              String                @unique
+  description       String?
+  iconUrl           String?               @map("icon_url")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  
+  // Relations
+  products          Product[]
+  recommendations   ProductRecommendation[]
+
+  @@map("product_types")
 }
 
 model Product {
-  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
-  name                   String
-  description            String?
-  price                  Float
-  quantity               Int
-  photos                 String[]
-  category               String   @db.ObjectId
-  availability_start_date DateTime
-  availability_end_date   DateTime
-  farmer_id              String   @db.ObjectId
-  isActive               Boolean  @default(true)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  locations              ProductLocation[]
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId           String               @db.ObjectId @map("seller_id")
+  productTypeId      String?              @db.ObjectId @map("product_type_id")
+  originLocationId   String               @db.ObjectId @map("origin_location_id")
+  name               String
+  description        String?
+  basePrice          Float                @map("base_price")
+  stockQuantity      Int                  @default(0) @map("stock_quantity")
+  unitMeasure        String               @map("unit_measure") // "kg", "unit", "bundle", etc.
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  isFeatured         Boolean              @default(false) @map("is_featured")
+  isActive           Boolean              @default(true) @map("is_active")
+  
+  // Relations
+  seller             User                 @relation(fields: [sellerId], references: [id])
+  productType        ProductType?         @relation(fields: [productTypeId], references: [id])
+  originLocation     Location             @relation(fields: [originLocationId], references: [id])
+  images             ProductImage[]
+  orderItems         OrderItem[]
+  cartItems          CartItem[]
+  reviews            Review[]
+  notifications      ProductNotification[]
 
   @@map("products")
 }
 
-model Category {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  slug        String    @unique
-  description String?
-  parentId    String?   @db.ObjectId
-  level       Int       @default(1)
-  path        String[]  @db.ObjectId
-  isActive    Boolean   @default(true)
-  metadata    Json?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+model UserCertification {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String               @db.ObjectId @map("user_id")
+  certificationName  String               @map("certification_name")
+  imageUrl           String               @map("image_url")
+  status             String               @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  uploadedAt         DateTime             @default(now()) @map("uploaded_at")
+  verifiedAt         DateTime?            @map("verified_at")
+  verifierAdminId    String?              @db.ObjectId @map("verifier_admin_id")
+  rejectionReason    String?              @map("rejection_reason")
+  
+  // Relations
+  user               User                 @relation("CertificationSubmitter", fields: [userId], references: [id])
+  verifierAdmin      User?                @relation("CertificationVerifier", fields: [verifierAdminId], references: [id])
 
-  @@map("categories")
-  @@index([parentId])
-  // Eliminado el índice duplicado: @@index([slug])
+  @@map("user_certifications")
 }
 
-model Order {
-  id                String          @id @default(auto()) @map("_id") @db.ObjectId
-  orderNumber       String          @unique
-  customerId        String          @db.ObjectId
-  status            OrderStatus     @default(PENDING)
-  totalAmount       Float
-  subtotal          Float
-  tax               Float
-  shippingCost      Float
-  discount          Float           @default(0)
-  notes             String?
-  shippingAddress   Address
-  billingAddress    Address?
-  paymentMethod     PaymentMethod
-  paymentStatus     PaymentStatus   @default(PENDING)
-  paymentDetails    Json?
-  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
-  trackingNumber    String?
-  shippingProvider  String?
-  estimatedDelivery DateTime?
-  deliveredAt       DateTime?
-  canceledAt        DateTime?
-  cancelReason      String?
-  refundAmount      Float?
-  refundReason      String?
-  refundedAt        DateTime?
-  metadata          Json?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+// --- Supporting Product Models ---
+model ProductImage {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productId          String               @db.ObjectId @map("product_id")
+  imageUrl           String               @map("image_url")
+  altText            String?              @map("alt_text")
+  displayOrder       Int                  @default(0) @map("display_order")
+  isPrimary          Boolean              @default(false) @map("is_primary")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  
+  // Relations
+  product            Product              @relation(fields: [productId], references: [id])
 
-  items             OrderItem[]
+  @@map("product_images")
+}
+
+// --- Order & Cart Models ---
+model Order {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  buyerUserId        String               @db.ObjectId @map("buyer_user_id")
+  totalAmount        Float                @map("total_amount")
+  status             String               // "PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  paymentMethod      String?              @map("payment_method")
+  paymentStatus      String?              @map("payment_status") // "PENDING", "PAID", "FAILED"
+  shippingMethod     String?              @map("shipping_method")
+  trackingNumber     String?              @map("tracking_number")
+  
+  // Relations
+  buyer              User                 @relation(fields: [buyerUserId], references: [id])
+  items              OrderItem[]
+  reviews            Review[]
 
   @@map("orders")
-  @@index([customerId])
-  // Eliminado el índice duplicado: @@index([orderNumber])
-  @@index([status])
-  @@index([createdAt])
 }
 
 model OrderItem {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  orderId     String   @db.ObjectId
-  productId   String   @db.ObjectId
-  productName String
-  quantity    Int
-  unitPrice   Float
-  totalPrice  Float
-  farmerId    String   @db.ObjectId
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  orderId            String               @db.ObjectId @map("order_id")
+  productId          String               @db.ObjectId @map("product_id")
+  quantity           Int
+  unitPrice          Float                @map("unit_price")
+  subtotal           Float
+  
+  // Relations
+  order              Order                @relation(fields: [orderId], references: [id])
+  product            Product              @relation(fields: [productId], references: [id])
 
   @@map("order_items")
-  @@index([orderId])
-  @@index([productId])
-  @@index([farmerId])
 }
 
-model Invoice {
-  id            String        @id @default(auto()) @map("_id") @db.ObjectId
-  invoiceNumber String        @unique
-  orderId       String        @db.ObjectId
-  customerId    String        @db.ObjectId
-  amount        Float
-  status        InvoiceStatus @default(PENDING)
-  dueDate       DateTime?
-  paidAt        DateTime?
-  pdfUrl        String?
-  metadata      Json?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+model Cart {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String               @db.ObjectId @map("user_id") @unique
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  
+  // Relations
+  user               User                 @relation(fields: [userId], references: [id])
+  items              CartItem[]
 
-  @@map("invoices")
-  @@index([orderId])
-  @@index([customerId])
-  // Eliminado el índice duplicado: @@index([invoiceNumber])
+  @@map("carts")
 }
 
-model Shipment {
-  id               String         @id @default(auto()) @map("_id") @db.ObjectId
-  orderId          String         @db.ObjectId
-  trackingNumber   String?
-  carrier          String?
-  status           ShipmentStatus @default(PROCESSING)
-  shippingMethod   String
-  shippingCost     Float
-  estimatedDelivery DateTime?
-  actualDelivery   DateTime?
-  shippingAddress  Address
-  metadata         Json?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+model CartItem {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  cartId             String               @db.ObjectId @map("cart_id")
+  productId          String               @db.ObjectId @map("product_id")
+  quantity           Int
+  addedAt            DateTime             @default(now()) @map("added_at")
+  
+  // Relations
+  cart               Cart                 @relation(fields: [cartId], references: [id])
+  product            Product              @relation(fields: [productId], references: [id])
 
-  @@map("shipments")
-  @@index([orderId])
-  @@index([trackingNumber])
+  @@unique([cartId, productId], name: "uq_cart_product")
+  @@map("cart_items")
 }
 
-type Address {
-  fullName    String
-  line1       String
-  line2       String?
-  city        String
-  state       String
-  postalCode  String
-  country     String
-  phoneNumber String?
-  email       String?
-  isDefault   Boolean @default(false)
+// --- Review Model ---
+model Review {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String               @db.ObjectId @map("user_id")
+  productId          String               @db.ObjectId @map("product_id")
+  orderId            String?              @db.ObjectId @map("order_id")
+  rating             Int
+  comment            String?
+  createdAt          DateTime             @default(now()) @map("created_at")
+  isVerifiedPurchase Boolean              @default(false) @map("is_verified_purchase")
+  isApproved         Boolean              @default(true) @map("is_approved")
+  
+  // Relations
+  user               User                 @relation(fields: [userId], references: [id])
+  product            Product              @relation(fields: [productId], references: [id])
+  order              Order?               @relation(fields: [orderId], references: [id])
+
+  @@map("reviews")
 }
 
-enum OrderStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  CANCELED
-  REFUNDED
-  ON_HOLD
+// --- Notification Models ---
+model UserNotification {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  recipientUserId    String               @db.ObjectId @map("recipient_user_id")
+  type               String               // "ORDER_STATUS", "CERT_APPROVED", etc.
+  title              String?
+  message            String
+  isRead             Boolean              @default(false) @map("is_read")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime?            @updatedAt @map("updated_at")
+  relatedEntityType  String?              @map("related_entity_type") // "order", "user_certification", etc.
+  relatedEntityId    String?              @db.ObjectId @map("related_entity_id")
+  
+  // Relations
+  recipient          User                 @relation("RecipientUser", fields: [recipientUserId], references: [id])
+
+  @@map("user_notifications")
 }
 
-enum PaymentMethod {
-  CREDIT_CARD
-  BANK_TRANSFER
-  PAYPAL
-  CASH_ON_DELIVERY
-  MOBILE_PAYMENT
-  OTHER
+model ProductNotification {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productId          String               @db.ObjectId @map("product_id")
+  type               String               // "GENERAL_PROMO", "PRICE_DROP", "LOW_STOCK"
+  title              String?
+  message            String
+  isActive           Boolean              @default(true) @map("is_active")
+  startDate          DateTime?            @map("start_date")
+  endDate            DateTime?            @map("end_date")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  
+  // Relations
+  product            Product              @relation(fields: [productId], references: [id])
+
+  @@map("product_notifications")
 }
 
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-  PARTIALLY_REFUNDED
+// --- Product Recommendations ---
+model ProductRecommendation {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productTypeId      String               @db.ObjectId @map("product_type_id")
+  title              String
+  message            String
+  recommendedProductId String              @db.ObjectId @map("recommended_product_id")
+  recommendationType  String?             @map("recommendation_type") // "CARE_TIP", "USAGE_IDEA", "COMPLEMENTARY_PRODUCT"
+  isActive           Boolean              @default(true) @map("is_active")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  
+  // Relations
+  productType        ProductType          @relation(fields: [productTypeId], references: [id])
+
+  @@map("product_recommendations")
 }
 
-enum FulfillmentStatus {
-  UNFULFILLED
-  PARTIALLY_FULFILLED
-  FULFILLED
-  RETURNED
-  PARTIALLY_RETURNED
-}
-
-enum InvoiceStatus {
-  PENDING
-  PAID
-  OVERDUE
-  CANCELED
-  REFUNDED
-}
-
-enum ShipmentStatus {
-  PROCESSING
-  READY_FOR_PICKUP
-  IN_TRANSIT
-  OUT_FOR_DELIVERY
-  DELIVERED
-  FAILED
-  RETURNED
-}
-
+// --- Token Management ---
 model BlacklistedToken {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-}
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  token              String               @unique
+  expiresAt          DateTime             @map("expires_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
 
-enum Role {
-  ADMIN
-  FARMER
-  BUYER
-}
-
-model Location {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  address     String
-  city        String
-  state       String
-  country     String
-  postalCode  String?
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  users       UserLocation[]
-  products    ProductLocation[]
-  
-  @@map("locations")
-  @@index([city, state, country])
-}
-
-model UserLocation {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String   @db.ObjectId
-  locationId String   @db.ObjectId
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, locationId])
-  @@map("user_locations")
-  @@index([userId])
-  @@index([locationId])
-}
-
-model ProductLocation {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  productId  String   @db.ObjectId
-  locationId String   @db.ObjectId
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  
-  @@unique([productId, locationId])
-  @@map("product_locations")
-  @@index([productId])
-  @@index([locationId])
+  @@map("blacklisted_tokens")
 }

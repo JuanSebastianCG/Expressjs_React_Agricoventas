@@ -22,6 +22,7 @@ import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
 import locationRoutes from './routes/location.routes';
+import productTypeRoutes from './routes/productType.routes';
 /**
  * Middleware para manejar errores específicos de CORS
  */
@@ -95,6 +96,7 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes); 
   app.use(ROUTES_CONFIG.locations, locationRoutes);
+  app.use(ROUTES_CONFIG.productTypes, productTypeRoutes);
 
   // Configurar el servicio de archivos estáticos
   app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

@@ -1,301 +1,196 @@
-import { Request, Response } from 'express';
-import { UserService } from '../services/user.service';
-import { ApiError } from '../middleware/error.middleware';
-import { userToSafeUser, UpdateUserInput, UserIdParam } from '../schemas/user.schema';
-import { sendSuccessResponse, sendSuccessNoDataResponse, sendErrorResponse } from '../utils/responseHandler';
-import HttpStatusCode from '../utils/HttpStatusCode';
+import { Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
+import { UpdateUserDto } from "../schemas/user.schema";
+import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
+import HttpStatusCode from "../utils/HttpStatusCode";
 
-/**
- * User controller
- */
+const prisma = new PrismaClient();
+
 export class UserController {
-  private userService: UserService;
+  /**
+   * Get a user by ID
+   * @param req Express request
+   * @param res Express response
+   */
+  async getUserById(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.params.userId;
 
-  constructor() {
-    this.userService = new UserService();
+      // Verify user exists
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+      
+      if (!user) {
+        sendNotFoundResponse(res, "User not found");
+        return;
+      }
+
+      // Map user to response object (remove sensitive data)
+      const userResponse = this.mapToUserResponse(user);
+      sendSuccessResponse(res, userResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+    }
   }
 
   /**
-   * Get all users
+   * Update a user's profile
+   * @param req Express request
+   * @param res Express response
    */
-  getAllUsers = async (req: Request, res: Response): Promise<void> => {
+  async updateUser(req: Request, res: Response): Promise<void> {
     try {
-      const users = await this.userService.findAll();
+      const userId = req.params.userId;
+      const updateData: UpdateUserDto = req.body;
 
-      sendSuccessResponse(res, { users });
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
+      // Check if the requesting user is updating their own profile or is an admin
+      if (req.user?.userId !== userId && req.user?.userType !== "ADMIN") {
+        sendErrorResponse(res, "You can only update your own profile", HttpStatusCode.FORBIDDEN);
+        return;
       }
-      throw error;
+
+      // Verify user exists
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+      
+      if (!userExists) {
+        sendNotFoundResponse(res, "User not found");
+        return;
+      }
+
+      // Prepare update data
+      const updateDataForPrisma: any = { ...updateData };
+      
+      // If password is provided, hash it
+      if (updateData.password) {
+        updateDataForPrisma.passwordHash = await bcrypt.hash(updateData.password, 10);
+        delete updateDataForPrisma.password;
+      }
+
+      // Don't update username if provided
+      delete updateDataForPrisma.username;
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updateDataForPrisma
+      });
+
+      // Map user to response object
+      const userResponse = this.mapToUserResponse(updatedUser);
+      sendSuccessResponse(res, userResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
-  };
+  }
 
   /**
-   * Get user by ID
+   * Check if a username is available
+   * @param req Express request
+   * @param res Express response
    */
-  getUserById = async (req: Request, res: Response): Promise<void> => {
+  async checkUsernameAvailability(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.params.id;
-
-      const user = await this.userService.findById(userId);
-      if (!user) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
+      const { username } = req.query;
+      
+      if (!username || typeof username !== "string") {
+        sendErrorResponse(res, "Username is required", HttpStatusCode.BAD_REQUEST);
+        return;
       }
-
-      sendSuccessResponse(res, {
-        user: userToSafeUser(user),
+      
+      const user = await prisma.user.findUnique({
+        where: { username },
       });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
+      
+      const isAvailable = !user;
+      sendSuccessResponse(res, { isAvailable });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
-  };
+  }
 
   /**
-   * Update user
+   * Check if an email is available
+   * @param req Express request
+   * @param res Express response
    */
-  updateUser = async (req: Request, res: Response): Promise<void> => {
+  async checkEmailAvailability(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.params.id;
-      const updateData = req.body;
+      const { email } = req.query;
 
-      // Check if user exists
-      const existingUser = await this.userService.findById(userId);
-      if (!existingUser) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
+      if (!email || typeof email !== "string") {
+        sendErrorResponse(res, "Email is required", HttpStatusCode.BAD_REQUEST);
+        return;
       }
-
-      // Check if current user has permission to update
-      // Only allow updates to own account unless admin
-      if (req.user?.userId !== userId && req.user?.role !== 'admin') {
-        throw new ApiError(HttpStatusCode.FORBIDDEN, 'Forbidden');
-      }
-
-      // Prevent role changes unless admin
-      if (updateData.role && req.user?.role !== 'admin') {
-        throw new ApiError(HttpStatusCode.FORBIDDEN, 'Cannot change role');
-      }
-
-      const updatedUser = await this.userService.update(userId, updateData);
-
-      sendSuccessResponse(res, {
-        user: userToSafeUser(updatedUser),
+      
+      const user = await prisma.user.findUnique({
+        where: { email },
       });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
+      
+      const isAvailable = !user;
+      sendSuccessResponse(res, { isAvailable });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
-  };
+  }
 
   /**
-   * Delete user
+   * Deactivate a user account (soft delete)
+   * @param req Express request
+   * @param res Express response
    */
-  deleteUser = async (req: Request, res: Response): Promise<void> => {
+  async deactivateUser(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.params.id;
-
-      // Check if user exists
-      const existingUser = await this.userService.findById(userId);
-      if (!existingUser) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
+      const userId = req.params.userId;
+      
+      // Check if the requesting user is deactivating their own account or is an admin
+      if (req.user?.userId !== userId && req.user?.userType !== "ADMIN") {
+        sendErrorResponse(res, "You can only deactivate your own account", HttpStatusCode.FORBIDDEN);
+        return;
+      }
+      
+      // Verify user exists
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+      
+      if (!userExists) {
+        sendNotFoundResponse(res, "User not found");
+        return;
       }
 
-      // Check if current user has permission to delete
-      // Only allow deleting own account unless admin
-      if (req.user?.userId !== userId && req.user?.role !== 'admin') {
-        throw new ApiError(HttpStatusCode.FORBIDDEN, 'Forbidden');
-      }
+      // Deactivate user (soft delete)
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isActive: false },
+      });
 
-      await this.userService.delete(userId);
-
-      sendSuccessNoDataResponse(res, 'User deleted');
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
+      sendSuccessResponse(res, { message: "User account deactivated successfully" });
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
-  };
+  }
 
   /**
-   * Get current user's profile
+   * Map user entity to user response (remove sensitive data)
+   * @param user User entity
+   * @returns User response without sensitive data
    */
-  getMyProfile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      if (!req.user || !req.user.userId) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Not authenticated');
-      }
-
-      const userId = req.user.userId;
-      const user = await this.userService.findById(userId);
-      
-      if (!user) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
-      }
-
-      sendSuccessResponse(res, {
-        user: userToSafeUser(user),
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
-    }
-  };
-
-  /**
-   * Update current user's profile
-   */
-  updateMyProfile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      if (!req.user || !req.user.userId) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Not authenticated');
-      }
-
-      const userId = req.user.userId;
-      const updateData = req.body;
-
-      // Check if user exists
-      const existingUser = await this.userService.findById(userId);
-      if (!existingUser) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
-      }
-
-      // Prevent role changes 
-      if (updateData.role) {
-        throw new ApiError(HttpStatusCode.FORBIDDEN, 'Cannot change role');
-      }
-
-      const updatedUser = await this.userService.update(userId, updateData);
-
-      sendSuccessResponse(res, {
-        user: userToSafeUser(updatedUser),
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
-    }
-  };
-
-  /**
-   * Update profile image for current user
-   */
-  updateCurrentProfileImage = async (req: Request, res: Response): Promise<void> => {
-    try {
-      if (!req.user || !req.user.userId) {
-        throw new ApiError(HttpStatusCode.UNAUTHORIZED, 'Not authenticated');
-      }
-      
-      // Verificar si tenemos un archivo o una URL
-      let profileImageUrl: string;
-      
-      if (req.file) {
-        // Si hay un archivo subido, usamos su ruta
-        profileImageUrl = `/uploads/profiles/${req.file.filename}`;
-      } else if (req.body && req.body.imageUrl) {
-        // Si no hay archivo pero sí URL, usamos esa URL
-        profileImageUrl = req.body.imageUrl;
-      } else {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, 'No image provided');
-      }
-      
-      const userId = req.user.userId;
-      const user = await this.userService.findById(userId);
-      
-      if (!user) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
-      }
-      
-      // Actualizar usuario con la nueva imagen
-      const updatedUser = await this.userService.update(userId, {
-        profileImage: profileImageUrl
-      });
-      
-      sendSuccessResponse(res, {
-        user: userToSafeUser(updatedUser),
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
-    }
-  };
-  
-  /**
-   * Update profile image for user by ID
-   */
-  updateProfileImage = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const userId = req.params.id;
-      
-      // Verificar si tenemos un archivo o una URL
-      let profileImageUrl: string;
-      
-      if (req.file) {
-        // Si hay un archivo subido, usamos su ruta
-        profileImageUrl = `/uploads/profiles/${req.file.filename}`;
-      } else if (req.body && req.body.imageUrl) {
-        // Si no hay archivo pero sí URL, usamos esa URL
-        profileImageUrl = req.body.imageUrl;
-      } else {
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, 'No image provided');
-      }
-      
-      // Check if user exists
-      const existingUser = await this.userService.findById(userId);
-      if (!existingUser) {
-        throw new ApiError(HttpStatusCode.NOT_FOUND, 'User not found');
-      }
-      
-      // Check if current user has permission to update
-      // Only allow updates to own account unless admin
-      if (req.user?.userId !== userId && req.user?.role !== 'admin') {
-        throw new ApiError(HttpStatusCode.FORBIDDEN, 'Forbidden');
-      }
-      
-      // Actualizar usuario con la nueva imagen
-      const updatedUser = await this.userService.update(userId, {
-        profileImage: profileImageUrl
-      });
-      
-      sendSuccessResponse(res, {
-        user: userToSafeUser(updatedUser),
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'User not found') {
-          throw new ApiError(HttpStatusCode.NOT_FOUND, error.message);
-        }
-        throw new ApiError(HttpStatusCode.BAD_REQUEST, error.message);
-      }
-      throw error;
-    }
-  };
-}
+  private mapToUserResponse(user: any): any {
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName || undefined,
+      lastName: user.lastName || undefined,
+      phoneNumber: user.phoneNumber || undefined,
+      userType: user.userType,
+      primaryLocationId: user.primaryLocationId || undefined,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    };
+  }
+} 

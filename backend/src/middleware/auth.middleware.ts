@@ -1,11 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../utils/tokenUtils';
-import { sendUnauthorizedResponse, sendForbiddenResponse } from '../utils/responseHandler';
+import jwt from 'jsonwebtoken';
+import { sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
-import { ApiError } from './error.middleware';
-import { TokenService } from '../services/token.service';
-
-const tokenService = new TokenService();
 
 // Extend Express Request with user info
 declare global {
@@ -13,87 +9,89 @@ declare global {
     interface Request {
       user?: {
         userId: string;
-        username: string;
-        role: string;
+        userType: string;
       };
     }
   }
 }
 
 /**
- * Authentication middleware
- * - Verifies the access token in the Authorization header
- * - Adds user info to the request object
+ * Middleware to authenticate requests using JWT
  */
-export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   try {
-    // Check for Authorization header
+    // Get the authorization header
     const authHeader = req.headers.authorization;
+
     if (!authHeader) {
-      sendUnauthorizedResponse(res, 'No token provided');
+      sendErrorResponse(res, "No authorization token provided", HttpStatusCode.UNAUTHORIZED);
       return;
     }
 
-    // Get token from header (Bearer token)
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      sendUnauthorizedResponse(res, 'Invalid token format. Use Bearer token');
+    // Check if the header starts with "Bearer "
+    if (!authHeader.startsWith("Bearer ")) {
+      sendErrorResponse(res, "Invalid token format", HttpStatusCode.UNAUTHORIZED);
       return;
     }
 
-    const token = parts[1];
+    // Extract the token
+    const token = authHeader.split(" ")[1];
 
-    // Check if token is blacklisted
-    const isBlacklisted = await tokenService.isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      sendUnauthorizedResponse(res, 'Token has been invalidated');
+    if (!token) {
+      sendErrorResponse(res, "No token provided", HttpStatusCode.UNAUTHORIZED);
       return;
     }
 
-    // Verify token
-    const decoded = verifyAccessToken(token);
-    if (!decoded) {
-      sendUnauthorizedResponse(res, 'Invalid or expired token');
-      return;
-    }
+    // Verify the token
+    const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+    const decoded = jwt.verify(token, jwtSecret) as { userId: string; userType: string };
 
-    // Add user info to request
+    // Add the user data to the request object
     req.user = {
       userId: decoded.userId,
-      username: decoded.username,
-      role: decoded.role,
+      userType: decoded.userType,
     };
 
-    // Continue to next middleware
     next();
-  } catch (error) {
-    next(new ApiError(HttpStatusCode.UNAUTHORIZED, 'Authentication failed'));
+  } catch (error: any) {
+    if (error.name === "TokenExpiredError") {
+      sendErrorResponse(res, "Token expired", HttpStatusCode.UNAUTHORIZED);
+      return;
+    }
+    if (error.name === "JsonWebTokenError") {
+      sendErrorResponse(res, "Invalid token", HttpStatusCode.UNAUTHORIZED);
+      return;
+    }
+    sendErrorResponse(res, "Authentication failed", HttpStatusCode.UNAUTHORIZED);
   }
 };
 
 /**
- * Role-based authorization middleware
- * @param roles - Array of allowed roles
+ * Middleware to authorize users based on roles
+ * @param allowedRoles Array of allowed user types
  */
-export const authorize = (roles: string[]) => {
+export const authorize = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      // Check if user exists on request
+      // Check if user is authenticated
       if (!req.user) {
-        sendUnauthorizedResponse(res, 'Authentication required');
+        sendErrorResponse(res, "Unauthorized", HttpStatusCode.UNAUTHORIZED);
         return;
       }
 
-      // Check if user has required role
-      if (!roles.includes(req.user.role)) {
-        sendForbiddenResponse(res, `Access denied. Required role: ${roles.join(' or ')}`);
+      // Check if user has an allowed role
+      if (!allowedRoles.includes(req.user.userType)) {
+        sendErrorResponse(
+          res, 
+          "Insufficient permissions to access this resource", 
+          HttpStatusCode.FORBIDDEN
+        );
         return;
       }
 
-      // Continue to next middleware
       next();
-    } catch (error) {
-      next(new ApiError(HttpStatusCode.FORBIDDEN, 'Authorization failed'));
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   };
 };
