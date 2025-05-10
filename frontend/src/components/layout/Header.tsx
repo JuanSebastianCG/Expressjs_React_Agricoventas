@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import IconNoBackground from '../../assets/IconNoBackground.png';
+import { navigateToProducts } from '../../App';
 
 interface HeaderProps {
   title?: string;
@@ -45,8 +46,10 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   };
 
   // Function to navigate between pages
-  const navigate = (path: string) => {
-    window.location.href = path === 'home' ? '/' : `/${path}`;
+  const navigate = useNavigate();
+  
+  const handleNavigation = (path: string) => {
+    navigate(path === 'home' ? '/' : `/${path}`);
   };
 
   const toggleMobileMenu = () => {
@@ -60,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   const handleLogout = () => {
     logout();
     setUserMenuOpen(false);
-    window.location.href = '/';
+    navigate('/');
   };
 
   // Función para obtener la URL completa de la imagen de perfil
@@ -84,7 +87,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
     <header className="bg-white shadow-sm py-3 relative">
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center cursor-pointer" onClick={() => navigate('home')}>
+        <div className="flex items-center cursor-pointer" onClick={() => handleNavigation('home')}>
           <img 
             src={IconNoBackground} 
             alt="Agricoventas Logo" 
@@ -96,18 +99,21 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
           <>
             {/* Navigation for logged-in users - Desktop */}
             <nav className="hidden md:flex items-center">
-              <a href="/mercado-general" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
+              <Link to="/mercado-general" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
                 Mercado General
-              </a>
-              <a href="/mis-productos" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
+              </Link>
+              <a 
+                href="/mis-productos"
+                className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors"
+              >
                 Mis Productos
               </a>
-              <a href="/mis-pedidos" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
+              <Link to="/mis-pedidos" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
                 Mis Pedidos
-              </a>
-              <a href="/insights" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
+              </Link>
+              <Link to="/insights" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
                 Insights
-              </a>
+              </Link>
             </nav>
 
             {/* User profile dropdown - Desktop */}
@@ -190,22 +196,22 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
           <>
             {/* Navigation for non-logged-in users - Desktop */}
             <div className="hidden md:flex items-center space-x-4">
-              <a href="/mercado-general" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
+              <Link to="/mercado-general" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
                 Mercado General
-              </a>
+              </Link>
             </div>
 
             {/* Right side navigation - Desktop */}
             <div className="hidden md:flex items-center space-x-6">
-              <a href="/insights" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
+              <Link to="/insights" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
                 Insights
-              </a>
-              <a href="/register" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
+              </Link>
+              <Link to="/register" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
                 Regístrate
-              </a>
-              <a href="/login" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
+              </Link>
+              <Link to="/login" className="text-gray-1 font-medium hover:text-green-1 transition-colors">
                 Iniciar Sesión
-              </a>
+              </Link>
 
               {/* Search bar */}
               <div className="relative">
@@ -300,9 +306,13 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       </Link>
                     </li>
                     <li>
-                      <Link to="/mis-productos" className="block py-2 text-gray-1 hover:text-green-1">
+                      <a 
+                        href="/mis-productos"
+                        className="block py-2 text-gray-1 hover:text-green-1"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
                         Mis Productos
-                      </Link>
+                      </a>
                     </li>
                     <li>
                       <Link to="/mis-pedidos" className="block py-2 text-gray-1 hover:text-green-1">
