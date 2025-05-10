@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Extend Express Request with user info
 declare global {
@@ -18,7 +21,7 @@ declare global {
 /**
  * Middleware to authenticate requests using JWT
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Get the authorization header
     const authHeader = req.headers.authorization;
@@ -30,12 +33,12 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     // Check if the header starts with "Bearer "
     if (!authHeader.startsWith("Bearer ")) {
-      sendErrorResponse(res, "Invalid token format", HttpStatusCode.UNAUTHORIZED);
+      sendErrorResponse(res, "Invalid token format. Must start with 'Bearer '", HttpStatusCode.UNAUTHORIZED);
       return;
     }
 
-    // Extract the token
-    const token = authHeader.split(" ")[1];
+    // Extract the token and trim any whitespace
+    const token = authHeader.split(" ")[1]?.trim();
 
     if (!token) {
       sendErrorResponse(res, "No token provided", HttpStatusCode.UNAUTHORIZED);
@@ -44,24 +47,48 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
 
     // Verify the token
     const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string; userType: string };
+    
+    try {
+      const decoded = jwt.verify(token, jwtSecret) as { userId: string; userType: string };
 
-    // Add the user data to the request object
-    req.user = {
-      userId: decoded.userId,
-      userType: decoded.userType,
-    };
+      // Verify that the user still exists and is active
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, userType: true, isActive: true }
+      });
 
-    next();
+      if (!user) {
+        sendErrorResponse(res, "User not found", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      if (!user.isActive) {
+        sendErrorResponse(res, "User account is inactive", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      // Add the user data to the request object
+      req.user = {
+        userId: user.id,
+        userType: user.userType,
+      };
+
+      next();
+    } catch (jwtError: any) {
+      console.error('JWT Verification error:', jwtError);
+      
+      if (jwtError.name === "TokenExpiredError") {
+        sendErrorResponse(res, "Token has expired", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+      if (jwtError.name === "JsonWebTokenError") {
+        sendErrorResponse(res, "Invalid token format or signature", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+      sendErrorResponse(res, "Token verification failed", HttpStatusCode.UNAUTHORIZED);
+    }
   } catch (error: any) {
-    if (error.name === "TokenExpiredError") {
-      sendErrorResponse(res, "Token expired", HttpStatusCode.UNAUTHORIZED);
-      return;
-    }
-    if (error.name === "JsonWebTokenError") {
-      sendErrorResponse(res, "Invalid token", HttpStatusCode.UNAUTHORIZED);
-      return;
-    }
+    console.error('Authentication error:', error);
     sendErrorResponse(res, "Authentication failed", HttpStatusCode.UNAUTHORIZED);
   }
 };
@@ -91,6 +118,7 @@ export const authorize = (allowedRoles: string[]) => {
 
       next();
     } catch (error: any) {
+      console.error('Authorization error:', error);
       sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   };

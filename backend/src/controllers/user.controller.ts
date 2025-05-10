@@ -502,4 +502,63 @@ export class UserController {
       }
     }
   }
+
+  /**
+   * Get all users (admin only)
+   * @param req Express request
+   * @param res Express response
+   */
+  async getAllUsers(req: Request, res: Response): Promise<void> {
+    try {
+      // Verify admin authorization
+      if (!req.user || req.user.userType !== 'ADMIN') {
+        throw new ApiError(403, 'No autorizado para acceder a esta información', 'FORBIDDEN');
+      }
+
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          userType: true,
+          isActive: true,
+          profileImage: true,
+          phoneNumber: true,
+          createdAt: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      // Map users to response objects (remove sensitive data and add profile image URLs)
+      const usersResponse = users.map(user => ({
+        ...user,
+        profileImage: this.getProfileImageUrl(user.profileImage)
+      }));
+
+      sendSuccessResponse(res, usersResponse);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        console.error('Error in getAllUsers:', error);
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Error interno del servidor'
+          }
+        });
+      }
+    }
+  }
 } 

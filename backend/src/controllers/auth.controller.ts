@@ -199,55 +199,57 @@ export class AuthController {
    */
   async refreshToken(req: Request, res: Response): Promise<void> {
     try {
-      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+      const refreshToken = req.cookies.refreshToken;
 
       if (!refreshToken) {
-        sendErrorResponse(res, "Refresh token is required", HttpStatusCode.BAD_REQUEST);
+        sendErrorResponse(res, "No refresh token provided", HttpStatusCode.UNAUTHORIZED);
         return;
       }
 
-      try {
-        // Verify refresh token
-        const decoded = jwt.verify(refreshToken, this.refreshTokenSecret) as { userId: string };
+      // Verify refresh token
+      const decoded = jwt.verify(refreshToken, this.refreshTokenSecret) as { userId: string };
 
-        // Find user with this refresh token
-        const user = await prisma.user.findFirst({
-          where: {
-            id: decoded.userId,
-            refreshToken,
-          },
-        });
+      // Find user and verify refresh token matches
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId }
+      });
 
-        if (!user) {
-          sendErrorResponse(res, "Invalid refresh token", HttpStatusCode.UNAUTHORIZED);
-          return;
-        }
-
-        // Generate new tokens
-        const newAccessToken = this.generateAccessToken(user.id, user.userType);
-        const newRefreshToken = this.generateRefreshToken(user.id);
-
-        // Store new refresh token in database
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { refreshToken: newRefreshToken },
-        });
-
-        // Set new refresh token as HTTP-only cookie
-        res.cookie("refreshToken", newRefreshToken, {
-          httpOnly: true,
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-          path: "/api/auth/refresh",
-        });
-
-        sendSuccessResponse(res, {
-          token: newAccessToken,
-        });
-      } catch (error) {
+      if (!user || user.refreshToken !== refreshToken) {
         sendErrorResponse(res, "Invalid refresh token", HttpStatusCode.UNAUTHORIZED);
+        return;
       }
+
+      // Generate new tokens
+      const newAccessToken = this.generateAccessToken(user.id, user.userType);
+      const newRefreshToken = this.generateRefreshToken(user.id);
+
+      // Update refresh token in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: newRefreshToken },
+      });
+
+      // Set new refresh token cookie
+      res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/api/auth/refresh",
+      });
+
+      // Map user to response object
+      const userResponse = this.mapToUserResponse(user);
+
+      sendSuccessResponse(res, {
+        user: userResponse,
+        token: newAccessToken,
+      });
     } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.UNAUTHORIZED);
+      console.error('Refresh token error:', error);
+      if (error.name === "TokenExpiredError") {
+        sendErrorResponse(res, "Refresh token expired", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+      sendErrorResponse(res, "Failed to refresh token", HttpStatusCode.UNAUTHORIZED);
     }
   }
 
@@ -339,13 +341,11 @@ export class AuthController {
    * @returns JWT access token
    */
   private generateAccessToken(userId: string, userType: string): string {
-    // Using Function constructor to bypass TypeScript checks
-    const signJwt = new Function('jwt', 'payload', 'secret', 'options', 'return jwt.sign(payload, secret, options)');
-    
-    const payload = { userId, userType };
-    const options = { expiresIn: this.jwtExpiresIn };
-    
-    return signJwt(jwt, payload, this.jwtSecret, options);
+    return jwt.sign(
+      { userId, userType },
+      this.jwtSecret,
+      { expiresIn: this.jwtExpiresIn as jwt.SignOptions['expiresIn'] }
+    );
   }
 
   /**
@@ -354,13 +354,11 @@ export class AuthController {
    * @returns JWT refresh token
    */
   private generateRefreshToken(userId: string): string {
-    // Using Function constructor to bypass TypeScript checks
-    const signJwt = new Function('jwt', 'payload', 'secret', 'options', 'return jwt.sign(payload, secret, options)');
-    
-    const payload = { userId };
-    const options = { expiresIn: this.refreshTokenExpiresIn };
-    
-    return signJwt(jwt, payload, this.refreshTokenSecret, options);
+    return jwt.sign(
+      { userId },
+      this.refreshTokenSecret,
+      { expiresIn: this.refreshTokenExpiresIn as jwt.SignOptions['expiresIn'] }
+    );
   }
 
   /**

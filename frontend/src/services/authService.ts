@@ -60,9 +60,7 @@ const authService = {
   // Register new user
   async register(data: RegisterData): Promise<UserData> {
     try {
-      console.log('authService - Registrando usuario:', data.username);
       const response = await api.post(`${API_URL}/register`, data);
-      console.log('authService - Respuesta del registro:', response.data);
       
       // Manejar la estructura de respuesta anidada
       const userData = response.data.data?.user || response.data.user || response.data;
@@ -77,45 +75,26 @@ const authService = {
   // Login user
   async login(data: LoginData): Promise<LoginResponse> {
     try {
-      console.log('authService - Iniciando sesión con usuario:', data.username);
-      
       const response = await api.post(`${API_URL}/login`, data);
-      console.log('authService - Respuesta del login recibida:', response.status);
       
-      // Extraer los datos de la respuesta
+      // Extract data from response
       const responseData = response.data;
-      console.log('authService - Estructura de la respuesta:', JSON.stringify(responseData));
-      
-      // Verificar si los datos están dentro de 'data'
       const dataContainer = responseData.data || responseData;
       
-      // Extraer token (puede ser 'token' o 'accessToken')
-      const token = dataContainer.accessToken || dataContainer.token;
-      
-      // Extraer usuario
+      // Extract token and user data
+      const token = dataContainer.token;
       const user = dataContainer.user;
       
-      console.log('authService - Token encontrado:', !!token);
-      console.log('authService - Usuario encontrado:', !!user);
-      
-      // Verificar respuesta
+      // Validate response
       if (!token) {
-        console.error('authService - Token no encontrado en la respuesta');
-        throw new Error('Respuesta del servidor inválida: falta el token de autenticación');
+        throw new Error('Invalid server response: missing authentication token');
       }
       
       if (!user) {
-        console.error('authService - Usuario no encontrado en la respuesta');
-        throw new Error('Respuesta del servidor inválida: faltan los datos del usuario');
+        throw new Error('Invalid server response: missing user data');
       }
       
-      // Datos mínimos requeridos del usuario
-      if (!user.id || !user.username) {
-        console.error('authService - Datos de usuario incompletos:', user);
-        throw new Error('Datos de usuario incompletos');
-      }
-      
-      // Asegurar que user tenga todas las propiedades requeridas
+      // Ensure user has required properties
       const userData: UserData = {
         id: user.id,
         username: user.username,
@@ -131,18 +110,16 @@ const authService = {
         updatedAt: user.updatedAt
       };
       
-      // Store the token in localStorage for persistence
-      localStorage.setItem(TOKEN_KEY, token);
+      // Store token and user data
+      localStorage.setItem(TOKEN_KEY, token.trim());
       localStorage.setItem(USER_KEY, JSON.stringify(userData));
       
-      console.log('authService - Login exitoso, datos guardados en localStorage');
-      
       return {
-        token: token,
+        token,
         user: userData
       };
     } catch (error) {
-      console.error('authService - Error en login:', error);
+      console.error('authService - Login error:', error);
       const axiosError = error as AxiosError;
       throw parseApiError(axiosError);
     }
@@ -150,7 +127,6 @@ const authService = {
 
   // Logout user
   logout(): void {
-    console.log('authService - Cerrando sesión');
     // Clear all auth data
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -163,7 +139,6 @@ const authService = {
     try {
       // Check localStorage for user data
       const userStr = localStorage.getItem(USER_KEY);
-      console.log('authService - getCurrentUser: Datos encontrados:', !!userStr);
       
       if (userStr) {
         const userData = JSON.parse(userStr);
@@ -179,15 +154,13 @@ const authService = {
   // Check if user is logged in
   isLoggedIn(): boolean {
     const isLogged = !!this.getToken();
-    console.log('authService - isLoggedIn:', isLogged);
     return isLogged;
   },
 
   // Get auth token
   getToken(): string | null {
     const token = localStorage.getItem(TOKEN_KEY);
-    console.log('authService - getToken: Token encontrado:', !!token);
-    return token;
+    return token ? token.trim() : null;
   }
 };
 

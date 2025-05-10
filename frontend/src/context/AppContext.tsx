@@ -39,12 +39,9 @@ const checkForSavedSession = (): { token: string | null, user: UserData | null }
   try {
     const token = localStorage.getItem(TOKEN_KEY);
     const userStr = localStorage.getItem(USER_KEY);
-    console.log('checkForSavedSession - Token encontrado:', !!token);
-    console.log('checkForSavedSession - Usuario encontrado:', !!userStr);
     
     if (token && userStr) {
       const userData = JSON.parse(userStr);
-      console.log('checkForSavedSession - Usuario cargado:', userData && userData.username ? userData.username : 'sin username');
       return { token, user: userData };
     }
   } catch (error) {
@@ -65,8 +62,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   
   // Inicialización adicional y escucha de cambios en localStorage
   useEffect(() => {
-    console.log("AppContext - Estado inicial de isAuthenticated:", isAuthenticated);
-    console.log("AppContext - Estado inicial de user:", user ? (user.username || 'sin username') : 'null');
 
     const initializeUser = async () => {
       try {
@@ -75,7 +70,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           const currentUser = await userService.getCurrentUser();
           setUser(currentUser);
           setIsAuthenticated(true);
-          console.log("AppContext - Usuario actualizado desde el backend:", currentUser);
         }
       } catch (error) {
         console.error("AppContext - Error al obtener usuario actual:", error);
@@ -94,7 +88,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // Escuchar cambios en localStorage (por si se cierra sesión en otra pestaña)
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === TOKEN_KEY || event.key === USER_KEY) {
-        console.log("AppContext - Cambio detectado en localStorage:", event.key);
         const session = checkForSavedSession();
         if (session.token) {
           setIsAuthenticated(true);
@@ -120,7 +113,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
   
   const login = (token: string, userData: UserData) => {
-    console.log("AppContext - Login llamado con:", token ? "token válido" : "token inválido", userData ? "userData existe" : "userData NO existe");
     
     // Verificación estricta de userData
     if (!userData) {
@@ -130,7 +122,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     
     try {
       // Evitar el acceso a propiedades de userData para prevenir errores
-      console.log("AppContext - Guardando datos de usuario en localStorage");
       
       // Guardar en localStorage
       localStorage.setItem(TOKEN_KEY, token);
@@ -140,14 +131,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setIsAuthenticated(true);
       setUser(userData);
       
-      console.log("AppContext - Usuario autenticado correctamente");
     } catch (error) {
       console.error("Error en la función login:", error);
     }
   };
   
   const logout = () => {
-    console.log("AppContext - Logout ejecutado");
     
     // Limpiar localStorage
     localStorage.removeItem(TOKEN_KEY);

@@ -48,11 +48,9 @@ const Login: React.FC = () => {
         remember: values.rememberMe
       };
       
-      console.log("Login - Iniciando sesión con:", values.username);
       
       // Call the API to login
       const response = await authService.login(loginData);
-      console.log("Login - Respuesta recibida:", response ? "Respuesta válida" : "Respuesta inválida");
       
       // Verificar que la respuesta contiene token y datos de usuario
       if (!response || !response.token) {
@@ -63,21 +61,13 @@ const Login: React.FC = () => {
         throw new Error('Respuesta del servidor inválida: faltan los datos del usuario');
       }
       
-      // Log para depuración
-      console.log("Login - Token:", response.token ? "Presente" : "Ausente");
-      console.log("Login - User:", response.user ? 
-        `ID: ${response.user.id || 'no id'}, Username: ${response.user.username || 'no username'}` : 
-        "Ausente");
-      
       // Store auth info in context
       login(response.token, response.user);
       
-      console.log("Login - Estado actualizado, redirección pendiente");
       
       // Small delay to ensure state updates
       setTimeout(() => {
         // Redirect to home page on success
-        console.log("Login - Redirigiendo a home");
         window.location.href = '/';
       }, 200);
     } catch (error: any) {

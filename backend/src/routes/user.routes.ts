@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { UserController } from '../controllers/user.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validateRequest } from '../middleware/validation.middleware';
 import { updateUserSchema } from '../schemas/user.schema';
 
@@ -37,6 +37,20 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB
   }
 });
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users
+ */
+router.get("/", authenticate, authorize(["ADMIN"]), (req, res) => userController.getAllUsers(req, res));
 
 /**
  * @swagger

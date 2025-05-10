@@ -15,7 +15,7 @@ const AdminDashboard: React.FC = () => {
       return;
     }
     
-    if (user?.role !== 'admin') {
+    if (user?.userType !== 'ADMIN') {
       navigate('/dashboard');
     }
   }, [user, isAuthenticated, navigate]);
@@ -34,7 +34,7 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Panel de Administración</h1>
             <div>
               <span className="mr-2 text-sm text-gray-600">
-                {user?.fullName} ({user?.role})
+                {user?.firstName} {user?.lastName} (Administrador)
               </span>
               <Link 
                 to="/dashboard" 

@@ -25,7 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
   }
   
   // Si se requiere un rol específico y el usuario no lo tiene
-  if (requiredRole && user?.role !== requiredRole) {
+  if (requiredRole && user?.userType !== requiredRole) {
     // Redirigir al dashboard general
     return <Navigate to="/dashboard" replace />;
   }
@@ -37,7 +37,6 @@ const App: React.FC = () => {
   const { isAuthenticated } = useAppContext();
 
   useEffect(() => {
-    console.log("App renderizado, estado de autenticación:", isAuthenticated);
   }, [isAuthenticated]);
 
   return (
@@ -62,7 +61,7 @@ const App: React.FC = () => {
         
         {/* Rutas protegidas para administradores */}
         <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute requiredRole="ADMIN">
             <AdminDashboard />
           </ProtectedRoute>
         }>

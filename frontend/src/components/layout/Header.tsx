@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import IconNoBackground from '../../assets/IconNoBackground.png';
 
@@ -13,12 +14,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log('Header - Estado de autenticación:', isAuthenticated);
-    console.log('Header - Usuario completo:', user);
-    console.log('Header - Imagen de perfil raw:', user?.profileImage);
-    if (user?.profileImage) {
-      console.log('Header - URL construida:', getProfileImageUrl(user.profileImage));
-    }
+
   }, [isAuthenticated, user]);
 
   // Agregar event listener para cerrar menu al hacer clic fuera
@@ -70,12 +66,10 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   // Función para obtener la URL completa de la imagen de perfil
   const getProfileImageUrl = (imagePath: string | null | undefined): string | undefined => {
     if (!imagePath) {
-      console.log('getProfileImageUrl - No hay imagen');
       return undefined;
     }
     // Si la URL ya es completa (comienza con http), la devolvemos tal cual
     if (imagePath.startsWith('http')) {
-      console.log('getProfileImageUrl - URL completa:', imagePath);
       return imagePath;
     }
     // Si no, construimos la URL completa
@@ -83,7 +77,6 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
     // Asegurarse de que no haya doble slash
     const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
     const fullUrl = `${apiUrl}/${cleanPath}`;
-    console.log('getProfileImageUrl - URL construida:', fullUrl);
     return fullUrl;
   };
 
@@ -169,27 +162,18 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                 {/* Dropdown menu */}
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                    <a 
-                      href="/perfil" 
+                    <Link 
+                      to="/perfil" 
                       className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
                     >
                       Mi Perfil
-                    </a>
-                    <a 
-                      href="/dashboard" 
+                    </Link>
+                    <Link 
+                      to="/admin/users" 
                       className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
                     >
                       Administrar
-                    </a>
-                    {/* Opción de Administrador - solo visible para administradores */}
-                    {user?.userType === 'ADMIN' && (
-                      <a 
-                        href="/admin/users" 
-                        className="block px-4 py-2 text-purple-700 hover:bg-gray-100 hover:text-purple-900 font-medium"
-                      >
-                        Admin
-                      </a>
-                    )}
+                    </Link>
                     <div className="border-t border-gray-200 my-1"></div>
                     <button 
                       onClick={handleLogout}
@@ -286,12 +270,6 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                       )}
                     </div>
                     <span className="text-gray-1">{user ? `${user.firstName} ${user.lastName}` : 'Usuario'}</span>
-                    {/* Badge de administrador en móvil */}
-                    {user?.userType === 'ADMIN' && (
-                      <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                        Admin
-                      </span>
-                    )}
                   </div>
                   <button
                     onClick={handleLogout}
@@ -307,42 +285,34 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                 <nav>
                   <ul className="space-y-2">
                     <li>
-                      <a href="/perfil" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/perfil" className="block py-2 text-gray-1 hover:text-green-1">
                         Mi Perfil
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/dashboard" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/admin/users" className="block py-2 text-gray-1 hover:text-green-1">
                         Administrar
-                      </a>
+                      </Link>
                     </li>
-                    {/* Opción de Administrador en móvil - solo visible para administradores */}
-                    {user?.userType === 'ADMIN' && (
-                      <li>
-                        <a href="/admin/users" className="block py-2 text-purple-700 hover:text-purple-900 font-medium">
-                          Admin
-                        </a>
-                      </li>
-                    )}
                     <li>
-                      <a href="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
                         Mercado General
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/mis-productos" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/mis-productos" className="block py-2 text-gray-1 hover:text-green-1">
                         Mis Productos
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/mis-pedidos" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/mis-pedidos" className="block py-2 text-gray-1 hover:text-green-1">
                         Mis Pedidos
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/insights" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/insights" className="block py-2 text-gray-1 hover:text-green-1">
                         Insights
-                      </a>
+                      </Link>
                     </li>
                   </ul>
                 </nav>
@@ -353,24 +323,24 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                 <nav>
                   <ul className="space-y-2">
                     <li>
-                      <a href="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/mercado-general" className="block py-2 text-gray-1 hover:text-green-1">
                         Mercado General
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/insights" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/insights" className="block py-2 text-gray-1 hover:text-green-1">
                         Insights
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/register" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/register" className="block py-2 text-gray-1 hover:text-green-1">
                         Regístrate
-                      </a>
+                      </Link>
                     </li>
                     <li>
-                      <a href="/login" className="block py-2 text-gray-1 hover:text-green-1">
+                      <Link to="/login" className="block py-2 text-gray-1 hover:text-green-1">
                         Iniciar Sesión
-                      </a>
+                      </Link>
                     </li>
                   </ul>
                 </nav>

@@ -6,7 +6,7 @@ import MainLayout from '../components/layout/MainLayout';
 
 const Dashboard: React.FC = () => {
   const { user } = useAppContext();
-  const isAdmin = user?.userType === 'admin';
+  const isAdmin = user?.userType === 'ADMIN';
 
   return (
     <MainLayout>
