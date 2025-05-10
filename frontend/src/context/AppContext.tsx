@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import authService, { UserData } from '../services/authService';
+import userService from '../services/userService';
 
 // Define the shape of our context state
 interface AppContextState {
@@ -60,19 +61,35 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!savedSession.token);
   const [user, setUser] = useState<UserData | null>(savedSession.user);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Inicialización adicional y escucha de cambios en localStorage
   useEffect(() => {
     console.log("AppContext - Estado inicial de isAuthenticated:", isAuthenticated);
     console.log("AppContext - Estado inicial de user:", user ? (user.username || 'sin username') : 'null');
 
-    // Verificar inmediatamente
-    if (savedSession.token && !isAuthenticated) {
-      setIsAuthenticated(true);
-      setUser(savedSession.user);
-      console.log("AppContext - Sesión restaurada durante inicialización");
-    }
+    const initializeUser = async () => {
+      try {
+        if (savedSession.token) {
+          // Obtener datos actualizados del usuario desde el backend
+          const currentUser = await userService.getCurrentUser();
+          setUser(currentUser);
+          setIsAuthenticated(true);
+          console.log("AppContext - Usuario actualizado desde el backend:", currentUser);
+        }
+      } catch (error) {
+        console.error("AppContext - Error al obtener usuario actual:", error);
+        // Si hay error, limpiar la sesión
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeUser();
     
     // Escuchar cambios en localStorage (por si se cierra sesión en otra pestaña)
     const handleStorageChange = (event: StorageEvent) => {

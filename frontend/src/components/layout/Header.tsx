@@ -14,7 +14,11 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
 
   useEffect(() => {
     console.log('Header - Estado de autenticación:', isAuthenticated);
-    console.log('Header - Usuario:', user?.username || 'no hay usuario');
+    console.log('Header - Usuario completo:', user);
+    console.log('Header - Imagen de perfil raw:', user?.profileImage);
+    if (user?.profileImage) {
+      console.log('Header - URL construida:', getProfileImageUrl(user.profileImage));
+    }
   }, [isAuthenticated, user]);
 
   // Agregar event listener para cerrar menu al hacer clic fuera
@@ -63,6 +67,26 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
     window.location.href = '/';
   };
 
+  // Función para obtener la URL completa de la imagen de perfil
+  const getProfileImageUrl = (imagePath: string | null | undefined): string | undefined => {
+    if (!imagePath) {
+      console.log('getProfileImageUrl - No hay imagen');
+      return undefined;
+    }
+    // Si la URL ya es completa (comienza con http), la devolvemos tal cual
+    if (imagePath.startsWith('http')) {
+      console.log('getProfileImageUrl - URL completa:', imagePath);
+      return imagePath;
+    }
+    // Si no, construimos la URL completa
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3010';
+    // Asegurarse de que no haya doble slash
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    const fullUrl = `${apiUrl}/${cleanPath}`;
+    console.log('getProfileImageUrl - URL construida:', fullUrl);
+    return fullUrl;
+  };
+
   return (
     <header className="bg-white shadow-sm py-3 relative">
       <div className="container mx-auto px-4 flex items-center justify-between">
@@ -96,43 +120,64 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
             {/* User profile dropdown - Desktop */}
             <div className="hidden md:flex items-center" ref={userMenuRef}>
               <div className="relative">
-                <button 
+                <button
                   onClick={toggleUserMenu}
-                  className="flex items-center space-x-2 text-gray-1 hover:text-green-1 focus:outline-none"
+                  className="flex items-center space-x-3 focus:outline-none"
                 >
-                  <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white">
-                    <span>{getUserInitials()}</span>
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                    {user?.profileImage ? (
+                      <img
+                        src={getProfileImageUrl(user.profileImage)}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-full h-full flex items-center justify-center bg-primary-100 text-primary-600 text-sm font-semibold">
+                                ${getUserInitials()}
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary-100 text-primary-600 text-sm font-semibold">
+                        {getUserInitials()}
+                      </div>
+                    )}
                   </div>
-                  <span>Hola, {user ? `${user.firstName} ${user.lastName}` : 'Usuario'}</span>
-                  {/* Badge de administrador */}
-                  {user?.userType === 'ADMIN' && (
-                    <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                      Admin
-                    </span>
-                  )}
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className={`h-5 w-5 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
+                  <span className="text-gray-700">{user?.firstName}</span>
+                  <svg
+                    className={`w-5 h-5 text-gray-400 transition-transform ${
+                      userMenuOpen ? 'transform rotate-180' : ''
+                    }`}
+                    fill="none"
                     stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
                 
                 {/* Dropdown menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-0-5">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
                     <a 
                       href="/perfil" 
-                      className="block px-4 py-2 text-gray-1 hover:bg-gray-0-2 hover:text-green-1"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
                     >
                       Mi Perfil
                     </a>
                     <a 
                       href="/dashboard" 
-                      className="block px-4 py-2 text-gray-1 hover:bg-gray-0-2 hover:text-green-1"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
                     >
                       Administrar
                     </a>
@@ -140,15 +185,15 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                     {user?.userType === 'ADMIN' && (
                       <a 
                         href="/admin/users" 
-                        className="block px-4 py-2 text-purple-700 hover:bg-gray-0-2 hover:text-purple-900 font-medium"
+                        className="block px-4 py-2 text-purple-700 hover:bg-gray-100 hover:text-purple-900 font-medium"
                       >
                         Admin
                       </a>
                     )}
-                    <div className="border-t border-gray-0-5 my-1"></div>
+                    <div className="border-t border-gray-200 my-1"></div>
                     <button 
                       onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-red-1 hover:bg-gray-0-2 hover:text-red-700"
+                      className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100 hover:text-red-700"
                     >
                       Cerrar Sesión
                     </button>
@@ -216,8 +261,29 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                 {/* User info for mobile */}
                 <div className="flex items-center justify-between py-2 mb-2 border-b border-gray-0-5">
                   <div className="flex items-center">
-                    <div className="h-8 w-8 rounded-full bg-green-1 flex items-center justify-center text-white mr-2">
-                      <span>{getUserInitials()}</span>
+                    <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center mr-2">
+                      {user?.profileImage ? (
+                        <img
+                          src={getProfileImageUrl(user.profileImage)}
+                          alt={`${user.firstName} ${user.lastName}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            const parent = target.parentElement;
+                            if (parent) {
+                              parent.innerHTML = `
+                                <div class="w-full h-full flex items-center justify-center bg-primary-100 text-primary-600 text-sm font-semibold">
+                                  ${getUserInitials()}
+                                </div>
+                              `;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-primary-100 text-primary-600 text-sm font-semibold">
+                          {getUserInitials()}
+                        </div>
+                      )}
                     </div>
                     <span className="text-gray-1">{user ? `${user.firstName} ${user.lastName}` : 'Usuario'}</span>
                     {/* Badge de administrador en móvil */}

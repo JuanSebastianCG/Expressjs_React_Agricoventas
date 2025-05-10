@@ -7,9 +7,9 @@ import { logger } from './logger';
 
 // Server configuration
 export const SERVER_CONFIG = {
-  port: process.env.PORT || '4000',
+  port: process.env.PORT || '3000',
   env: process.env.NODE_ENV || 'development',
-  //frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3010',
+  //frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3006',
 };
 
 // Log configuration loading for debugging
@@ -17,7 +17,7 @@ logger.info(`Server configuration loaded - Port: ${SERVER_CONFIG.port}, Environm
 
 // CORS configuration
 export const CORS_CONFIG = {
-  origin: '*',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],

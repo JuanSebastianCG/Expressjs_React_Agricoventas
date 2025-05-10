@@ -4,10 +4,48 @@ import bcrypt from "bcrypt";
 import { UpdateUserDto } from "../schemas/user.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
+import path from "path";
+import fs from "fs";
 
 const prisma = new PrismaClient();
 
+// Custom error class for API errors
+class ApiError extends Error {
+  constructor(
+    public statusCode: number, 
+    public message: string,
+    public code: string = 'API_ERROR'
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        userId: string;
+        userType: string;
+      }
+    }
+  }
+}
+
 export class UserController {
+  /**
+   * Helper method to get full profile image URL
+   * @param imagePath Path to the profile image
+   * @returns Full URL to the profile image
+   */
+  private getProfileImageUrl(imagePath: string | null): string | null {
+    if (!imagePath) return null;
+    const apiUrl = process.env.API_URL || 'http://localhost:3010';
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${apiUrl}/${cleanPath}`;
+  }
+
   /**
    * Get a user by ID
    * @param req Express request
@@ -17,21 +55,55 @@ export class UserController {
     try {
       const userId = req.params.userId;
 
-      // Verify user exists
+      // Handle "me" special case
+      if (userId === 'me') {
+        if (!req.user?.userId) {
+          throw new ApiError(401, 'No autorizado', 'UNAUTHORIZED');
+        }
+        const user = await prisma.user.findUnique({
+          where: { id: req.user.userId }
+        });
+        
+        if (!user) {
+          throw new ApiError(404, 'Usuario no encontrado', 'USER_NOT_FOUND');
+        }
+
+        // Map user to response object (remove sensitive data)
+        const userResponse = this.mapToUserResponse(user);
+        sendSuccessResponse(res, userResponse);
+        return;
+      }
+
+      // Regular user lookup by ID
       const user = await prisma.user.findUnique({
         where: { id: userId }
       });
       
       if (!user) {
-        sendNotFoundResponse(res, "User not found");
-        return;
+        throw new ApiError(404, 'Usuario no encontrado', 'USER_NOT_FOUND');
       }
 
       // Map user to response object (remove sensitive data)
       const userResponse = this.mapToUserResponse(user);
       sendSuccessResponse(res, userResponse);
-    } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Error interno del servidor'
+          }
+        });
+      }
     }
   }
 
@@ -42,48 +114,67 @@ export class UserController {
    */
   async updateUser(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.params.userId;
-      const updateData: UpdateUserDto = req.body;
+      const { userId } = req.params;
+      const actualUserId = userId === 'me' ? req.user?.userId : userId;
 
-      // Check if the requesting user is updating their own profile or is an admin
-      if (req.user?.userId !== userId && req.user?.userType !== "ADMIN") {
-        sendErrorResponse(res, "You can only update your own profile", HttpStatusCode.FORBIDDEN);
-        return;
+      if (!actualUserId) {
+        throw new ApiError(401, 'No autorizado');
       }
 
-      // Verify user exists
-      const userExists = await prisma.user.findUnique({
-        where: { id: userId },
+      const user = await prisma.user.findUnique({
+        where: { id: actualUserId }
       });
-      
-      if (!userExists) {
-        sendNotFoundResponse(res, "User not found");
-        return;
+
+      if (!user) {
+        throw new ApiError(404, 'Usuario no encontrado');
       }
 
-      // Prepare update data
-      const updateDataForPrisma: any = { ...updateData };
-      
-      // If password is provided, hash it
-      if (updateData.password) {
-        updateDataForPrisma.passwordHash = await bcrypt.hash(updateData.password, 10);
-        delete updateDataForPrisma.password;
-      }
-
-      // Don't update username if provided
-      delete updateDataForPrisma.username;
-
-      // Update user
       const updatedUser = await prisma.user.update({
-        where: { id: userId },
-        data: updateDataForPrisma
+        where: { id: actualUserId },
+        data: req.body,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          userType: true,
+          isActive: true,
+          profileImage: true,
+          phoneNumber: true,
+          primaryLocationId: true,
+          createdAt: true
+        }
       });
 
-      // Map user to response object
-      const userResponse = this.mapToUserResponse(updatedUser);
-      sendSuccessResponse(res, userResponse);
-    } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      const profileImageUrl = this.getProfileImageUrl(updatedUser.profileImage);
+
+      res.json({
+        success: true,
+        data: {
+          ...updatedUser,
+          profileImage: profileImageUrl
+        }
+      });
+    } catch (error) {
+      console.error('Error in updateUser:', error);
+      if (error instanceof ApiError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Error interno del servidor'
+          }
+        });
+      }
     }
   }
 
@@ -175,6 +266,95 @@ export class UserController {
   }
 
   /**
+   * Update a user's profile image
+   * @param req Express request
+   * @param res Express response
+   */
+  async updateProfileImage(req: Request, res: Response): Promise<void> {
+    try {
+      const { userId } = req.params;
+      const actualUserId = userId === 'me' ? req.user?.userId : userId;
+
+      if (!actualUserId) {
+        throw new ApiError(401, 'No autorizado');
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: actualUserId }
+      });
+
+      if (!user) {
+        throw new ApiError(404, 'Usuario no encontrado');
+      }
+
+      if (!req.file) {
+        throw new ApiError(400, 'No se proporcionó ninguna imagen');
+      }
+
+      // Eliminar la imagen anterior si existe
+      if (user.profileImage) {
+        const oldImagePath = path.join(__dirname, '../../', user.profileImage);
+        try {
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        } catch (error) {
+          console.error('Error al eliminar la imagen anterior:', error);
+        }
+      }
+
+      const imageUrl = `uploads/profiles/${req.file.filename}`;
+
+      const updatedUser = await prisma.user.update({
+        where: { id: actualUserId },
+        data: { profileImage: imageUrl },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          userType: true,
+          isActive: true,
+          profileImage: true,
+          phoneNumber: true,
+          primaryLocationId: true,
+          createdAt: true
+        }
+      });
+
+      const profileImageUrl = this.getProfileImageUrl(updatedUser.profileImage);
+
+      res.json({
+        success: true,
+        data: {
+          ...updatedUser,
+          profileImage: profileImageUrl
+        }
+      });
+    } catch (error) {
+      console.error('Error in updateProfileImage:', error);
+      if (error instanceof ApiError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Error interno del servidor'
+          }
+        });
+      }
+    }
+  }
+
+  /**
    * Map user entity to user response (remove sensitive data)
    * @param user User entity
    * @returns User response without sensitive data
@@ -191,6 +371,135 @@ export class UserController {
       primaryLocationId: user.primaryLocationId || undefined,
       isActive: user.isActive,
       createdAt: user.createdAt,
+      profileImage: user.profileImage 
+        ? this.getProfileImageUrl(user.profileImage)
+        : null
     };
+  }
+
+  // Update current user
+  async updateCurrentUser(req: Request, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new ApiError(401, 'No authenticated user found', 'UNAUTHORIZED');
+      }
+
+      const userData = req.body;
+      
+      // Verify user exists
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!userExists) {
+        throw new ApiError(404, 'User not found', 'USER_NOT_FOUND');
+      }
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: userData,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          userType: true,
+          isActive: true,
+          profileImage: true,
+          phoneNumber: true,
+          primaryLocationId: true,
+          createdAt: true
+        }
+      });
+
+      res.json({
+        success: true,
+        data: updatedUser
+      });
+    } catch (error) {
+      console.error('Error updating current user:', error);
+      if (error instanceof ApiError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            message: 'Internal server error'
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Get current user
+   */
+  async getCurrentUser(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new ApiError(401, 'No autorizado');
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.userId },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          userType: true,
+          isActive: true,
+          profileImage: true,
+          phoneNumber: true,
+          primaryLocationId: true,
+          createdAt: true
+        }
+      });
+
+      if (!user) {
+        throw new ApiError(404, 'Usuario no encontrado');
+      }
+
+      const profileImageUrl = this.getProfileImageUrl(user.profileImage);
+
+      // Asegurarse de que la respuesta incluya la imagen de perfil
+      const userResponse = {
+        ...user,
+        profileImage: profileImageUrl
+      };
+
+      res.json({
+        success: true,
+        data: userResponse
+      });
+    } catch (error) {
+      console.error('Error in getCurrentUser:', error);
+      if (error instanceof ApiError) {
+        res.status(error.statusCode).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Error interno del servidor'
+          }
+        });
+      }
+    }
   }
 } 

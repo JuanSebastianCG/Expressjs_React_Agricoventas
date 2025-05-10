@@ -2,7 +2,7 @@ import api from './api';
 import { AxiosError } from 'axios';
 
 // API URL for user endpoints
-const API_URL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/api/users`;
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3010'}/api/users`;
 
 // Tipos
 export interface User {
@@ -36,8 +36,10 @@ const parseApiError = (error: AxiosError): Error => {
   if (error.response) {
     // La respuesta del servidor con estado de error
     const data = error.response.data as any;
-    const message = data.message || data.error || 'Error del servidor';
-    return new Error(message);
+    if (data.error) {
+      return new Error(data.error.message || data.error);
+    }
+    return new Error(data.message || 'Error del servidor');
   }
   return error as Error;
 };
@@ -72,7 +74,8 @@ const userService = {
   async getCurrentUser(): Promise<User> {
     try {
       const response = await api.get(`${API_URL}/me`);
-      return response.data.data.user;
+      // The response structure is { success: true, data: { ...userData } }
+      return response.data.data;
     } catch (error) {
       console.error('userService - Error al obtener usuario actual:', error);
       const axiosError = error as AxiosError;

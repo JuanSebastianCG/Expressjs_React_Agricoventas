@@ -1,6 +1,7 @@
 // Core dependencies
 import express, { Express, Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 import path from 'path';
+import fs from 'fs';
 
 // Middleware packages
 import cors from 'cors';
@@ -21,6 +22,18 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../uploads');
+const profilesDir = path.join(uploadsDir, 'profiles');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+if (!fs.existsSync(profilesDir)) {
+  fs.mkdirSync(profilesDir);
+}
 
 /**
  * Middleware para manejar errores específicos de CORS
@@ -70,6 +83,22 @@ export function createApp(): Express {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
   
+  // Configurar el servicio de archivos estáticos
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+    setHeaders: (res, path) => {
+      // Permitir acceso desde cualquier origen
+      res.set('Access-Control-Allow-Origin', '*');
+      // Establecer el tipo de contenido correcto para las imágenes
+      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+        res.set('Content-Type', 'image/jpeg');
+      } else if (path.endsWith('.png')) {
+        res.set('Content-Type', 'image/png');
+      } else if (path.endsWith('.gif')) {
+        res.set('Content-Type', 'image/gif');
+      }
+    }
+  }));
+  
   // Middleware para manejar preflight OPTIONS requests
   app.use((req, res, next) => {
     if (req.method === 'OPTIONS') {
@@ -94,9 +123,6 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.users, userRoutes);
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes);
-
-  // Configurar el servicio de archivos estáticos
-  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

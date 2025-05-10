@@ -21,13 +21,6 @@ const Perfil: React.FC = () => {
   });
   
   const [isEditing, setIsEditing] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -37,23 +30,28 @@ const Perfil: React.FC = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const userData = await userService.getCurrentUser();
-        setUser(userData);
-        setFormData({
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          email: userData.email || '',
-        });
-        setLoading(false);
-      } catch (err) {
-        setError('Error al cargar la información del usuario');
-        setLoading(false);
+        if (userData) {
+          setUser(userData);
+          setFormData({
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            email: userData.email || '',
+          });
+        }
+      } catch (err: any) {
         console.error('Error fetching user data:', err);
+        setError(err.message || 'Error al cargar la información del usuario');
+      } finally {
+        setLoading(false);
       }
     };
     
-    fetchUserData();
-  }, []);
+    if (contextUser) {
+      fetchUserData();
+    }
+  }, [contextUser]);
   
   // Redirigir si no hay usuario autenticado
   useEffect(() => {
@@ -71,19 +69,23 @@ const Perfil: React.FC = () => {
     }));
   };
   
-  // Manejar cambios en el formulario de contraseña
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-  
   // Manejar la selección de imagen
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      
+      // Validar tipo de archivo
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor selecciona un archivo de imagen válido');
+        return;
+      }
+      
+      // Validar tamaño (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('La imagen no debe superar los 5MB');
+        return;
+      }
+      
       setSelectedImage(file);
       
       // Crear URL para previsualización
@@ -92,6 +94,9 @@ const Perfil: React.FC = () => {
         setPreviewUrl(fileReader.result as string);
       };
       fileReader.readAsDataURL(file);
+
+      // Subir la imagen inmediatamente después de seleccionarla
+      handleImageUpload(file);
     }
   };
   
@@ -130,106 +135,58 @@ const Perfil: React.FC = () => {
     }
   };
   
-  // Manejar el envío del formulario de contraseña
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // Manejar la carga de imagen de perfil
+  const handleImageUpload = async (file?: File) => {
     if (!user) return;
     
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
+    const imageToUpload = file || selectedImage;
+    if (!imageToUpload) return;
     
     try {
       setLoading(true);
       setError(null);
       
-      await userService.updateCurrentUser({
-        password: passwordData.newPassword,
-      });
+      const updatedUser = await userService.updateCurrentProfileImage(imageToUpload);
       
-      setSuccess('Contraseña actualizada correctamente');
-      setLoading(false);
-      setIsChangingPassword(false);
-      
-      // Resetear campos de contraseña
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-      
-      // Limpiar mensaje de éxito después de 3 segundos
-      setTimeout(() => {
-        setSuccess(null);
-      }, 3000);
+      if (updatedUser) {
+        setUser(updatedUser);
+        updateContextUser({
+          ...contextUser!,
+          profileImage: updatedUser.profileImage
+        });
+        
+        setSuccess('Imagen de perfil actualizada correctamente');
+        setSelectedImage(null);
+        setPreviewUrl(null);
+        
+        // Limpiar el input de archivo
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+
+        // Limpiar mensaje de éxito después de 3 segundos
+        setTimeout(() => {
+          setSuccess(null);
+        }, 3000);
+      }
     } catch (err: any) {
-      setError(err.message || 'Error al actualizar la contraseña');
+      console.error('Error updating profile image:', err);
+      setError(err.message || 'Error al actualizar la imagen de perfil');
+    } finally {
       setLoading(false);
-      console.error('Error updating password:', err);
     }
   };
   
-  // Manejar la carga de imagen de perfil
-  const handleImageUpload = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      let updatedUser;
-      
-      // Intentar usar el archivo seleccionado si existe
-      if (selectedImage) {
-        try {
-          updatedUser = await userService.updateCurrentProfileImage(selectedImage);
-        } catch (uploadError) {
-          console.error('Error subiendo archivo, intentando con URL:', uploadError);
-          // Si falla el envío del archivo, intentar con una URL
-          updatedUser = await userService.updateCurrentProfileImage('https://via.placeholder.com/150');
-        }
-      } else {
-        // Si no hay imagen seleccionada, usar una URL por defecto
-        updatedUser = await userService.updateCurrentProfileImage('https://via.placeholder.com/150');
-      }
-      
-      setUser(updatedUser);
-      updateContextUser({
-        ...contextUser!,
-        profileImage: updatedUser.profileImage
-      });
-      
-      setSuccess('Imagen de perfil actualizada correctamente');
-      setSelectedImage(null);
-      setPreviewUrl(null);
-      
-      // Limpiar el input de archivo
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      
-      setLoading(false);
-      
-      // Limpiar mensaje de éxito después de 3 segundos
-      setTimeout(() => {
-        setSuccess(null);
-      }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Error al actualizar la imagen de perfil');
-      setLoading(false);
-      console.error('Error updating profile image:', err);
-    }
+  const getUserInitials = () => {
+    if (!user) return '';
+    return (user.firstName?.charAt(0) || '').toUpperCase() + (user.lastName?.charAt(0) || '').toUpperCase();
   };
   
   if (loading && !user) {
     return (
       <MainLayout>
-        <div className="container mx-auto py-8 px-4">
-          <div className="flex justify-center items-center h-64">
-            <p className="text-gray-500">Cargando información...</p>
-          </div>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
         </div>
       </MainLayout>
     );
@@ -237,82 +194,97 @@ const Perfil: React.FC = () => {
   
   return (
     <MainLayout>
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Mi Perfil</h1>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">Mi Perfil</h1>
         
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
             {success}
           </div>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Tarjeta de imagen de perfil */}
           <Card className="bg-white shadow-sm">
             <div className="p-6 flex flex-col items-center">
-              <div className="mb-4 w-32 h-32 overflow-hidden rounded-full border-4 border-gray-200">
-                {previewUrl ? (
-                  <img 
-                    src={previewUrl} 
-                    alt="Vista previa" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : user?.profileImage ? (
-                  <img 
-                    src={user.profileImage} 
-                    alt={user.firstName + ' ' + user.lastName} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-4xl">
-                    {user?.firstName?.charAt(0).toUpperCase() || '?'}
-                    {user?.lastName?.charAt(0).toUpperCase() || '?'}
+              <div className="flex flex-col items-center space-y-4">
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                    {user?.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="w-full h-full flex items-center justify-center bg-primary-100 text-primary-600 text-2xl font-semibold">
+                                ${getUserInitials()}
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary-100 text-primary-600 text-2xl font-semibold">
+                        {getUserInitials()}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              
-              <h2 className="text-xl font-semibold text-center mb-1">{user?.firstName + ' ' + user?.lastName}</h2>
-              <p className="text-gray-500 text-center mb-4">{user?.email}</p>
-              
-              <div className="mt-2 w-full">
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
-                
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full mb-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none"
-                >
-                  Seleccionar imagen
-                </button>
-                
-                {selectedImage && (
-                  <button
-                    type="button"
-                    onClick={handleImageUpload}
-                    disabled={loading}
-                    className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none disabled:bg-green-300"
+                  <label
+                    htmlFor="profileImage"
+                    className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-center w-10 h-10"
                   >
-                    {loading ? 'Subiendo...' : 'Guardar imagen'}
-                  </button>
-                )}
+                    <svg
+                      className="w-5 h-5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </label>
+                  <input
+                    type="file"
+                    id="profileImage"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                    ref={fileInputRef}
+                  />
+                </div>
+                <div className="text-center">
+                  <h2 className="text-xl font-semibold text-gray-800">{user?.firstName} {user?.lastName}</h2>
+                  <p className="text-sm text-gray-500 mt-1">{user?.email}</p>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Haz clic en el ícono de cámara para cambiar tu foto de perfil
+                </p>
               </div>
             </div>
           </Card>
           
           {/* Tarjeta de información personal */}
-          <Card className="bg-white shadow-sm md:col-span-2">
+          <Card className="bg-white shadow-sm">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Información personal</h2>
@@ -418,96 +390,6 @@ const Perfil: React.FC = () => {
                     <p className="font-medium">{user?.userType}</p>
                   </div>
                 </div>
-              )}
-            </div>
-          </Card>
-          
-          {/* Tarjeta de cambio de contraseña */}
-          <Card className="bg-white shadow-sm md:col-span-3">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Cambiar contraseña</h2>
-                {!isChangingPassword && (
-                  <button
-                    type="button"
-                    onClick={() => setIsChangingPassword(true)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    Cambiar
-                  </button>
-                )}
-              </div>
-              
-              {isChangingPassword ? (
-                <form onSubmit={handlePasswordSubmit}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                        Contraseña actual
-                      </label>
-                      <input
-                        type="password"
-                        id="currentPassword"
-                        name="currentPassword"
-                        value={passwordData.currentPassword}
-                        onChange={handlePasswordChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                        Nueva contraseña
-                      </label>
-                      <input
-                        type="password"
-                        id="newPassword"
-                        name="newPassword"
-                        value={passwordData.newPassword}
-                        onChange={handlePasswordChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                        Confirmar contraseña
-                      </label>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        value={passwordData.confirmPassword}
-                        onChange={handlePasswordChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2 mt-4">
-                    <button
-                      type="button"
-                      onClick={() => setIsChangingPassword(false)}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none disabled:bg-green-300"
-                    >
-                      {loading ? 'Guardando...' : 'Cambiar contraseña'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <p className="text-gray-500">
-                  Para cambiar tu contraseña, haz clic en el botón "Cambiar".
-                </p>
               )}
             </div>
           </Card>

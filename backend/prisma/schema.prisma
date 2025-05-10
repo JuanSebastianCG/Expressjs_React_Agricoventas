@@ -21,6 +21,7 @@ model User {
   isActive             Boolean             @default(true) @map("is_active")
   userType             String              @map("user_type") // "SELLER", "BUYER", "ADMIN"
   refreshToken         String?             @map("refresh_token")
+  profileImage         String?             @map("profile_image")
   
   // Relations
   primaryLocation      Location?           @relation(fields: [primaryLocationId], references: [id])

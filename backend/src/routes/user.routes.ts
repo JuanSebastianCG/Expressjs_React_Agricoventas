@@ -1,11 +1,42 @@
-import { Router } from "express";
-import { UserController } from "../controllers/user.controller";
-import { authenticate, authorize } from "../middleware/auth.middleware";
-import { validateRequest } from "../middleware/validation.middleware";
-import { updateUserSchema } from "../schemas/user.schema";
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import { UserController } from '../controllers/user.controller';
+import { authenticate } from '../middleware/auth.middleware';
+import { validateRequest } from '../middleware/validation.middleware';
+import { updateUserSchema } from '../schemas/user.schema';
 
-const router = Router();
+const router = express.Router();
 const userController = new UserController();
+
+// Configuración de multer para subida de imágenes
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../../uploads/profiles'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'profile-' + uniqueSuffix + ext);
+  }
+});
+
+const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Aceptar solo imágenes
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Solo se permiten archivos de imagen'));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
 
 /**
  * @swagger
@@ -116,5 +147,36 @@ router.get("/check/email", (req, res) => userController.checkEmailAvailability(r
  *         description: User account deactivated successfully
  */
 router.delete("/:userId", authenticate, (req, res) => userController.deactivateUser(req, res));
+
+// Profile image upload route
+router.put(
+  '/:userId/profile-image',
+  authenticate,
+  upload.single('profileImage'),
+  (req, res) => userController.updateProfileImage(req, res)
+);
+
+// Get current user profile
+router.get("/me", authenticate, (req, res) => {
+  req.params.userId = 'me';
+  userController.getUserById(req, res);
+});
+
+// Update current user profile
+router.put("/me", authenticate, validateRequest(updateUserSchema), (req, res) => {
+  req.params.userId = 'me';
+  userController.updateUser(req, res);
+});
+
+// Current user profile image upload route
+router.put(
+  '/me/profile-image',
+  authenticate,
+  upload.single('profileImage'),
+  (req, res) => {
+    req.params.userId = 'me';
+    userController.updateProfileImage(req, res);
+  }
+);
 
 export default router; 
