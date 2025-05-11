@@ -23,6 +23,7 @@ import { createApp } from './server';
 // Ensure uploads directories exist
 const uploadsDir = path.join(__dirname, '../uploads');
 const profilesDir = path.join(uploadsDir, 'profiles');
+const certificationsDir = path.join(uploadsDir, 'certifications');
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
@@ -32,6 +33,11 @@ if (!fs.existsSync(uploadsDir)) {
 if (!fs.existsSync(profilesDir)) {
   fs.mkdirSync(profilesDir);
   logger.info('Created profiles directory');
+}
+
+if (!fs.existsSync(certificationsDir)) {
+  fs.mkdirSync(certificationsDir);
+  logger.info('Created certifications directory');
 }
 
 /**

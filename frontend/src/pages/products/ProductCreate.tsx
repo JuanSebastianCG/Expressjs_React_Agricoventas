@@ -4,6 +4,7 @@ import Card from '../../components/ui/Card';
 import FormField from '../../components/ui/FormField';
 import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
+import { certificationService } from '../../services/certificationService';
 import Header from '../../components/layout/Header';
 import UserProfile from '../../components/common/UserProfile';
 
@@ -17,6 +18,9 @@ const ProductCreate: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
   const isEditMode = !!productId;
   const { isAuthenticated, user } = useAppContext();
+  
+  // Certification checking state
+  const [isCertificateChecking, setIsCertificateChecking] = useState(true);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -67,12 +71,44 @@ const ProductCreate: React.FC = () => {
     }
   }, [isAuthenticated, user, navigate]);
 
+  // Check if user has all required certifications
+  useEffect(() => {
+    const checkCertifications = async () => {
+      if (isAuthenticated && user?.id) {
+        try {
+          setIsCertificateChecking(true);
+          
+          // Skip check for admins
+          if (user.userType === 'ADMIN') {
+            setIsCertificateChecking(false);
+            return;
+          }
+          
+          const certificationStatus = await certificationService.verifyUserCertifications(user.id);
+          
+          if (!certificationStatus.hasAllCertifications) {
+            console.log("User doesn't have all required certifications. Redirecting to certificate upload page.");
+            // Show a message and redirect to certificate upload page
+            alert(`Para crear o editar productos necesitas tener los 4 certificados colombianos verificados. Actualmente tienes ${certificationStatus.certificationsCount.verified} de ${certificationStatus.certificationsCount.total}. Serás redirigido para completar tus certificados.`);
+            navigate('/certificados');
+          }
+        } catch (err) {
+          console.error("Error checking user certifications:", err);
+        } finally {
+          setIsCertificateChecking(false);
+        }
+      }
+    };
+    
+    checkCertifications();
+  }, [isAuthenticated, user, navigate]);
+
   // Load product data in edit mode
   useEffect(() => {
-    if (isEditMode && productId) {
+    if (isEditMode && productId && !isCertificateChecking) {
       loadProductData(productId);
     }
-  }, [isEditMode, productId]);
+  }, [isEditMode, productId, isCertificateChecking]);
 
   const loadProductData = async (productId: string) => {
     setIsLoading(true);

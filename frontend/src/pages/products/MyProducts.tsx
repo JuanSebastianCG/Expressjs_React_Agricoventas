@@ -6,6 +6,7 @@ import Header from '../../components/layout/Header';
 import { useAppContext } from '../../context/AppContext';
 import { IProduct } from '../../interfaces/product';
 import api from '../../services/api';
+import { certificationService } from '../../services/certificationService';
 import UserProfile from '../../components/common/UserProfile';
 import ProductFilters from '../../components/products/ProductFilters';
 import ProductTips from '../../components/products/ProductTips';
@@ -40,6 +41,9 @@ const MyProducts: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalProductsCount, setTotalProductsCount] = useState(0);
   
+  // Certification status
+  const [isCertificateChecking, setIsCertificateChecking] = useState(true);
+  
   // Filters state
   const [categoryFilter, setCategoryFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
@@ -65,6 +69,31 @@ const MyProducts: React.FC = () => {
       console.log("MyProducts - User authenticated, continuing");
     }
   }, [isAuthenticated, navigate]);
+  
+  // Check if user has all required certifications
+  useEffect(() => {
+    const checkCertifications = async () => {
+      if (isAuthenticated && user?.id) {
+        try {
+          setIsCertificateChecking(true);
+          const certificationStatus = await certificationService.verifyUserCertifications(user.id);
+          
+          if (!certificationStatus.hasAllCertifications) {
+            console.log("User doesn't have all required certifications. Redirecting to certificate upload page.");
+            // Show a message and redirect to certificate upload page
+            alert(`Para publicar productos necesitas tener los 4 certificados verificados. Actualmente tienes ${certificationStatus.certificationsCount.verified} de ${certificationStatus.certificationsCount.total}. Serás redirigido para completar tus certificados.`);
+            navigate('/certificados');
+          }
+        } catch (err) {
+          console.error("Error checking user certifications:", err);
+        } finally {
+          setIsCertificateChecking(false);
+        }
+      }
+    };
+    
+    checkCertifications();
+  }, [isAuthenticated, user, navigate]);
 
   // Fetch user's products
   const fetchProducts = async () => {
@@ -109,7 +138,8 @@ const MyProducts: React.FC = () => {
     // Skip initial mount cycle
     const isFirstLoad = sessionStorage.getItem('is_loading_products');
     
-    if (!isFirstLoad && isAuthenticated && user?.id) {
+    // Only fetch products if certificate check is done and user has all required certificates
+    if (!isFirstLoad && isAuthenticated && user?.id && !isCertificateChecking) {
       sessionStorage.setItem('is_loading_products', 'true');
       console.log("Starting product fetch with delay...");
       
@@ -124,7 +154,7 @@ const MyProducts: React.FC = () => {
     return () => {
       sessionStorage.removeItem('is_loading_products');
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isCertificateChecking]);
 
   // Apply filters when filter values change
   useEffect(() => {

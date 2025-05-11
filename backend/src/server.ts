@@ -22,6 +22,8 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
+import certificationRoutes from './routes/certification.routes';
+import uploadRoutes from './routes/upload.routes';
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -123,6 +125,8 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.users, userRoutes);
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes);
+  app.use(ROUTES_CONFIG.certifications, certificationRoutes);
+  app.use(ROUTES_CONFIG.uploads, uploadRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

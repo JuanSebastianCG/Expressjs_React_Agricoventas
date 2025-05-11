@@ -13,6 +13,8 @@ import ProductCreate from './pages/products/ProductCreate';
 import MyProducts from './pages/products/MyProducts';
 import MyOrders from './pages/orders/MyOrders';
 import SellerProfile from './pages/SellerProfile';
+import UploadCertificate from './pages/UploadCertificate';
+import AdminCertificationApproval from './pages/AdminCertificationApproval';
 import './index.css';
 
 // Componente para rutas protegidas
@@ -134,6 +136,19 @@ const App: React.FC = () => {
         <Route path="/perfil/:userId" element={
           <ProtectedRoute>
             <Perfil />
+          </ProtectedRoute>
+        } />
+        
+        {/* Rutas para certificados */}
+        <Route path="/certificados" element={
+          <ProtectedRoute>
+            <UploadCertificate />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/certificados" element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <AdminCertificationApproval />
           </ProtectedRoute>
         } />
         

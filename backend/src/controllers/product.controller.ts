@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { CreateProductDto, UpdateProductDto, ProductQueryParams } from "../schemas/product.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
+import { hasRequiredCertifications, getCertificationsCount } from "../utils/certificateValidator";
 
 const prisma = new PrismaClient();
 
@@ -30,6 +31,21 @@ export class ProductController {
       // Ensure user can only create products for themselves unless they're an admin
       if (req.user.userType !== "ADMIN" && productData.sellerId !== req.user.userId) {
         sendErrorResponse(res, "You can only create products for yourself", HttpStatusCode.FORBIDDEN);
+        return;
+      }
+
+      // Check if user has all required certifications
+      const userId = productData.sellerId;
+      const hasAllCertifications = await hasRequiredCertifications(userId);
+      
+      if (!hasAllCertifications) {
+        // Get certification count to provide more detailed error
+        const certCount = await getCertificationsCount(userId);
+        sendErrorResponse(
+          res, 
+          `Cannot create product. You need all 4 verified Colombian certifications. Currently you have ${certCount.verified}/${certCount.total} verified.`, 
+          HttpStatusCode.FORBIDDEN
+        );
         return;
       }
 
