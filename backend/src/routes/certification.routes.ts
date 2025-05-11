@@ -1,5 +1,5 @@
 import express from 'express';
-import { certificationController } from '../controllers/certificationController';
+import { certificationController } from '../controllers/certification.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/auth.middleware';
 

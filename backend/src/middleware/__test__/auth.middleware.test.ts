@@ -1,20 +1,46 @@
-
-import { authenticate } from '../auth.middleware';
 import { Request, Response, NextFunction } from 'express';
-import * as tokenUtils from '../../utils/tokenUtils';
-import { sendUnauthorizedResponse } from '../../utils/responseHandler';
-import { TokenService } from '../../services/token.service';
+import jwt from 'jsonwebtoken';
 
-// Mock dependencies
-jest.mock('../../utils/tokenUtils');
-jest.mock('../../utils/responseHandler');
-jest.mock('../../services/token.service');
+// Mock console.error to prevent noisy output during tests
+const originalConsoleError = console.error;
+beforeAll(() => {
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.error = originalConsoleError;
+});
+
+// Set up mock functions and objects
+const mockFindUnique = jest.fn();
+const mockSendErrorResponse = jest.fn();
+const mockJwtVerify = jest.fn();
+
+// Mock the modules
+jest.mock('@prisma/client', () => ({
+  PrismaClient: jest.fn(() => ({
+    user: {
+      findUnique: mockFindUnique
+    },
+    $disconnect: jest.fn()
+  }))
+}));
+
+jest.mock('jsonwebtoken', () => ({
+  verify: mockJwtVerify
+}));
+
+jest.mock('../../utils/responseHandler', () => ({
+  sendErrorResponse: mockSendErrorResponse
+}));
+
+// Now import the module under test
+import { authenticate } from '../auth.middleware';
 
 describe('Auth Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockNext: jest.Mock;
-  let mockTokenService: jest.Mocked<TokenService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,24 +62,18 @@ describe('Auth Middleware', () => {
     // Setup next function mock
     mockNext = jest.fn();
 
-    // Setup TokenService mock
-    mockTokenService = {
-      isTokenBlacklisted: jest.fn().mockResolvedValue(false),
-      blacklistToken: jest.fn().mockResolvedValue(undefined)
-    } as unknown as jest.Mocked<TokenService>;
-
-    // Mock TokenService constructor
-    (TokenService as jest.Mock).mockImplementation(() => mockTokenService);
-
-    // Mock verifyAccessToken
-    (tokenUtils.verifyAccessToken as jest.Mock).mockReturnValue({
-      userId: '1',
-      username: 'testuser',
-      role: 'user',
+    // Set default mock implementation for successful case
+    mockFindUnique.mockResolvedValue({
+      id: '1',
+      userType: 'SELLER',
+      isActive: true
     });
-
-    // Mock sendUnauthorizedResponse
-    (sendUnauthorizedResponse as jest.Mock).mockImplementation(() => {});
+    
+    // Default successful JWT verification
+    mockJwtVerify.mockReturnValue({
+      userId: '1',
+      userType: 'SELLER'
+    });
   });
 
   it('autentica correctamente con token válido', async () => {
@@ -61,40 +81,55 @@ describe('Auth Middleware', () => {
     await authenticate(mockRequest as Request, mockResponse as Response, mockNext);
 
     // Assert
-    expect(mockTokenService.isTokenBlacklisted).toHaveBeenCalledWith('valid-token');
-    expect(tokenUtils.verifyAccessToken).toHaveBeenCalledWith('valid-token');
+    expect(mockJwtVerify).toHaveBeenCalledWith('valid-token', expect.any(String));
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { id: '1' },
+      select: { id: true, userType: true, isActive: true }
+    });
     expect(mockRequest.user).toEqual({
       userId: '1',
-      username: 'testuser',
-      role: 'user',
+      userType: 'SELLER',
     });
     expect(mockNext).toHaveBeenCalled();
+    expect(mockSendErrorResponse).not.toHaveBeenCalled();
   });
 
-  it('retorna 401 si el token está en blacklist', async () => {
-    // Arrange
-    mockTokenService.isTokenBlacklisted.mockResolvedValue(true);
-    mockRequest.headers = { ...mockRequest.headers, authorization: 'Bearer blacklisted-token' };
-
-    // Act
-    await authenticate(mockRequest as Request, mockResponse as Response, mockNext);
-
-    // Assert
-    expect(mockTokenService.isTokenBlacklisted).toHaveBeenCalledWith('blacklisted-token');
-    expect(sendUnauthorizedResponse).toHaveBeenCalledWith(mockResponse, 'Token has been invalidated');
-    expect(mockNext).not.toHaveBeenCalled();
-  });
-
-  it('llama next con error si hay fallo inesperado', async () => {
-    // Arrange
-    (tokenUtils.verifyAccessToken as jest.Mock).mockImplementation(() => {
-      throw new Error('Unexpected error');
+  it('retorna 401 si el token es inválido', async () => {
+    // Arrange - Mock JWT error
+    const jwtError = new Error('Invalid token');
+    jwtError.name = 'JsonWebTokenError';
+    mockJwtVerify.mockImplementation(() => {
+      throw jwtError;
     });
 
     // Act
     await authenticate(mockRequest as Request, mockResponse as Response, mockNext);
 
     // Assert
-    expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+    expect(mockJwtVerify).toHaveBeenCalled();
+    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockSendErrorResponse).toHaveBeenCalledWith(
+      mockResponse, 
+      "Invalid token format or signature",
+      expect.any(Number)
+    );
+  });
+
+  it('llama next con error si no hay usuario en la BD', async () => {
+    // Arrange - Mock user not found
+    mockFindUnique.mockResolvedValue(null);
+
+    // Act
+    await authenticate(mockRequest as Request, mockResponse as Response, mockNext);
+
+    // Assert
+    expect(mockJwtVerify).toHaveBeenCalled();
+    expect(mockFindUnique).toHaveBeenCalled();
+    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockSendErrorResponse).toHaveBeenCalledWith(
+      mockResponse,
+      "User not found",
+      expect.any(Number)
+    );
   });
 });

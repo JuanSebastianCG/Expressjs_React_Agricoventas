@@ -4,9 +4,16 @@ import { hasRequiredCertifications, getCertificationsCount } from '../utils/cert
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 
-const prisma = new PrismaClient();
+// Create a prisma instance for normal usage
+export const prisma = new PrismaClient();
 
 export class CertificationController {
+  private db: any;
+
+  constructor(dbClient = prisma) {
+    this.db = dbClient;
+  }
+
   /**
    * Upload a new certification
    * @param req Express request
@@ -23,7 +30,7 @@ export class CertificationController {
       }
 
       // Check if this certificate type already exists for the user
-      const existingCert = await prisma.userCertification.findFirst({
+      const existingCert = await this.db.userCertification.findFirst({
         where: {
           userId,
           certificationType
@@ -32,7 +39,7 @@ export class CertificationController {
 
       if (existingCert) {
         // Update existing certification
-        const updatedCert = await prisma.userCertification.update({
+        const updatedCert = await this.db.userCertification.update({
           where: {
             id: existingCert.id
           },
@@ -51,7 +58,7 @@ export class CertificationController {
       }
 
       // Create new certification
-      const certification = await prisma.userCertification.create({
+      const certification = await this.db.userCertification.create({
         data: {
           userId,
           certificationName,
@@ -77,7 +84,7 @@ export class CertificationController {
     try {
       const { userId } = req.params;
 
-      const certifications = await prisma.userCertification.findMany({
+      const certifications = await this.db.userCertification.findMany({
         where: {
           userId
         },
@@ -102,8 +109,8 @@ export class CertificationController {
     try {
       const { userId } = req.params;
 
-      const hasAllCertifications = await hasRequiredCertifications(userId);
-      const certificationsCount = await getCertificationsCount(userId);
+      const hasAllCertifications = await hasRequiredCertifications(userId, this.db);
+      const certificationsCount = await getCertificationsCount(userId, this.db);
 
       sendSuccessResponse(res, { 
         hasAllCertifications,
@@ -122,7 +129,7 @@ export class CertificationController {
    */
   async getPendingCertifications(req: Request, res: Response): Promise<void> {
     try {
-      const pendingCertifications = await prisma.userCertification.findMany({
+      const pendingCertifications = await this.db.userCertification.findMany({
         where: {
           status: 'PENDING'
         },
@@ -165,7 +172,7 @@ export class CertificationController {
         return;
       }
 
-      const updatedCertification = await prisma.userCertification.update({
+      const updatedCertification = await this.db.userCertification.update({
         where: {
           id: certificationId
         },
@@ -198,7 +205,7 @@ export class CertificationController {
         return;
       }
 
-      const updatedCertification = await prisma.userCertification.update({
+      const updatedCertification = await this.db.userCertification.update({
         where: {
           id: certificationId
         },

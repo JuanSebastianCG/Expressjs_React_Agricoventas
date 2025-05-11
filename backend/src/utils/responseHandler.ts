@@ -42,10 +42,12 @@ export const sendErrorResponse = <T>(
   details?: any
 ): Response<ErrorResponse<T>> => {
   try {
-    // Añade encabezados CORS en caso de errores
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+    // Añade encabezados CORS en caso de errores - use set() instead of header() for better compatibility
+    if (typeof res.set === 'function') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+    }
     
     const errorObject: ErrorResponse<T> = { 
       success: false, 
