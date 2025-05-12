@@ -12,6 +12,7 @@ import ProductFilters from '../../components/products/ProductFilters';
 import ProductTips from '../../components/products/ProductTips';
 import ProductListView from '../../components/products/ProductListView';
 import ProductGridView from '../../components/products/ProductGridView';
+import CertificationStatus from '../../components/common/CertificationStatus';
 
 // Enum para los tipos de vista
 enum ViewType {
@@ -57,19 +58,18 @@ const MyProducts: React.FC = () => {
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Check if user is authenticated only
+  // Check if user is authenticated and a seller
   useEffect(() => {
-    console.log("MyProducts - Simple auth check");
-    
-    // Only redirect if not authenticated
     if (!isAuthenticated) {
-      console.log("MyProducts - Not authenticated, redirecting to login");
       navigate('/login');
-    } else {
-      console.log("MyProducts - User authenticated, continuing");
+      return;
     }
-  }, [isAuthenticated, navigate]);
-  
+
+    if (user?.userType !== 'SELLER' && user?.userType !== 'ADMIN') {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, user, navigate]);
+
   // Check if user has all required certifications
   useEffect(() => {
     const checkCertifications = async () => {
@@ -252,6 +252,9 @@ const MyProducts: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Certification Status Check */}
+        {user?.id && <CertificationStatus userId={user.id} className="mb-6" />}
 
         <div className="flex flex-col md:flex-row gap-6">
           {/* Main content */}

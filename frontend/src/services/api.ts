@@ -47,12 +47,18 @@ api.interceptors.response.use(
     
     // Handle 401 Unauthorized responses
     if (error.response?.status === 401 && originalRequest) {
-      // Clear invalid tokens
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('auth_user');
+      const url = originalRequest.url || '';
       
-      // Redirect to login
-      window.location.href = '/login';
+      // Only redirect to login if this is not from a login attempt itself
+      // This prevents the redirect loop
+      if (!url.includes('/auth/login')) {
+        // Clear invalid tokens
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('auth_user');
+        
+        // Redirect to login page
+        window.location.href = '/login';
+      }
     }
     
     // Handle 403 Forbidden responses

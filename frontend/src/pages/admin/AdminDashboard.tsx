@@ -62,6 +62,16 @@ const AdminDashboard: React.FC = () => {
             </button>
             <button
               className={`px-4 py-2 text-sm font-medium ${
+                activeTab === 'certifications' 
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'
+              }`}
+              onClick={() => handleTabChange('certifications')}
+            >
+              Certificaciones
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium ${
                 activeTab === 'products' 
                   ? 'border-b-2 border-blue-500 text-blue-600'
                   : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'

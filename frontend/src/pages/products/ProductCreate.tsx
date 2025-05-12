@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import FormField from '../../components/ui/FormField';
+import StyledInput from '../../components/ui/StyledInput';
+import StyledTextArea from '../../components/ui/StyledTextArea';
+import StyledButton from '../../components/ui/StyledButton';
+import StyledBorder from '../../components/ui/StyledBorder';
 import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
 import { certificationService } from '../../services/certificationService';
@@ -94,6 +98,8 @@ const ProductCreate: React.FC = () => {
           }
         } catch (err) {
           console.error("Error checking user certifications:", err);
+          alert(`Error al verificar tus certificados. Por favor, intenta nuevamente más tarde o contacta a soporte.`);
+          navigate('/dashboard');
         } finally {
           setIsCertificateChecking(false);
         }
@@ -286,6 +292,24 @@ const ProductCreate: React.FC = () => {
     
     if (!validateForm()) return;
     
+    // Double-check certifications before submission
+    if (user?.userType !== 'ADMIN' && isAuthenticated && user?.id) {
+      try {
+        const certificationStatus = await certificationService.verifyUserCertifications(user.id);
+        
+        if (!certificationStatus.hasAllCertifications) {
+          setSubmitError('Para crear productos necesitas tener los 4 certificados colombianos verificados');
+          alert(`Para crear productos necesitas tener los 4 certificados colombianos verificados. Serás redirigido para completar tus certificados.`);
+          navigate('/certificados');
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking user certifications during form submission:", err);
+        setSubmitError('Error al verificar tus certificados. Por favor, intenta nuevamente.');
+        return;
+      }
+    }
+    
     setIsSubmitting(true);
     setSubmitError(null);
     
@@ -439,22 +463,15 @@ const ProductCreate: React.FC = () => {
                 </div>
 
                 <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Descripción <span className="text-red-1">*</span>
-                  </label>
-                  <textarea
+                  <StyledTextArea
+                    label="Descripción"
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
                     rows={4}
-                    className={`w-full py-2 px-3 border ${
-                      errors.description ? 'border-red-500' : 'border-gray-300'
-                    } rounded-md focus:outline-none focus:ring-2 focus:ring-green-1`}
+                    error={errors.description}
                     required
                   />
-                  {errors.description && (
-                    <p className="mt-1 text-sm text-red-500">{errors.description}</p>
-                  )}
                 </div>
               </div>
 
@@ -504,7 +521,7 @@ const ProductCreate: React.FC = () => {
                     </select>
                   </div>
 
-                  <FormField
+                  <StyledInput
                     label="Precio (COP)"
                     name="price"
                     type="number"
@@ -516,7 +533,7 @@ const ProductCreate: React.FC = () => {
                     required
                   />
 
-                  <FormField
+                  <StyledInput
                     label="Cantidad Disponible"
                     name="availableQuantity"
                     type="number"
@@ -648,10 +665,11 @@ const ProductCreate: React.FC = () => {
                 )}
 
                 {/* Image upload area */}
-                <div 
-                  className={`border-2 border-dashed ${
-                    dragActive ? 'border-green-1 bg-green-0-4' : 'border-gray-300'
-                  } rounded-md p-6 flex flex-col justify-center items-center`}
+                <StyledBorder
+                  variant={dragActive ? 'focus' : 'default'}
+                  className={`border-2 border-dashed p-6 flex flex-col justify-center items-center ${
+                    dragActive ? 'bg-green-0-4' : ''
+                  }`}
                   onDragEnter={handleDrag}
                   onDragOver={handleDrag}
                   onDragLeave={handleDrag}
@@ -677,7 +695,7 @@ const ProductCreate: React.FC = () => {
                     </p>
                     <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF hasta 10MB</p>
                   </div>
-                </div>
+                </StyledBorder>
 
                 {/* Image previews */}
                 {previewUrls.length > 0 && (
@@ -709,24 +727,25 @@ const ProductCreate: React.FC = () => {
 
               {/* Form Actions */}
               <div className="flex justify-end space-x-3">
-                <button
+                <StyledButton
                   type="button"
+                  variant="outline"
                   onClick={handleCancel}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-0-5"
                   disabled={isSubmitting}
                 >
                   Cancelar
-                </button>
-                <button
+                </StyledButton>
+                <StyledButton
                   type="submit"
-                  className="px-4 py-2 bg-green-1 border border-transparent rounded-md text-white hover:bg-green-0-9 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-1"
+                  variant="primary"
+                  isLoading={isSubmitting}
                   disabled={isSubmitting}
                 >
                   {isSubmitting
                     ? (isEditMode ? 'Actualizando...' : 'Creando...')
                     : (isEditMode ? 'Actualizar Producto' : 'Crear Producto')
                   }
-                </button>
+                </StyledButton>
               </div>
             </form>
           )}

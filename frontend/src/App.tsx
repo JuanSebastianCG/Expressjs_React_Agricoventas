@@ -1,20 +1,19 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAppContext } from './context/AppContext';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Login from './pages/user/Login';
+import Register from './pages/user/Register';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
-import Perfil from './pages/Perfil';
+import Perfil from './pages/user/Perfil';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
-import Marketplace from './pages/products/Marketplace';
+import Marketplace from './pages/Marketplace';
 import ProductCreate from './pages/products/ProductCreate';
 import MyProducts from './pages/products/MyProducts';
 import MyOrders from './pages/orders/MyOrders';
-import SellerProfile from './pages/SellerProfile';
-import UploadCertificate from './pages/UploadCertificate';
-import AdminCertificationApproval from './pages/AdminCertificationApproval';
+import UploadCertificate from './pages/user/UploadCertificate';
+import CertificationApproval from './pages/admin/CertificationApproval';
 import './index.css';
 
 // Componente para rutas protegidas
@@ -118,7 +117,6 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/mercado-general" element={<Marketplace />} />
-        <Route path="/vendedor/:sellerId" element={<SellerProfile />} />
         
         {/* Rutas protegidas para usuarios regulares */}
         <Route path="/dashboard" element={
@@ -148,7 +146,7 @@ const App: React.FC = () => {
         
         <Route path="/admin/certificados" element={
           <ProtectedRoute requiredRole="ADMIN">
-            <AdminCertificationApproval />
+            <CertificationApproval />
           </ProtectedRoute>
         } />
         
@@ -183,7 +181,7 @@ const App: React.FC = () => {
           {/* Rutas anidadas dentro del dashboard de administración */}
           <Route index element={<Navigate to="/admin/users" replace />} />
           <Route path="users" element={<UserManagement />} />
-          {/* Aquí se añadirán más rutas como productos, categorías, etc. */}
+          <Route path="certifications" element={<ProtectedRoute requiredRole="ADMIN"><CertificationApproval /></ProtectedRoute>} />
           
           {/* Ruta para manejar rutas no encontradas dentro de admin */}
           <Route path="*" element={<Navigate to="/admin/users" replace />} />

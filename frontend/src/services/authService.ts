@@ -68,14 +68,21 @@ const authService = {
     } catch (error) {
       console.error('authService - Error en registro:', error);
       const axiosError = error as AxiosError;
-      throw parseApiError(axiosError);
+      throw axiosError;
     }
   },
 
   // Login user
   async login(data: LoginData): Promise<LoginResponse> {
     try {
+      console.log(`Sending login request to ${API_URL}/login with data:`, JSON.stringify({
+        username: data.username,
+        password: '********',
+        remember: data.remember
+      }));
+      
       const response = await api.post(`${API_URL}/login`, data);
+      console.log('Login API response:', response.data);
       
       // Extract data from response
       const responseData = response.data;
@@ -120,8 +127,8 @@ const authService = {
       };
     } catch (error) {
       console.error('authService - Login error:', error);
-      const axiosError = error as AxiosError;
-      throw parseApiError(axiosError);
+      // Just pass through the AxiosError to maintain all error properties
+      throw error;
     }
   },
 

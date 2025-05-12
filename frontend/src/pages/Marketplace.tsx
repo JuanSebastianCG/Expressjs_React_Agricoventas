@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../../components/ui/Card';
-import { IProduct, ProductFilters } from '../../interfaces/product';
-import api from '../../services/api';
-import Header from '../../components/layout/Header';
-import UserProfile from '../../components/common/UserProfile';
+import Card from '../components/ui/Card';
+import { IProduct, ProductFilters } from '../interfaces/product';
+import api from '../services/api';
+import Header from '../components/layout/Header';
+import UserProfile from '../components/common/UserProfile';
 
 interface Seller {
   id: string;

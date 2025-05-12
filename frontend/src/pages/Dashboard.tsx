@@ -16,6 +16,8 @@ const Dashboard: React.FC = () => {
     navigateToProducts();
   };
 
+  
+
   return (
     <MainLayout>
       <div className="container mx-auto py-6 px-4">

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import MainLayout from '../components/layout/MainLayout';
-import Card from '../components/ui/Card';
-import userService, { User, UserUpdateData } from '../services/userService';
+import { useAppContext } from '../../context/AppContext';
+import MainLayout from '../../components/layout/MainLayout';
+import Card from '../../components/ui/Card';
+import userService, { User, UserUpdateData } from '../../services/userService';
 
 const Perfil: React.FC = () => {
   const { user: contextUser, updateUser: updateContextUser } = useAppContext();

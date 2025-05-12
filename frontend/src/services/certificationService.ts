@@ -23,7 +23,7 @@ export const certificationService = {
     formData.append('file', imageFile);
     
     // Upload the image first
-    const imageResponse = await api.post('/uploads/certification', formData, {
+    const imageResponse = await api.post('/uploads/certifications', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

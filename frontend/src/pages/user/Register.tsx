@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import MainLayout from '../components/layout/MainLayout';
-import Input from '../components/common/Input';
-import AuthButton from '../components/common/AuthButton';
-import useForm from '../hooks/useForm';
-import authService, { RegisterData } from '../services/authService';
-import Notification from '../components/common/Notification';
-import FormError from '../components/common/FormError';
+import MainLayout from '../../components/layout/MainLayout';
+import Input from '../../components/common/Input';
+import AuthButton from '../../components/common/AuthButton';
+import useForm from '../../hooks/useForm';
+import authService, { RegisterData } from '../../services/authService';
+import Notification from '../../components/common/Notification';
+import FormError from '../../components/common/FormError';
 
 interface RegisterFormValues {
   nombre: string;

@@ -25,16 +25,31 @@ import orderRoutes from './routes/order.routes';
 import certificationRoutes from './routes/certification.routes';
 import uploadRoutes from './routes/upload.routes';
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists with proper permissions
 const uploadsDir = path.join(__dirname, '../uploads');
 const profilesDir = path.join(uploadsDir, 'profiles');
+const certificationsDir = path.join(uploadsDir, 'certifications');
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
+// Create directories if they don't exist
+[uploadsDir, profilesDir, certificationsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Created directory: ${dir}`);
+    } catch (err) {
+      console.error(`Failed to create directory: ${dir}`, err);
+    }
+  } else {
+    console.log(`Directory already exists: ${dir}`);
+  }
+});
 
-if (!fs.existsSync(profilesDir)) {
-  fs.mkdirSync(profilesDir);
+// Log permissions for debugging
+try {
+  fs.accessSync(certificationsDir, fs.constants.W_OK);
+  console.log(`Directory ${certificationsDir} is writable`);
+} catch (err) {
+  console.error(`Directory ${certificationsDir} is not writable:`, err);
 }
 
 /**
@@ -85,21 +100,36 @@ export function createApp(): Express {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
   
-  // Configurar el servicio de archivos estáticos
-  app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-    setHeaders: (res, path) => {
+  // Enhanced static file service options
+  const staticOptions = {
+    setHeaders: (res: Response, filePath: string) => {
       // Permitir acceso desde cualquier origen
       res.set('Access-Control-Allow-Origin', '*');
-      // Establecer el tipo de contenido correcto para las imágenes
-      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      
+      // Establecer el tipo de contenido correcto basado en la extensión del archivo
+      if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
         res.set('Content-Type', 'image/jpeg');
-      } else if (path.endsWith('.png')) {
+      } else if (filePath.endsWith('.png')) {
         res.set('Content-Type', 'image/png');
-      } else if (path.endsWith('.gif')) {
-        res.set('Content-Type', 'image/gif');
+      } else if (filePath.endsWith('.pdf')) {
+        res.set('Content-Type', 'application/pdf');
       }
+      
+      // Disable caching for development
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
     }
-  }));
+  };
+  
+  // Explicitly serve upload directories
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads'), staticOptions));
+  app.use('/uploads/certifications', express.static(path.join(__dirname, '../uploads/certifications'), staticOptions));
+  app.use('/uploads/profiles', express.static(path.join(__dirname, '../uploads/profiles'), staticOptions));
+  
+  // Log upload paths for debugging
+  console.log(`Serving static files from: ${path.join(__dirname, '../uploads')}`);
+  console.log(`Certifications path: ${path.join(__dirname, '../uploads/certifications')}`);
   
   // Middleware para manejar preflight OPTIONS requests
   app.use((req, res, next) => {
