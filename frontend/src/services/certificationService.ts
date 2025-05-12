@@ -94,6 +94,21 @@ export const certificationService = {
   },
   
   /**
+   * Get all certifications for admin view (paginated and filterable)
+   * @param params - Optional query parameters for filtering and pagination (e.g., { status: 'VERIFIED', userId: '...', page: 1, limit: 10 })
+   */
+  async getAllCertificationsAdmin(params?: Record<string, any>): Promise<{
+    data: IUserCertification[];
+    pagination: { currentPage: number; totalPages: number; totalItems: number; itemsPerPage: number; };
+  }> {
+    // The backend now expects GET /api/certifications/admin
+    const response = await api.get('/api/certifications/admin', { params });
+    // The response from the backend is already { data: [...], pagination: {...} }
+    // The api client might wrap this in another .data, so we check response.data.data first
+    return response.data?.data && response.data?.pagination ? response.data : response; 
+  },
+  
+  /**
    * Get all pending certifications (admin only)
    */
   async getPendingCertifications(): Promise<IUserCertification[]> {

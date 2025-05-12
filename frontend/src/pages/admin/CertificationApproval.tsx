@@ -5,6 +5,7 @@ import StyledButton from '../../components/ui/StyledButton';
 import StyledTextArea from '../../components/ui/StyledTextArea';
 import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
+import { certificationService } from '../../services/certificationService';
 
 interface Certification {
   id: string;
@@ -35,6 +36,10 @@ const CertificationApproval: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [selectedCertification, setSelectedCertification] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [filterStatus, setFilterStatus] = useState<string>('PENDING');
 
   // Check if user is admin
   useEffect(() => {
@@ -43,44 +48,80 @@ const CertificationApproval: React.FC = () => {
     }
   }, [user, navigate]);
 
-  // Fetch pending certifications
-  const fetchCertifications = async () => {
+  // Fetch certifications based on filter and page
+  const fetchCertifications = async (page = 1, status = filterStatus) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const response = await api.get('/api/certifications/pending');
-      if (response.data.success) {
-        setCertifications(response.data.data);
+      // Prepare parameters for the service call
+      const params: Record<string, any> = {
+        page,
+        limit: 5, // Or your preferred page size
+        status,
+        sortBy: 'uploadedAt', // Default sort
+        sortOrder: 'asc'
+      };
+
+      // Call the updated service function
+      const response = await certificationService.getAllCertificationsAdmin(params);
+      console.log("Admin Certs: Raw response from service:", response);
+
+      // Access the application data within response.data
+      const applicationData = response.data; // This is { success: true, data: { data: [...], pagination: {...} } }
+      console.log("Admin Certs: Application data object:", applicationData);
+
+      // Check if the structure is as expected and access the nested data/pagination
+      if (applicationData && applicationData.success && applicationData.data && applicationData.data.data && applicationData.data.pagination) {
+        console.log("Admin Certs: Setting state with:", applicationData.data.data, applicationData.data.pagination);
+        setCertifications(applicationData.data.data); // List is here
+        setCurrentPage(applicationData.data.pagination.currentPage); // Pagination is here
+        setTotalPages(applicationData.data.pagination.totalPages);
+        setTotalItems(applicationData.data.pagination.totalItems);
       } else {
-        throw new Error(response.data.error?.message || 'Error al cargar certificaciones');
+        // Handle case where structure is still not as expected
+        console.error("Unexpected application data structure:", applicationData);
+        setCertifications([]);
+        throw new Error('Respuesta inesperada del servidor (app data structure error) al cargar certificaciones');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar certificaciones');
+      const errorMsg = err instanceof Error ? err.message : 'Error desconocido al cargar certificaciones';
+      setError(errorMsg);
       console.error('Error fetching certifications:', err);
+      setCertifications([]); // Clear data on error
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCertifications();
-  }, []);
+    // Fetch initial data (pending certifications, page 1)
+    fetchCertifications(1, 'PENDING'); 
+  }, []); // Run only on mount
+
+  // Handle changing the filter status (example)
+  const handleFilterChange = (newStatus: string) => {
+    setFilterStatus(newStatus);
+    fetchCertifications(1, newStatus); // Fetch page 1 of the new status
+  };
+
+  // Handle changing page (example)
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      fetchCertifications(newPage, filterStatus);
+    }
+  };
 
   // Handle certification approval
   const handleApprove = async (certificationId: string) => {
     try {
-      const response = await api.put(`/api/certifications/approve/${certificationId}`, {
-        adminId: user?.id
-      });
-      
-      if (response.data.success) {
-        await fetchCertifications();
-      } else {
-        throw new Error(response.data.error?.message || 'Error al aprobar certificación');
-      }
+      // Assuming approveCertification returns the updated cert or success status
+      await certificationService.approveCertification(certificationId, user!.id);
+      // Refetch current view
+      fetchCertifications(currentPage, filterStatus);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al aprobar certificación');
+      const errorMsg = err instanceof Error ? err.message : 'Error al aprobar certificación';
+      setError(errorMsg);
       console.error('Error approving certification:', err);
     }
   };
@@ -93,20 +134,14 @@ const CertificationApproval: React.FC = () => {
     }
 
     try {
-      const response = await api.put(`/api/certifications/reject/${certificationId}`, {
-        adminId: user?.id,
-        rejectionReason
-      });
-      
-      if (response.data.success) {
-        setRejectionReason('');
-        setSelectedCertification(null);
-        await fetchCertifications();
-      } else {
-        throw new Error(response.data.error?.message || 'Error al rechazar certificación');
-      }
+      await certificationService.rejectCertification(certificationId, user!.id, rejectionReason);
+      setRejectionReason('');
+      setSelectedCertification(null);
+      // Refetch current view
+      fetchCertifications(currentPage, filterStatus); 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al rechazar certificación');
+      const errorMsg = err instanceof Error ? err.message : 'Error al rechazar certificación';
+      setError(errorMsg);
       console.error('Error rejecting certification:', err);
     }
   };

@@ -43,11 +43,31 @@ const UploadCertificate: React.FC = () => {
         setUserCertifications(certs);
         
         // Get certification status
-        const status = await certificationService.verifyUserCertifications(user.id);
-        setStatus(status.certificationsCount);
+        console.log("Fetching certification status...");
+        const statusResponse = await certificationService.verifyUserCertifications(user.id);
+        console.log("Received statusResponse:", statusResponse); // Log the raw response
+
+        // Safely access the counts (Try accessing nested .data)
+        const counts = statusResponse.data?.certificationsCount; // Check if it's nested
+        console.log("Extracted counts object (from .data):", counts); // Log the extracted counts
+
+        if (counts && typeof counts.verified === 'number' && typeof counts.total === 'number') {
+          setStatus(counts);
+          console.log("Certification status state updated:", counts);
+        } else {
+          // Fallback if not found in .data either
+          const directCounts = statusResponse?.certificationsCount;
+          if (directCounts && typeof directCounts.verified === 'number' && typeof directCounts.total === 'number') {
+            setStatus(directCounts);
+            console.log("Certification status state updated (direct access):", directCounts);
+          } else {
+            console.warn("CertificationsCount is missing or invalid in the response:", statusResponse);
+            setStatus({ verified: 0, total: 4 }); // Fallback to default
+          }
+        }
       } catch (err) {
         setError('No se pudieron cargar tus certificaciones');
-        console.error(err);
+        console.error("Error in loadUserCertifications:", err);
       } finally {
         setLoading(false);
       }
@@ -164,13 +184,33 @@ const UploadCertificate: React.FC = () => {
         file
       );
       
-      // Update certifications list
-      const certs = await certificationService.getUserCertifications(user!.id);
-      setUserCertifications(certs);
+      // Update certifications list AFTER upload
+      const updatedCerts = await certificationService.getUserCertifications(user!.id);
+      setUserCertifications(updatedCerts);
       
-      // Get updated status
-      const status = await certificationService.verifyUserCertifications(user!.id);
-      setStatus(status.certificationsCount);
+      // Get updated status AFTER upload
+      console.log("Fetching updated status after upload...");
+      const updatedStatusResponse = await certificationService.verifyUserCertifications(user!.id);
+      console.log("Received updatedStatusResponse:", updatedStatusResponse);
+
+      // Safely access the counts (Try accessing nested .data)
+      const updatedCounts = updatedStatusResponse.data?.certificationsCount; // Check if nested
+      console.log("Extracted updated counts (from .data):", updatedCounts);
+
+      if (updatedCounts && typeof updatedCounts.verified === 'number' && typeof updatedCounts.total === 'number') {
+        setStatus(updatedCounts);
+        console.log("Certification status state updated after upload:", updatedCounts);
+      } else {
+         // Fallback if not found in .data either
+         const directUpdatedCounts = updatedStatusResponse?.certificationsCount;
+         if (directUpdatedCounts && typeof directUpdatedCounts.verified === 'number' && typeof directUpdatedCounts.total === 'number') {
+            setStatus(directUpdatedCounts);
+            console.log("Certification status state updated after upload (direct access):", directUpdatedCounts);
+         } else {
+           console.warn("UpdatedCertificationsCount is missing or invalid:", updatedStatusResponse);
+           // Consider keeping the previous state or resetting? For now, just log.
+         }
+      }
       
       // Show success message
       setSuccessMessage('¡Certificación subida con éxito!');

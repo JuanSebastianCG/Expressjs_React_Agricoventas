@@ -79,19 +79,38 @@ const MyProducts: React.FC = () => {
       if (isAuthenticated && user?.id) {
         try {
           setIsCertificateChecking(true);
-          const certificationStatus = await certificationService.verifyUserCertifications(user.id);
+          console.log("MyProducts: Fetching certification status...");
+          const certificationStatusResponse = await certificationService.verifyUserCertifications(user.id);
+          console.log("MyProducts: Received status response:", certificationStatusResponse);
+
+          // Safely access hasAllCertifications and certificationsCount
+          // Cast to any to handle potential nested .data layer from API client/interceptors
+          const responseAsAny = certificationStatusResponse as any;
+          const statusData = responseAsAny.data; // Attempt to access potential nested .data
           
-          // Update the state to determine if the user can create products
-          setCanCreateProducts(certificationStatus.hasAllCertifications);
+          const hasAll = statusData?.hasAllCertifications ?? responseAsAny?.hasAllCertifications;
+          const counts = statusData?.certificationsCount ?? responseAsAny?.certificationsCount;
           
-          if (!certificationStatus.hasAllCertifications) {
-            console.log("User doesn't have all required certifications. Redirecting to certificate upload page.");
-            // Show a message and redirect to certificate upload page
-            alert(`Para publicar productos necesitas tener los 4 certificados verificados. Actualmente tienes ${certificationStatus.certificationsCount.verified} de ${certificationStatus.certificationsCount.total}. Serás redirigido para completar tus certificados.`);
-            navigate('/certificados');
+          console.log("MyProducts: Extracted hasAll:", hasAll);
+          console.log("MyProducts: Extracted counts:", counts);
+
+          if (typeof hasAll === 'boolean') {
+            setCanCreateProducts(hasAll);
+            
+            if (!hasAll) {
+              console.log("MyProducts: User doesn't have all required certifications. Add Product button will be disabled.");
+            }
+          } else {
+             console.warn("MyProducts: hasAllCertifications property missing or invalid in response:", certificationStatusResponse);
+             setCanCreateProducts(false);
+             alert('No se pudo verificar el estado de tus certificaciones. Por favor, intenta de nuevo más tarde.');
+             navigate('/dashboard');
           }
-        } catch (err) {
-          console.error("Error checking user certifications:", err);
+        } catch (err: any) {
+          console.error("MyProducts: Error checking user certifications:", err);
+          const errorMessage = err.response?.data?.error || err.message || 'Error desconocido al verificar certificados.';
+          alert(`Error al verificar certificaciones: ${errorMessage}`);
+          setCanCreateProducts(false);
         } finally {
           setIsCertificateChecking(false);
         }

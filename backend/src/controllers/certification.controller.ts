@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { hasRequiredCertifications, getCertificationsCount } from '../utils/certificateValidator';
+import { hasRequiredCertifications, getCertificationsCount, REQUIRED_CERTIFICATIONS } from '../utils/certificateValidator';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 import fs from 'fs'; // Import fs for file operations
@@ -161,16 +161,54 @@ export class CertificationController {
   }
 
   /**
-   * Get all pending certifications (for admin approval)
-   * @param req Express request
+   * Get all certifications with filtering and pagination (for admin view)
+   * @param req Express request with query params: status, userId, page, limit, sortBy, sortOrder
    * @param res Express response
    */
-  async getPendingCertifications(req: Request, res: Response): Promise<void> {
+  async getAllCertificationsAdmin(req: Request, res: Response): Promise<void> {
     try {
-      const pendingCertifications = await this.db.userCertification.findMany({
-        where: {
-          status: 'PENDING'
-        },
+      // Extract query parameters (consider adding validation with Zod)
+      const { 
+        status, 
+        userId, 
+        page = '1', 
+        limit = '10',
+        sortBy = 'uploadedAt', // Default sort field
+        sortOrder = 'desc'    // Default sort order
+      } = req.query as { 
+        status?: string; 
+        userId?: string; 
+        page?: string; 
+        limit?: string;
+        sortBy?: 'uploadedAt' | 'verifiedAt' | 'certificationName' | 'user.username'; // Add more valid sort fields
+        sortOrder?: 'asc' | 'desc';
+      };
+
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+      const skip = (pageNumber - 1) * limitNumber;
+
+      // Build the where clause for Prisma query
+      const whereClause: any = {};
+      if (status) {
+        whereClause.status = status;
+      }
+      if (userId) {
+        whereClause.userId = userId;
+      }
+      
+      // Build the orderBy clause
+      const orderByClause: any = {};
+      if (sortBy === 'user.username') {
+        // Handle sorting by related field
+        orderByClause.user = { username: sortOrder };
+      } else if (sortBy) {
+         orderByClause[sortBy] = sortOrder;
+      }
+
+      // Fetch certifications with pagination and filtering
+      const certifications = await this.db.userCertification.findMany({
+        where: whereClause,
         include: {
           user: {
             select: {
@@ -181,17 +219,40 @@ export class CertificationController {
               lastName: true,
               profileImage: true
             }
+          },
+          // Include verifier admin details if needed
+          verifierAdmin: {
+             select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true
+            }
           }
         },
-        orderBy: {
-          uploadedAt: 'asc'
-        }
+        orderBy: orderByClause,
+        skip: skip,
+        take: limitNumber,
       });
 
-      sendSuccessResponse(res, pendingCertifications);
+      // Get the total count for pagination
+      const totalCertifications = await this.db.userCertification.count({
+        where: whereClause,
+      });
+
+      // Send response with data and pagination info
+      sendSuccessResponse(res, {
+        data: certifications,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages: Math.ceil(totalCertifications / limitNumber),
+          totalItems: totalCertifications,
+          itemsPerPage: limitNumber,
+        },
+      });
     } catch (error: any) {
-      console.error('Error fetching pending certifications:', error);
-      sendErrorResponse(res, 'Error fetching pending certifications', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      console.error('Error fetching all certifications for admin:', error);
+      sendErrorResponse(res, 'Error fetching certifications', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -258,6 +319,57 @@ export class CertificationController {
     } catch (error: any) {
       console.error('Error rejecting certification:', error);
       sendErrorResponse(res, 'Error rejecting certification', HttpStatusCode.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Get details for each of the 4 required certifications for a user.
+   * @param req Express request
+   * @param res Express response
+   */
+  async getRequiredCertificationDetails(req: Request, res: Response): Promise<void> {
+    try {
+      const { userId } = req.params;
+      
+      // Use authenticated user ID if 'me' is passed
+      const targetUserId = userId === 'me' ? req.user?.userId : userId;
+
+      if (!targetUserId) {
+        sendErrorResponse(res, 'User ID not found or user not authenticated', HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      // Fetch all certifications for the target user
+      const userCertifications = await this.db.userCertification.findMany({
+        where: {
+          userId: targetUserId,
+          certificationType: { 
+            in: REQUIRED_CERTIFICATIONS // Only fetch types that are in the required list
+          }
+        },
+        orderBy: {
+          uploadedAt: 'desc'
+        }
+      });
+
+      // Create a map to store the results, initializing with null
+      const requiredCertDetails: Record<string, any | null> = {};
+      REQUIRED_CERTIFICATIONS.forEach(type => {
+        requiredCertDetails[type] = null; // Initialize as null
+      });
+
+      // Populate the map with found certifications
+      userCertifications.forEach(cert => {
+        if (requiredCertDetails.hasOwnProperty(cert.certificationType)) {
+          requiredCertDetails[cert.certificationType] = cert; // Replace null with the cert object
+        }
+      });
+
+      sendSuccessResponse(res, requiredCertDetails);
+    } catch (error: any) {
+      console.error('Error fetching required certification details:', error);
+      sendErrorResponse(res, 'Error fetching required certification details', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      // No return needed here as sendErrorResponse is the last statement
     }
   }
 }

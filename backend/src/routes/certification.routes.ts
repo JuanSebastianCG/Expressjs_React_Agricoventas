@@ -62,9 +62,11 @@ router.post('/test-upload', upload.single('file'), (req, res): void => {
 router.post('/upload', (req, res) => certificationController.uploadCertification(req, res));
 router.get('/user/:userId', (req, res) => certificationController.getUserCertifications(req, res));
 router.get('/verify/:userId', (req, res) => certificationController.verifyUserCertifications(req, res));
+// New route for required certification details
+router.get('/user/:userId/required-status', (req, res) => certificationController.getRequiredCertificationDetails(req, res));
 
 // Admin-only routes
-router.get('/pending', authorize(['ADMIN']), (req, res) => certificationController.getPendingCertifications(req, res));
+router.get('/admin', authorize(['ADMIN']), (req, res) => certificationController.getAllCertificationsAdmin(req, res));
 router.put('/approve/:certificationId', authorize(['ADMIN']), (req, res) => certificationController.approveCertification(req, res));
 router.put('/reject/:certificationId', authorize(['ADMIN']), (req, res) => certificationController.rejectCertification(req, res));
 
