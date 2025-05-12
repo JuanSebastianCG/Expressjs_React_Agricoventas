@@ -1,69 +1,80 @@
-import type { Request, Response } from "express";
-import { CategoryService } from "../services/category.service";
-import type { CreateCategoryDto, UpdateCategoryDto, CategoryQueryParams } from "../schemas/category.schema";
-import HttpStatusCode from "../utils/HttpStatusCode";
-import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
+import type { Request, Response, NextFunction } from "express"
+import { CategoryService } from "../services/category.service"
+import type { CreateCategoryDto, UpdateCategoryDto, CategoryQueryParams } from "../schemas/category.schema"
+import HttpStatusCode from "../utils/HttpStatusCode"
+import { sendSuccessResponse } from "../utils/responseHandler"
+import { ApiError } from "../middleware/error.middleware"
+import { logger } from "../config/logger"
 
 export class CategoryController {
-  private categoryService: CategoryService;
+  private categoryService: CategoryService
 
   constructor() {
-    this.categoryService = new CategoryService();
+    this.categoryService = new CategoryService()
   }
 
-  async createCategory(req: Request, res: Response): Promise<void> {
+  /**
+   * Create a new category
+   */
+  async createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const categoryData: CreateCategoryDto = req.body;
+      const categoryData: CreateCategoryDto = req.body
 
-      const isSlugAvailable = await this.categoryService.isSlugAvailable(categoryData.slug);
+      const isSlugAvailable = await this.categoryService.isSlugAvailable(categoryData.slug)
       if (!isSlugAvailable) {
-        sendErrorResponse(res, "Slug is already in use", HttpStatusCode.BAD_REQUEST, "VALIDATION_ERROR");
-        return;
+        throw new ApiError(HttpStatusCode.BAD_REQUEST, "Slug is already in use")
       }
 
-      const category = await this.categoryService.create(categoryData);
-      sendSuccessResponse(res, category, HttpStatusCode.CREATED);
+      const category = await this.categoryService.create(categoryData)
+      sendSuccessResponse(res, { category }, HttpStatusCode.CREATED)
     } catch (error) {
-      console.error("Error creating category:", error);
-      sendErrorResponse(res, "Failed to create category", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error creating category:", error)
+      next(error)
     }
   }
 
-  async getCategoryById(req: Request, res: Response): Promise<void> {
+  /**
+   * Get a category by ID
+   */
+  async getCategoryById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const categoryId = req.params.category_id;
-      const category = await this.categoryService.findById(categoryId);
+      const categoryId = req.params.category_id
+      const category = await this.categoryService.findById(categoryId)
 
       if (!category) {
-        sendNotFoundResponse(res, "Category not found");
-        return;
+        throw new ApiError(HttpStatusCode.NOT_FOUND, "Category not found")
       }
 
-      sendSuccessResponse(res, category);
+      sendSuccessResponse(res, { category })
     } catch (error) {
-      console.error("Error retrieving category:", error);
-      sendErrorResponse(res, "Failed to retrieve category", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error retrieving category:", error)
+      next(error)
     }
   }
 
-  async getCategoryBySlug(req: Request, res: Response): Promise<void> {
+  /**
+   * Get a category by slug
+   */
+  async getCategoryBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const slug = req.params.slug;
-      const category = await this.categoryService.findBySlug(slug);
+      const slug = req.params.slug
+      const category = await this.categoryService.findBySlug(slug)
 
       if (!category) {
-        sendNotFoundResponse(res, "Category not found");
-        return;
+        throw new ApiError(HttpStatusCode.NOT_FOUND, "Category not found")
       }
 
-      sendSuccessResponse(res, category);
+      sendSuccessResponse(res, { category })
     } catch (error) {
-      console.error("Error retrieving category:", error);
-      sendErrorResponse(res, "Failed to retrieve category", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error retrieving category:", error)
+      next(error)
     }
   }
 
-  async getCategories(req: Request, res: Response): Promise<void> {
+  /**
+   * Get categories with filtering and pagination
+   */
+  async getCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const queryParams: CategoryQueryParams = {
         search: req.query.search as string,
@@ -72,107 +83,121 @@ export class CategoryController {
         isActive: req.query.isActive === "false" ? false : true,
         page: req.query.page ? Number(req.query.page) : 1,
         limit: req.query.limit ? Number(req.query.limit) : 10,
-      };
+      }
 
-      const result = await this.categoryService.findAll(queryParams);
-      sendSuccessResponse(res, result);
+      const result = await this.categoryService.findAll(queryParams)
+      sendSuccessResponse(res, result)
     } catch (error) {
-      console.error("Error retrieving categories:", error);
-      sendErrorResponse(res, "Failed to retrieve categories", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error retrieving categories:", error)
+      next(error)
     }
   }
 
-  async getCategoryTree(req: Request, res: Response): Promise<void> {
+  /**
+   * Get hierarchical category tree
+   */
+  async getCategoryTree(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const tree = await this.categoryService.getTree();
-      sendSuccessResponse(res, tree);
+      const tree = await this.categoryService.getTree()
+      sendSuccessResponse(res, { tree })
     } catch (error) {
-      console.error("Error retrieving category tree:", error);
-      sendErrorResponse(res, "Failed to retrieve category tree", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error retrieving category tree:", error)
+      next(error)
     }
   }
 
-  async getChildCategories(req: Request, res: Response): Promise<void> {
+  /**
+   * Get child categories
+   */
+  async getChildCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const parentId = req.params.category_id;
-      const children = await this.categoryService.getChildren(parentId);
-      sendSuccessResponse(res, children);
+      const parentId = req.params.category_id
+      const children = await this.categoryService.getChildren(parentId)
+      sendSuccessResponse(res, { children })
     } catch (error) {
-      console.error("Error retrieving child categories:", error);
-      sendErrorResponse(res, "Failed to retrieve child categories", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error retrieving child categories:", error)
+      next(error)
     }
   }
 
-  async getAncestorCategories(req: Request, res: Response): Promise<void> {
+  /**
+   * Get ancestor categories
+   */
+  async getAncestorCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const categoryId = req.params.category_id;
-      const ancestors = await this.categoryService.getAncestors(categoryId);
-      sendSuccessResponse(res, ancestors);
+      const categoryId = req.params.category_id
+      const ancestors = await this.categoryService.getAncestors(categoryId)
+      sendSuccessResponse(res, { ancestors })
     } catch (error) {
-      console.error("Error retrieving ancestor categories:", error);
-      sendErrorResponse(res, "Failed to retrieve ancestor categories", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error retrieving ancestor categories:", error)
+      next(error)
     }
   }
 
-  async updateCategory(req: Request, res: Response): Promise<void> {
+  /**
+   * Update a category
+   */
+  async updateCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const categoryId = req.params.category_id;
-      const updateData: UpdateCategoryDto = req.body;
+      const categoryId = req.params.category_id
+      const updateData: UpdateCategoryDto = req.body
 
-      const category = await this.categoryService.findById(categoryId);
+      const category = await this.categoryService.findById(categoryId)
       if (!category) {
-        sendNotFoundResponse(res, "Category not found");
-        return;
+        throw new ApiError(HttpStatusCode.NOT_FOUND, "Category not found")
       }
 
       if (updateData.slug && updateData.slug !== category.slug) {
-        const isSlugAvailable = await this.categoryService.isSlugAvailable(updateData.slug, categoryId);
+        const isSlugAvailable = await this.categoryService.isSlugAvailable(updateData.slug, categoryId)
         if (!isSlugAvailable) {
-          sendErrorResponse(res, "Slug is already in use", HttpStatusCode.BAD_REQUEST, "VALIDATION_ERROR");
-          return;
+          throw new ApiError(HttpStatusCode.BAD_REQUEST, "Slug is already in use")
         }
       }
 
-      const updatedCategory = await this.categoryService.update(categoryId, updateData);
-      sendSuccessResponse(res, updatedCategory);
+      const updatedCategory = await this.categoryService.update(categoryId, updateData)
+      sendSuccessResponse(res, { category: updatedCategory })
     } catch (error) {
-      console.error("Error updating category:", error);
-      sendErrorResponse(res, "Failed to update category", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error updating category:", error)
+      next(error)
     }
   }
 
-  async deleteCategory(req: Request, res: Response): Promise<void> {
+  /**
+   * Delete a category
+   */
+  async deleteCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const categoryId = req.params.category_id;
+      const categoryId = req.params.category_id
 
-      const category = await this.categoryService.findById(categoryId);
+      const category = await this.categoryService.findById(categoryId)
       if (!category) {
-        sendNotFoundResponse(res, "Category not found");
-        return;
+        throw new ApiError(HttpStatusCode.NOT_FOUND, "Category not found")
       }
 
-      await this.categoryService.delete(categoryId);
-      sendSuccessResponse(res, null, HttpStatusCode.NO_CONTENT);
+      await this.categoryService.delete(categoryId)
+      sendSuccessResponse(res, null, HttpStatusCode.NO_CONTENT)
     } catch (error) {
-      console.error("Error deleting category:", error);
-      sendErrorResponse(res, "Failed to delete category", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error deleting category:", error)
+      next(error)
     }
   }
 
-  async bulkUpdateCategories(req: Request, res: Response): Promise<void> {
+  /**
+   * Bulk update categories
+   */
+  async bulkUpdateCategories(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { ids, data } = req.body;
+      const { ids, data } = req.body
 
       if (!Array.isArray(ids) || ids.length === 0) {
-        sendErrorResponse(res, "Invalid category IDs", HttpStatusCode.BAD_REQUEST);
-        return;
+        throw new ApiError(HttpStatusCode.BAD_REQUEST, "Invalid category IDs")
       }
 
-      const updatedCount = await this.categoryService.bulkUpdate(ids, data);
-      sendSuccessResponse(res, { updatedCount });
+      const updatedCount = await this.categoryService.bulkUpdate(ids, data)
+      sendSuccessResponse(res, { updatedCount })
     } catch (error) {
-      console.error("Error bulk updating categories:", error);
-      sendErrorResponse(res, "Failed to bulk update categories", HttpStatusCode.INTERNAL_SERVER_ERROR);
+      logger.error("Error bulk updating categories:", error)
+      next(error)
     }
   }
 }

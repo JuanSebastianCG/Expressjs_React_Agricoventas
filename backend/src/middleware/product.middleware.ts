@@ -80,54 +80,38 @@ export class ProductMiddleware {
    * @param next - Express next function
    */
   static validateProductQuery(req: Request, res: Response, next: NextFunction): void {
-    try {
-      const query = productQuerySchema.parse({
-        category: req.query.category,
-        search: req.query.search,
-        min_price: req.query.min_price,
-        max_price: req.query.max_price,
-        availability_date: req.query.availability_date,
-        page: req.query.page,
-        limit: req.query.limit,
-      });
-
-      // Add parsed values back to req.query
-      req.query = {
-        ...req.query,
-        ...query,
-        min_price: query.min_price?.toString(),
-        max_price: query.max_price?.toString(),
-        page: query.page?.toString(),
-        limit: query.limit?.toString(),
-      };
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-        }));
-
-        sendErrorResponse(
-          res,
-          "Invalid query parameters",
-          HttpStatusCode.BAD_REQUEST,
-          "VALIDATION_ERROR",
-          errorMessages
-        );
-        return;
-      }
-
-      sendErrorResponse(res, "Invalid query parameters", HttpStatusCode.BAD_REQUEST);
-    }
+  try {
+    // Create a processed query object without modifying req.query
+    const processedQuery = {
+      min_price: req.query.min_price ? Number(req.query.min_price) : undefined,
+      max_price: req.query.max_price ? Number(req.query.max_price) : undefined,
+      page: Number(req.query.page || '1'),
+      limit: Number(req.query.limit || '10'),
+      sort_by: (req.query.sort_by as string) || 'createdAt',
+      sort_order: (req.query.sort_order as string) || 'desc',
+      search: req.query.search as string,
+      category: req.query.category as string,
+      tags: req.query.tags as string,
+      organic: req.query.organic === 'true',
+      featured: req.query.featured === 'true',
+      availability_date: req.query.availability_date as string
+    };
+    
+    // Attach this processed object to the request for use in controllers
+    (req as any).processedQuery = processedQuery;
+    
+    next();
+  } catch (error) {
+    next(error);
   }
+}
 
-  /**
-   * Validate product ID parameter
-   * @param req - Express request
-   * @param res - Express response
-   * @param next - Express next function
-   */
+/**
+ * Validate product ID parameter
+ * @param req - Express request
+ * @param res - Express response
+ * @param next - Express next function
+ */
   static validateProductId(req: Request, res: Response, next: NextFunction): void {
     const { product_id } = req.params;
     if (!product_id || !isValidObjectId(product_id)) {

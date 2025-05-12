@@ -31,11 +31,24 @@ model Product {
   availability_start_date DateTime
   availability_end_date   DateTime
   farmer_id              String   @db.ObjectId
+  tags                   String[] @default([])
+  unit                   String?
+  organic                Boolean  @default(false)
+  featured               Boolean  @default(false)
+  rating                 Float?
+  review_count           Int      @default(0)
+  views                  Int      @default(0)
   isActive               Boolean  @default(true)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
   @@map("products")
+  @@index([category])
+  @@index([farmer_id])
+  @@index([tags])
+  @@index([price])
+  @@index([organic])
+  @@index([featured])
 }
 
 model Category {
@@ -51,9 +64,15 @@ model Category {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Relations
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+
   @@map("categories")
+  @@index([slug])
   @@index([parentId])
-  // Eliminado el índice duplicado: @@index([slug])
+  @@index([isActive])
 }
 
 model Order {

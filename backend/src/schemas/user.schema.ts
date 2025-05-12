@@ -42,6 +42,12 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, { message: 'Password must contain at least one lowercase letter' })
     .regex(/[0-9]/, { message: 'Password must contain at least one number' })
     .regex(/[^A-Za-z0-9]/, { message: 'Password must contain at least one special character' }),
+
+  role: z
+    .enum(['user', 'admin', 'buyer'], {
+      message: 'Role must be either "user", "admin" or "buyer"',
+    })
+    .default('user')
 });
 
 export type RegisterUserDto = z.infer<typeof registerSchema>;
@@ -127,6 +133,7 @@ export const mapRegisterDtoToPrisma = (data: RegisterUserDto) => {
     username: data.username,
     email: data.email,
     password: data.password, // will be hashed in the service
+    role: data.role,
   };
 };
 

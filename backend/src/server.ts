@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
+import { isValidObjectId } from 'mongoose';
 
 // Application middleware
 import { errorHandler, notFound, ApiError } from './middleware/error.middleware';
@@ -20,6 +21,8 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
+import categoryRoutes from './routes/category.routes';
+
 /**
  * Middleware para manejar errores específicos de CORS
  */
@@ -92,6 +95,7 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.users, userRoutes);
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes); 
+  app.use(ROUTES_CONFIG.categories, categoryRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

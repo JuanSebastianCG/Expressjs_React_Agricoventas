@@ -1,7 +1,8 @@
 import { Router } from "express"
 import { CategoryController } from "../controllers/category.controller"
 import { CategoryMiddleware } from "../middleware/category.middleware"
-import { authenticate, authorize } from "../middleware/auth.middleware"
+import { authenticate } from "../middleware/auth.middleware"
+import { cache } from "../middleware/cache.middleware"
 
 const router = Router()
 const categoryController = new CategoryController()
@@ -115,11 +116,13 @@ const categoryController = new CategoryController()
  *         description: Server error
  */
 router.post(
-  "/categories",
+  "/",
   authenticate,
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateCreateCategory,
-  categoryController.createCategory.bind(categoryController),
+  (req, res, next) => {
+    categoryController.createCategory(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -146,7 +149,10 @@ router.post(
 router.get(
   "/categories/:category_id",
   CategoryMiddleware.validateCategoryId,
-  categoryController.getCategoryById.bind(categoryController),
+  cache(60), // Cache for 60 seconds
+  (req, res, next) => {
+    categoryController.getCategoryById(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -170,7 +176,13 @@ router.get(
  *       500:
  *         description: Server error
  */
-router.get("/categories/slug/:slug", categoryController.getCategoryBySlug.bind(categoryController))
+router.get(
+  "/categories/slug/:slug",
+  cache(60), // Cache for 60 seconds
+  (req, res, next) => {
+    categoryController.getCategoryBySlug(req, res, next).catch(next)
+  },
+)
 
 /**
  * @swagger
@@ -222,7 +234,10 @@ router.get("/categories/slug/:slug", categoryController.getCategoryBySlug.bind(c
 router.get(
   "/categories",
   CategoryMiddleware.validateCategoryQuery,
-  categoryController.getCategories.bind(categoryController),
+  cache(30), // Cache for 30 seconds
+  (req, res, next) => {
+    categoryController.getCategories(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -237,7 +252,13 @@ router.get(
  *       500:
  *         description: Server error
  */
-router.get("/categories/tree", categoryController.getCategoryTree.bind(categoryController))
+router.get(
+  "/categories/tree",
+  cache(60), // Cache for 60 seconds
+  (req, res, next) => {
+    categoryController.getCategoryTree(req, res, next).catch(next)
+  },
+)
 
 /**
  * @swagger
@@ -261,7 +282,10 @@ router.get("/categories/tree", categoryController.getCategoryTree.bind(categoryC
 router.get(
   "/categories/:category_id/children",
   CategoryMiddleware.validateCategoryId,
-  categoryController.getChildCategories.bind(categoryController),
+  cache(60), // Cache for 60 seconds
+  (req, res, next) => {
+    categoryController.getChildCategories(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -286,7 +310,10 @@ router.get(
 router.get(
   "/categories/:category_id/ancestors",
   CategoryMiddleware.validateCategoryId,
-  categoryController.getAncestorCategories.bind(categoryController),
+  cache(60), // Cache for 60 seconds
+  (req, res, next) => {
+    categoryController.getAncestorCategories(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -341,7 +368,9 @@ router.put(
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateCategoryId,
   CategoryMiddleware.validateUpdateCategory,
-  categoryController.updateCategory.bind(categoryController),
+  (req, res, next) => {
+    categoryController.updateCategory(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -376,7 +405,9 @@ router.delete(
   authenticate,
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateCategoryId,
-  categoryController.deleteCategory.bind(categoryController),
+  (req, res, next) => {
+    categoryController.deleteCategory(req, res, next).catch(next)
+  },
 )
 
 /**
@@ -429,8 +460,9 @@ router.patch(
   authenticate,
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateBulkUpdate,
-  categoryController.bulkUpdateCategories.bind(categoryController),
+  (req, res, next) => {
+    categoryController.bulkUpdateCategories(req, res, next).catch(next)
+  },
 )
 
 export default router
-
