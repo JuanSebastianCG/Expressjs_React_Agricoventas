@@ -2,7 +2,7 @@ import api from './api';
 import { AxiosError } from 'axios';
 
 // API URL for user endpoints
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3010'}/api/users`;
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/users`;
 
 // Tipos
 export interface User {

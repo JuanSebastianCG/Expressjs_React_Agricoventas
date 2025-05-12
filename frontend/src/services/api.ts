@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
 // Base API configuration
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3010';
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Token storage key
 const TOKEN_KEY = 'auth_token';

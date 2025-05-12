@@ -10,36 +10,56 @@ export const certificationService = {
    * @param userId - User ID
    * @param certName - Certification name
    * @param certType - Certification type
+   * @param certNumber - Certificate number/code
+   * @param issuedDate - Date when certificate was issued
+   * @param expiryDate - Date when certificate expires
    * @param imageFile - Image file
    */
   async uploadCertification(
     userId: string,
     certName: string,
     certType: CertificationType,
+    certNumber: string,
+    issuedDate: Date,
+    expiryDate: Date,
     imageFile: File
   ): Promise<IUserCertification> {
     // Create form data for file upload
     const formData = new FormData();
     formData.append('file', imageFile);
     
-    // Upload the image first
-    const imageResponse = await api.post('/uploads/certifications', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    const imageUrl = imageResponse.data.url;
-    
-    // Create the certification with the image URL
-    const response = await api.post('/certifications/upload', {
-      userId,
-      certificationName: certName,
-      certificationType: certType,
-      imageUrl,
-    });
-    
-    return response.data;
+    try {
+      // Upload the image first - use the correct endpoint
+      const imageResponse = await api.post('/api/uploads/certifications', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      if (!imageResponse.data.success) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const imageUrl = imageResponse.data.url || imageResponse.data.data?.url;
+      
+      console.log("Image upload success, URL:", imageUrl);
+      
+      // Create the certification with the image URL
+      const response = await api.post('/api/certifications/upload', {
+        userId,
+        certificationName: certName,
+        certificationType: certType,
+        certificateNumber: certNumber,
+        issuedDate,
+        expiryDate,
+        imageUrl,
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error in uploadCertification:', error);
+      throw error;
+    }
   },
   
   /**
@@ -47,8 +67,15 @@ export const certificationService = {
    * @param userId - User ID
    */
   async getUserCertifications(userId: string): Promise<IUserCertification[]> {
-    const response = await api.get(`/certifications/user/${userId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/certifications/user/${userId}`);
+      // Check if the data is nested and return the array, otherwise return the direct data (or an empty array)
+      const responseData = response.data;
+      return Array.isArray(responseData?.data) ? responseData.data : Array.isArray(responseData) ? responseData : [];
+    } catch (error) {
+      console.error('Error fetching user certifications in service:', error);
+      return []; // Return empty array on error
+    }
   },
   
   /**
@@ -62,7 +89,7 @@ export const certificationService = {
       total: number;
     };
   }> {
-    const response = await api.get(`/certifications/verify/${userId}`);
+    const response = await api.get(`/api/certifications/verify/${userId}`);
     return response.data;
   },
   
@@ -70,7 +97,7 @@ export const certificationService = {
    * Get all pending certifications (admin only)
    */
   async getPendingCertifications(): Promise<IUserCertification[]> {
-    const response = await api.get('/certifications/pending');
+    const response = await api.get('/api/certifications/pending');
     return response.data;
   },
   
@@ -80,7 +107,7 @@ export const certificationService = {
    * @param adminId - Admin user ID
    */
   async approveCertification(certificationId: string, adminId: string): Promise<IUserCertification> {
-    const response = await api.put(`/certifications/approve/${certificationId}`, { adminId });
+    const response = await api.put(`/api/certifications/approve/${certificationId}`, { adminId });
     return response.data;
   },
   
@@ -95,7 +122,7 @@ export const certificationService = {
     adminId: string,
     rejectionReason: string
   ): Promise<IUserCertification> {
-    const response = await api.put(`/certifications/reject/${certificationId}`, {
+    const response = await api.put(`/api/certifications/reject/${certificationId}`, {
       adminId,
       rejectionReason,
     });

@@ -58,6 +58,9 @@ const MyProducts: React.FC = () => {
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Add this in the appropriate place - inside the component, before the return statement
+  const [canCreateProducts, setCanCreateProducts] = useState(false);
+
   // Check if user is authenticated and a seller
   useEffect(() => {
     if (!isAuthenticated) {
@@ -77,6 +80,9 @@ const MyProducts: React.FC = () => {
         try {
           setIsCertificateChecking(true);
           const certificationStatus = await certificationService.verifyUserCertifications(user.id);
+          
+          // Update the state to determine if the user can create products
+          setCanCreateProducts(certificationStatus.hasAllCertifications);
           
           if (!certificationStatus.hasAllCertifications) {
             console.log("User doesn't have all required certifications. Redirecting to certificate upload page.");
@@ -272,29 +278,6 @@ const MyProducts: React.FC = () => {
                 />
               </div>
 
-              {/* View toggle button */}
-              <div className="flex-shrink-0">
-                <button 
-                  onClick={toggleViewType}
-                  className="inline-flex items-center px-3 py-2 border border-gray-0-5 rounded-md shadow-sm text-sm font-medium text-gray-1 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-1"
-                >
-                  {viewType === ViewType.LIST ? (
-                    <>
-                      <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                      </svg>
-                      Vista Grid
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                      </svg>
-                      Vista Lista
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
 
             {error && (
@@ -328,15 +311,40 @@ const MyProducts: React.FC = () => {
 
             {/* Add new product button */}
             <div className="mb-6">
-              <button
-                onClick={handleCreateProduct}
-                className="flex items-center justify-center bg-green-1 hover:bg-green-0-9 text-white py-3 px-4 rounded shadow-sm transition-colors"
-              >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Agregar Nuevo Producto
-              </button>
+              {canCreateProducts ? (
+                <button
+                  onClick={handleCreateProduct}
+                  className="flex items-center justify-center bg-green-1 hover:bg-green-0-9 text-white py-3 px-4 rounded shadow-sm transition-colors"
+                >
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Agregar Nuevo Producto
+                </button>
+              ) : (
+                <div className="bg-yellow-100 border-l-4 border-yellow-1 text-yellow-1 p-4 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium">
+                        Para poder agregar productos, primero necesitas tener todas tus certificaciones verificadas.
+                      </p>
+                      <p className="mt-2">
+                        <button
+                          onClick={() => navigate('/certificados')}
+                          className="bg-yellow-1 hover:bg-yellow-1-5 text-white py-1 px-3 rounded text-sm transition-colors"
+                        >
+                          Completar certificaciones
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {isLoading ? (

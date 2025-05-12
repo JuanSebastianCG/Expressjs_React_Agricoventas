@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { hasRequiredCertifications, getCertificationsCount } from '../utils/certificateValidator';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
+import fs from 'fs'; // Import fs for file operations
+import path from 'path'; // Import path for path operations
 
 // Create a prisma instance for normal usage
 export const prisma = new PrismaClient();
@@ -15,17 +17,26 @@ export class CertificationController {
   }
 
   /**
-   * Upload a new certification
+   * Upload a new certification or update an existing one.
+   * If updating, it will delete the old image file.
    * @param req Express request
    * @param res Express response
    */
   async uploadCertification(req: Request, res: Response): Promise<void> {
     try {
-      const { userId, certificationName, certificationType, imageUrl } = req.body;
+      const { 
+        userId, 
+        certificationName, 
+        certificationType, 
+        certificateNumber, 
+        issuedDate, 
+        expiryDate, 
+        imageUrl // This is the new image URL from the upload service
+      } = req.body;
 
       // Validate input
-      if (!userId || !certificationName || !certificationType || !imageUrl) {
-        sendErrorResponse(res, 'Missing required fields', HttpStatusCode.BAD_REQUEST);
+      if (!userId || !certificationName || !certificationType || !certificateNumber || !issuedDate || !expiryDate || !imageUrl) {
+        sendErrorResponse(res, 'Missing required fields for certification', HttpStatusCode.BAD_REQUEST);
         return;
       }
 
@@ -38,6 +49,21 @@ export class CertificationController {
       });
 
       if (existingCert) {
+        // If certificate exists, and a new image URL is provided, delete the old image.
+        if (existingCert.imageUrl && existingCert.imageUrl !== imageUrl) {
+          const oldImagePath = path.join(__dirname, '../../uploads', existingCert.imageUrl.replace('/uploads/', ''));
+          try {
+            if (fs.existsSync(oldImagePath)) {
+              fs.unlinkSync(oldImagePath);
+              console.log(`Successfully deleted old certificate image: ${oldImagePath}`);
+            }
+          } catch (fileError) {
+            console.error(`Failed to delete old certificate image ${oldImagePath}:`, fileError);
+            // Decide if this error should prevent the update or just be logged.
+            // For now, we'll log and continue.
+          }
+        }
+
         // Update existing certification
         const updatedCert = await this.db.userCertification.update({
           where: {
@@ -45,7 +71,10 @@ export class CertificationController {
           },
           data: {
             certificationName,
-            imageUrl,
+            certificateNumber,
+            issuedDate: new Date(issuedDate),
+            expiryDate: new Date(expiryDate),
+            imageUrl, // new image URL
             status: 'PENDING', // Reset to pending if it was previously verified/rejected
             uploadedAt: new Date(),
             verifiedAt: null,
@@ -57,12 +86,15 @@ export class CertificationController {
         return;
       }
 
-      // Create new certification
+      // Create new certification if it doesn't exist
       const certification = await this.db.userCertification.create({
         data: {
           userId,
           certificationName,
           certificationType,
+          certificateNumber,
+          issuedDate: new Date(issuedDate),
+          expiryDate: new Date(expiryDate),
           imageUrl,
           status: 'PENDING'
         }
@@ -70,8 +102,14 @@ export class CertificationController {
 
       sendSuccessResponse(res, certification, HttpStatusCode.CREATED);
     } catch (error: any) {
-      console.error('Error uploading certification:', error);
-      sendErrorResponse(res, 'Error uploading certification', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      console.error('Error in uploadCertification controller:', error);
+      // Check for Prisma-specific validation errors if applicable
+      if (error.name === 'PrismaClientValidationError') {
+        sendErrorResponse(res, `Validation error: ${error.message}`, HttpStatusCode.BAD_REQUEST);
+        return;
+      }
+      sendErrorResponse(res, 'Server error during certification upload', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      return;
     }
   }
 

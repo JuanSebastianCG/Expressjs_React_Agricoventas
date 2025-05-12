@@ -31,18 +31,10 @@ const getUserInitials = (user: User | null) => {
   return user.username ? user.username[0].toUpperCase() : '?';
 };
 
-// Function to get full profile image URL
-const getProfileImageUrl = (imagePath: string | null | undefined): string | undefined => {
-  if (!imagePath) {
-    return undefined;
-  }
-  // If the URL is already complete (starts with http), return it as is
-  if (imagePath.startsWith('http')) {
-    return imagePath;
-  }
-  // Otherwise, build the complete URL
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3010';
-  // Make sure there's no double slash
+// Helper function to get full image URL
+const getImageUrl = (imagePath: string | null) => {
+  if (!imagePath) return defaultAvatar;
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
   const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
   const fullUrl = `${apiUrl}/${cleanPath}`;
   return fullUrl;
@@ -92,7 +84,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
         <div className={`${imageSize} rounded-full overflow-hidden bg-gray-200 flex items-center justify-center`}>
           {user.profileImage ? (
             <img
-              src={getProfileImageUrl(user.profileImage)}
+              src={getImageUrl(user.profileImage)}
               alt={`${user.firstName} ${user.lastName}`}
               className="w-full h-full object-cover"
               onError={(e) => {

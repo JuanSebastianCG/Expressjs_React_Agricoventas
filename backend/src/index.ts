@@ -11,6 +11,9 @@ dotenv.config();
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
 
 // Configuration
 import { logger } from './config/logger';
@@ -19,6 +22,7 @@ import { SERVER_CONFIG, ROUTES_CONFIG } from './config/app';
 
 // Application
 import { createApp } from './server';
+import routes from './routes';
 
 // Ensure uploads directories exist
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -72,8 +76,21 @@ async function startServer(): Promise<void> {
       throw new Error(`Invalid port: ${SERVER_CONFIG.port}`);
     }
 
-    // Create application and HTTP server
-    const app = createApp();
+    // Create Express application
+    const app = express();
+
+    // Middleware
+    app.use(cors());
+    app.use(express.json());
+    app.use(morgan('dev'));
+
+    // Serve static files from the uploads directory
+    app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+    // API Routes
+    app.use('/api', routes);
+
+    // Create HTTP server
     const server = http.createServer(app);
 
     // Handle server errors
@@ -143,3 +160,5 @@ function shutdown(server: http.Server): void {
 
 // Start the server
 startServer();
+
+export default express();

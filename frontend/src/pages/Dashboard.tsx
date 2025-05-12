@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Card from '../components/ui/Card';
 import MainLayout from '../components/layout/MainLayout';
+import PageContainer from '../components/layout/PageContainer';
+import StyledButton from '../components/ui/StyledButton';
 import { navigateToProducts } from '../App';
 
 const Dashboard: React.FC = () => {
@@ -146,53 +148,7 @@ const Dashboard: React.FC = () => {
             </div>
           </Card>
           
-          {/* Panel de Administración (solo para admins) */}
-          {isAdmin && (
-            <Card className="col-span-full bg-purple-50 border-purple-200 overflow-hidden">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-purple-800 mb-3">Panel de Administración</h2>
-                <p className="text-purple-600 mb-4">
-                  Como administrador, tienes acceso a funciones avanzadas para gestionar la plataforma.
-                </p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Link 
-                    to="/admin/users" 
-                    className="bg-white p-4 rounded-lg shadow-sm hover:shadow transition-shadow border border-purple-100"
-                  >
-                    <div className="flex items-center">
-                      <div className="bg-purple-100 p-3 rounded-full">
-                        <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="font-medium text-gray-900">Usuarios</h3>
-                        <p className="text-sm text-gray-500">Gestionar usuarios</p>
-                      </div>
-                    </div>
-                  </Link>
-                  
-                  <Link 
-                    to="/admin/products" 
-                    className="bg-white p-4 rounded-lg shadow-sm hover:shadow transition-shadow border border-purple-100"
-                  >
-                    <div className="flex items-center">
-                      <div className="bg-purple-100 p-3 rounded-full">
-                        <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                        </svg>
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="font-medium text-gray-900">Productos</h3>
-                        <p className="text-sm text-gray-500">Administrar inventario</p>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              </div>
-            </Card>
-          )}
+
           
           {/* Acciones rápidas */}
           <Card className="col-span-full bg-white shadow-sm">
@@ -244,6 +200,31 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </Card>
+
+
+          {/* Admin Panel - Prominently displayed for admins */}
+          {isAdmin && (
+            <div className="mb-8 bg-green-0-5 rounded-lg p-6 shadow-md">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                <div className="mb-4 md:mb-0">
+                  <h2 className="text-xl font-semibold text-green-1">Panel de Administración</h2>
+                  <p className="text-gray-700 mt-1">Accede a las herramientas de administración para gestionar la plataforma</p>
+                </div>
+                <Link 
+                  to="/admin/users" 
+                  className="bg-green-1 hover:bg-green-0-9 text-white py-3 px-6 rounded-md font-medium text-lg transition-colors shadow-md flex items-center"
+                >
+                  Ir al Panel de Administración
+                  <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+          )}
+          
+
+
         </div>
       </div>
     </MainLayout>

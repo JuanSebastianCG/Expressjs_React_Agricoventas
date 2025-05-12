@@ -41,6 +41,9 @@ export interface IUserCertification {
   userId: string;
   certificationName: string;
   certificationType: CertificationType;
+  certificateNumber?: string;
+  issuedDate?: Date;
+  expiryDate?: Date;
   imageUrl: string;
   status: CertificationStatus;
   uploadedAt?: Date;

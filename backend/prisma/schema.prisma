@@ -103,6 +103,9 @@ model UserCertification {
   userId             String               @db.ObjectId @map("user_id")
   certificationName  String               @map("certification_name")
   certificationType  String               @map("certification_type") // "INVIMA", "ICA", "REGISTRO_SANITARIO", "CERTIFICADO_ORGANICO"
+  certificateNumber  String               @map("certificate_number")
+  issuedDate         DateTime             @map("issued_date")
+  expiryDate         DateTime             @map("expiry_date")
   imageUrl           String               @map("image_url")
   status             String               @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
   uploadedAt         DateTime             @default(now()) @map("uploaded_at")

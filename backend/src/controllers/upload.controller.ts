@@ -160,8 +160,10 @@ export class UploadController {
         
         console.log(`Successfully uploaded certification file: ${file.filename}`);
         
+        // Use a consistent response format with both url and data.url
         sendSuccessResponse(res, { 
-          url: fileUrl,
+          url: fileUrl,  // Direct url property for backward compatibility
+          data: { url: fileUrl },  // Nested in data property for newer format
           filename: file.filename,
           originalname: file.originalname,
           size: file.size,

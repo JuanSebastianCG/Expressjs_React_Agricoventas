@@ -181,7 +181,10 @@ const App: React.FC = () => {
           {/* Rutas anidadas dentro del dashboard de administración */}
           <Route index element={<Navigate to="/admin/users" replace />} />
           <Route path="users" element={<UserManagement />} />
-          <Route path="certifications" element={<ProtectedRoute requiredRole="ADMIN"><CertificationApproval /></ProtectedRoute>} />
+          <Route path="certifications" element={<CertificationApproval />} />
+          <Route path="products" element={<React.Fragment>Gestión de Productos</React.Fragment>} />
+          <Route path="orders" element={<React.Fragment>Gestión de Pedidos</React.Fragment>} />
+          <Route path="categories" element={<React.Fragment>Gestión de Categorías</React.Fragment>} />
           
           {/* Ruta para manejar rutas no encontradas dentro de admin */}
           <Route path="*" element={<Navigate to="/admin/users" replace />} />

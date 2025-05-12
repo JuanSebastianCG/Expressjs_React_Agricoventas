@@ -2,7 +2,7 @@ import { AxiosError } from 'axios';
 import api from './api';
 
 // API URL for auth endpoints
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3010'}/api/auth`;
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth`;
 
 // Types
 export interface RegisterData {

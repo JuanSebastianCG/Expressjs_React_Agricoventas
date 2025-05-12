@@ -41,8 +41,15 @@ export class UserController {
    */
   private getProfileImageUrl(imagePath: string | null): string | null {
     if (!imagePath) return null;
-    const apiUrl = process.env.API_URL || 'http://localhost:3010';
+    
+    // Use the port from the environment or the updated fallback
+    const port = process.env.PORT || '3001';
+    const apiUrl = process.env.API_URL || `http://localhost:${port}`;
+    
+    // Remove any leading slash for consistency
     const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    
+    // Return the full URL
     return `${apiUrl}/${cleanPath}`;
   }
 

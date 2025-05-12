@@ -1,16 +1,29 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { CertificationController } from '../controllers/certificationController';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 
 const router = express.Router();
 const certificationController = new CertificationController();
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../../uploads/certifications');
+if (!fs.existsSync(uploadsDir)) {
+  // Create directory recursively
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log(`Created uploads directory: ${uploadsDir}`);
+}
+
 // Configure Multer for certificate image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads/certifications'));
+    // Ensure the directory exists (redundant but safe)
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

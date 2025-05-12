@@ -76,7 +76,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
       return imagePath;
     }
     // Si no, construimos la URL completa
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3010';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     // Asegurarse de que no haya doble slash
     const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
     const fullUrl = `${apiUrl}/${cleanPath}`;
@@ -174,12 +174,14 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                     >
                       Mi Perfil
                     </Link>
-                    <Link 
-                      to="/admin/users" 
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
-                    >
-                      Administrar
-                    </Link>
+                    {user?.userType === 'ADMIN' && (
+                      <Link 
+                        to="/dashboard" 
+                        className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
+                      >
+                        Administrar
+                      </Link>
+                    )}
                     <div className="border-t border-gray-200 my-1"></div>
                     <button 
                       onClick={handleLogout}
