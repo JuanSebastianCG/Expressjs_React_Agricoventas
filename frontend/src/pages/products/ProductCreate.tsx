@@ -14,10 +14,72 @@ import { ICategory } from '../../interfaces/category';
 import Header from '../../components/layout/Header';
 import UserProfile from '../../components/common/UserProfile';
 
-interface Certification {
+// Placeholder ILocation - replace with your actual interface
+interface ILocation {
   id: string;
-  name: string;
+  addressLine1: string; // Or a more descriptive name for the dropdown
+  city: string;
+  department: string;
 }
+// Placeholder locationService - replace with your actual service
+const locationService = {
+  async getUserLocations(userId: string): Promise<ILocation[]> {
+    console.log("[ProductCreate] Mock: Fetching locations for user:", userId);
+    // Replace with actual API call
+    // Example: return api.get(`/api/locations/user/${userId}`).then(res => res.data.data || []);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+    // Mock data for now
+    if (userId === "mockUserIdWithLocations") {
+      return [
+        { id: 'loc1', addressLine1: 'Finca La Esperanza', city: 'Salento', department: 'Quindío' },
+        { id: 'loc2', addressLine1: 'Bodega Central', city: 'Armenia', department: 'Quindío' },
+      ];
+    }
+    return [];
+  },
+  async createLocation(data: Partial<ILocation>): Promise<ILocation> {
+    console.log("[ProductCreate] Mock: Creating new location:", data);
+    // Replace with actual API call
+    // Example: return api.post('/api/locations', data).then(res => res.data.data);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+    return { id: `new_loc_${Date.now()}`, ...data } as ILocation;
+  }
+};
+// Placeholder LocationFormModal - replace with your actual component
+const LocationFormModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (newLocation: ILocation) => void, userId: string | undefined }> = ({ isOpen, onClose, onSubmit, userId }) => {
+  if (!isOpen) return null;
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [department, setDepartment] = useState('');
+
+  const handleSubmit = async () => {
+    // Basic validation
+    if (!address || !city || !department || !userId) {
+      alert("Todos los campos son requeridos para la ubicación.");
+      return;
+    }
+    try {
+      const newLoc = await locationService.createLocation({ addressLine1: address, city, department /*, userId - if backend needs it directly */ });
+      onSubmit(newLoc);
+    } catch (e) {
+      alert("Error creando ubicación");
+      console.error(e);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '400px' }}>
+        <h3>Crear Nueva Ubicación</h3>
+        <input type="text" placeholder="Nombre/Dirección" value={address} onChange={e => setAddress(e.target.value)} style={{ display: 'block', width: '90%', marginBottom: '10px', padding: '8px' }} />
+        <input type="text" placeholder="Ciudad" value={city} onChange={e => setCity(e.target.value)} style={{ display: 'block', width: '90%', marginBottom: '10px', padding: '8px' }} />
+        <input type="text" placeholder="Departamento" value={department} onChange={e => setDepartment(e.target.value)} style={{ display: 'block', width: '90%', marginBottom: '20px', padding: '8px' }} />
+        <button onClick={handleSubmit} style={{ padding: '10px 15px', marginRight: '10px' }}>Guardar Ubicación</button>
+        <button onClick={onClose} style={{ padding: '10px 15px' }}>Cancelar</button>
+      </div>
+    </div>
+  );
+};
 
 const ProductCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -25,41 +87,77 @@ const ProductCreate: React.FC = () => {
   const isEditMode = !!productId;
   const { isAuthenticated, user } = useAppContext();
   
-  // Certification checking state
   const [isCertificateChecking, setIsCertificateChecking] = useState(true);
   
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     categoryId: '',
     description: '',
-    region: '',
+    originLocationId: '',
     quality: '',
     price: '',
     availableQuantity: '',
     unitMeasure: '',
     isFeatured: false
   });
+
+  // Location specific state
+  const [userLocations, setUserLocations] = useState<ILocation[]>([]);
+  const [isLoadingUserLocations, setIsLoadingUserLocations] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   
-  // File upload state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
-  // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Categories state
   const [categoriesList, setCategoriesList] = useState<ICategory[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [selectedParentCategoryId, setSelectedParentCategoryId] = useState<string>('');
 
-  // Fetch categories
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (user?.userType !== 'SELLER' && user?.userType !== 'ADMIN') {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    const checkCertifications = async () => {
+      if (isAuthenticated && user?.id) {
+        try {
+          setIsCertificateChecking(true);
+          if (user.userType === 'ADMIN') {
+            setIsCertificateChecking(false);
+            return;
+          }
+          const certificationStatus = await certificationService.verifyUserCertifications(user.id);
+          if (!certificationStatus.hasAllCertifications) {
+            alert(`Para crear o editar productos necesitas tener los 4 certificados colombianos verificados. Actualmente tienes ${certificationStatus.certificationsCount.verified} de ${certificationStatus.certificationsCount.total}. Serás redirigido para completar tus certificados.`);
+            navigate('/certificados');
+          }
+        } catch (err) {
+          console.error("Error checking user certifications:", err);
+          alert(`Error al verificar tus certificados. Por favor, intenta nuevamente más tarde o contacta a soporte.`);
+          navigate('/dashboard');
+        } finally {
+          setIsCertificateChecking(false);
+        }
+      }
+    };
+    checkCertifications();
+  }, [isAuthenticated, user, navigate]);
+
+  // Fetch Categories
   useEffect(() => {
     const fetchCategories = async () => {
       setIsLoadingCategories(true);
@@ -69,9 +167,7 @@ const ProductCreate: React.FC = () => {
           includeChildren: true,
           includeParent: true
         });
-        
         const response: any = rawResponse;
-
         let extractedCategories: ICategory[] = [];
         if (response && response.success && response.data) {
           if (Array.isArray(response.data.categories)) {
@@ -86,13 +182,11 @@ const ProductCreate: React.FC = () => {
             console.error("[ProductCreate] response.data was present but not in a recognized array format. Content:", response.data);
           }
         } else {
-          console.error("[ProductCreate] Main response object is not in expected {success: true, data: ...} format, or success/data is missing/false:", response);
+          console.error("[ProductCreate] Main response object for categories is not in expected {success: true, data: ...} format, or success/data is missing/false:", response);
         }
-        
         if (extractedCategories.length === 0 && response && response.success) {
-            console.warn("[ProductCreate] Successfully fetched response, but no categories were extracted. Check the structure of 'response.data'. Response was:", response);
+            console.warn("[ProductCreate] Successfully fetched categories response, but no categories were extracted. Check structure of 'response.data'. Response was:", response);
         }
-
         setCategoriesList(extractedCategories);
       } catch (error) {
         console.error("[ProductCreate] Error fetching categories:", error);
@@ -103,6 +197,36 @@ const ProductCreate: React.FC = () => {
     };
     fetchCategories();
   }, []);
+
+  // Fetch User Locations
+  useEffect(() => {
+    const fetchUserLocations = async () => {
+      if (user?.id) {
+        setIsLoadingUserLocations(true);
+        try {
+          // Replace 'mockUserIdWithLocations' with user.id for real use
+          const locations = await locationService.getUserLocations(user.id); 
+          setUserLocations(locations);
+          // If editing and product has an originLocationId, try to pre-select it
+          // This part might need adjustment based on how productData is loaded for edit mode
+          if (isEditMode && formData.originLocationId && locations.some(loc => loc.id === formData.originLocationId)) {
+            // Already set, or will be set by loadProductData
+          } else if (locations.length > 0 && !isEditMode) {
+            // Optionally, pre-select the first location for new products
+            // setFormData(prev => ({ ...prev, originLocationId: locations[0].id }));
+          }
+        } catch (error) {
+          console.error("[ProductCreate] Error fetching user locations:", error);
+          // Optionally set an error state for locations
+        } finally {
+          setIsLoadingUserLocations(false);
+        }
+      }
+    };
+    if (!isCertificateChecking) { // Fetch locations after certificate check
+        fetchUserLocations();
+    }
+  }, [user?.id, isCertificateChecking, isEditMode]); // formData.originLocationId removed from deps to avoid loop
 
   const topLevelCategories = useMemo(() => {
     return categoriesList;
@@ -127,73 +251,15 @@ const ProductCreate: React.FC = () => {
     const children = childCategoriesMap.get(selectedParentCategoryId) || [];
     return children;
   }, [selectedParentCategoryId, childCategoriesMap]);
-
-  // Check if user is authenticated and a seller
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-
-    if (user?.userType !== 'SELLER' && user?.userType !== 'ADMIN') {
-      navigate('/dashboard');
-    }
-  }, [isAuthenticated, user, navigate]);
-
-  // Check if user has all required certifications
-  useEffect(() => {
-    const checkCertifications = async () => {
-      if (isAuthenticated && user?.id) {
-        try {
-          setIsCertificateChecking(true);
-          
-          // Skip check for admins
-          if (user.userType === 'ADMIN') {
-            setIsCertificateChecking(false);
-            return;
-          }
-          
-          const certificationStatus = await certificationService.verifyUserCertifications(user.id);
-          
-          if (!certificationStatus.hasAllCertifications) {
-            console.log("User doesn't have all required certifications. Redirecting to certificate upload page.");
-            // Show a message and redirect to certificate upload page
-            alert(`Para crear o editar productos necesitas tener los 4 certificados colombianos verificados. Actualmente tienes ${certificationStatus.certificationsCount.verified} de ${certificationStatus.certificationsCount.total}. Serás redirigido para completar tus certificados.`);
-            navigate('/certificados');
-          }
-        } catch (err) {
-          console.error("Error checking user certifications:", err);
-          alert(`Error al verificar tus certificados. Por favor, intenta nuevamente más tarde o contacta a soporte.`);
-          navigate('/dashboard');
-        } finally {
-          setIsCertificateChecking(false);
-        }
-      }
-    };
-    
-    checkCertifications();
-  }, [isAuthenticated, user, navigate]);
-
-  // Load product data in edit mode
-  useEffect(() => {
-    // Ensure categories are loaded before trying to load product data that depends on them
-    if (isEditMode && productId && !isCertificateChecking && categoriesList.length > 0) {
-      loadProductData(productId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [isEditMode, productId, isCertificateChecking, categoriesList]); // loadProductData is stable but not memoized, added categoriesList
-
-  const loadProductData = async (productId: string) => {
+  
+  const loadProductData = useCallback(async (productIdToLoad: string) => {
     setIsLoading(true);
     try {
-      const response = await api.get(`/api/products/${productId}`);
-      
+      const response = await api.get(`/api/products/${productIdToLoad}`);
       if (response.data.success) {
         const product = response.data.data;
         const productCategoryId = product.categoryId || '';
-        
         let parentIdToSet = '';
-        // Attempt to find if the product's category is a child
         const productCategory = categoriesList.find(c => c.id === productCategoryId);
         if (productCategory && productCategory.parentId) {
           parentIdToSet = productCategory.parentId;
@@ -201,76 +267,93 @@ const ProductCreate: React.FC = () => {
 
         setFormData({
           name: product.name || '',
-          categoryId: productCategoryId, // This will be the actual categoryId (child or parent)
+          categoryId: productCategoryId,
           description: product.description || '',
-          region: product.region || '',
+          originLocationId: product.originLocationId || '',
           quality: product.quality || '',
-          price: product.price?.toString() || '',
-          availableQuantity: product.availableQuantity?.toString() || '',
+          price: product.basePrice?.toString() || '',
+          availableQuantity: product.stockQuantity?.toString() || '',
           unitMeasure: product.unitMeasure || '',
           isFeatured: product.isFeatured || false
         });
         
-        // Set parent category for the dropdown if applicable
         if (parentIdToSet) {
           setSelectedParentCategoryId(parentIdToSet);
         } else if (productCategoryId && !productCategory?.parentId) {
-          // It's a top-level category
           setSelectedParentCategoryId(productCategoryId);
         }
 
-        // Set existing images
         if (product.images && Array.isArray(product.images)) {
-          setExistingImages(product.images);
+          // Assuming images are full URLs. If they are just paths, adjust accordingly.
+          setExistingImages(product.images.map((img: any) => img.imageUrl || img));
         }
       } else {
-        setSubmitError('Error al cargar los datos del producto');
+        setSubmitError('Error al cargar los datos del producto para editar.');
         navigate('/pages/products/my-products');
       }
     } catch (err) {
-      setSubmitError('Error al cargar los datos del producto');
-      console.error('Error loading product data:', err);
+      setSubmitError('Error grave al cargar los datos del producto.');
+      console.error('Error loading product data for edit:', err);
       navigate('/pages/products/my-products');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [categoriesList, navigate]); // Removed loadProductData from its own deps
+  
+  useEffect(() => {
+    if (isEditMode && productId && !isCertificateChecking && categoriesList.length > 0) {
+        // Delay loading product data until user locations are also potentially loaded, or handle pre-selection better
+        if (!isLoadingUserLocations) { // Ensure locations are fetched before trying to match product's location
+            loadProductData(productId);
+        }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [isEditMode, productId, isCertificateChecking, categoriesList, isLoadingUserLocations]); // loadProductData is stable, added isLoadingUserLocations
 
-  // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    console.log(`[ProductCreate] handleInputChange: name=${name}, value=${value}, type=${type}`);
 
     if (name === 'parentCategory') {
       setSelectedParentCategoryId(value);
-      // When parent category changes, check for its children
       const childrenOfSelectedParent = childCategoriesMap.get(value) || [];
+      console.log("[ProductCreate] Children of selected parent (", value, "):", childrenOfSelectedParent.map(c=>c.name));
       if (childrenOfSelectedParent.length === 0) {
-        // If no children, the selected parent IS the category
         setFormData(prev => ({ ...prev, categoryId: value }));
+        console.log("[ProductCreate] Parent category has no children. Set categoryId to:", value);
       } else {
-        // If children exist, clear current categoryId, user must select a subcategory
         setFormData(prev => ({ ...prev, categoryId: '' })); 
+        console.log("[ProductCreate] Parent category has children. Cleared categoryId. User must select a subcategory.");
       }
     } else if (name === 'categoryId') {
-      // This is for the sub-category dropdown or a parent category that has no children
       setFormData(prev => ({ ...prev, categoryId: value }));
-    } else {
+      console.log("[ProductCreate] Set categoryId (likely from subcategory selection) to:", value);
+    } else if (name === 'originLocationId') {
+        if (value === "CREATE_NEW_LOCATION") {
+            setIsLocationModalOpen(true);
+        } else {
+            setFormData(prev => ({ ...prev, originLocationId: value }));
+        }
+    }
+    else {
       setFormData(prev => ({
         ...prev,
         [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
       }));
     }
 
-    // Clear error for the field
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  // Handle file upload
+  const handleNewLocationCreated = (newLocation: ILocation) => {
+    setUserLocations(prev => [...prev, newLocation]);
+    setFormData(prev => ({ ...prev, originLocationId: newLocation.id }));
+    setIsLocationModalOpen(false);
+    // Optionally, show a success toast/message for location creation
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     handleFiles(files);
@@ -278,96 +361,56 @@ const ProductCreate: React.FC = () => {
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
-    
     const newFiles = Array.from(files);
     setSelectedFiles(prev => [...prev, ...newFiles]);
-    
-    // Create preview URLs
     const newPreviewUrls = newFiles.map(file => URL.createObjectURL(file));
     setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
   };
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
+    e.preventDefault(); e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files);
-    }
+    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
   };
 
-  // Remove preview image
   const removeImage = (index: number) => {
-    // Revoke the object URL to avoid memory leaks
     URL.revokeObjectURL(previewUrls[index]);
-    
-    // Remove the file and preview
-    const newFiles = [...selectedFiles];
-    newFiles.splice(index, 1);
-    setSelectedFiles(newFiles);
-    
-    const newPreviewUrls = [...previewUrls];
-    newPreviewUrls.splice(index, 1);
-    setPreviewUrls(newPreviewUrls);
+    const newFiles = [...selectedFiles]; newFiles.splice(index, 1); setSelectedFiles(newFiles);
+    const newPreviewUrls = [...previewUrls]; newPreviewUrls.splice(index, 1); setPreviewUrls(newPreviewUrls);
   };
 
-  // Remove existing image
   const removeExistingImage = (index: number) => {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
     if (!formData.name.trim()) newErrors.name = 'El nombre es requerido';
-    if (!formData.categoryId) newErrors.categoryId = 'La categoría es requerida';
+    if (!formData.categoryId) newErrors.categoryId = 'La categoría es requerida (selecciona una subcategoría si aplica)';
     if (!formData.description.trim()) newErrors.description = 'La descripción es requerida';
-    if (!formData.region) newErrors.region = 'La región es requerida';
-    if (!formData.price.trim()) {
-      newErrors.price = 'El precio es requerido';
-    } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
-      newErrors.price = 'El precio debe ser un número mayor que cero';
-    }
-    if (!formData.availableQuantity.trim()) {
-      newErrors.availableQuantity = 'La cantidad disponible es requerida';
-    } else if (isNaN(parseFloat(formData.availableQuantity)) || parseFloat(formData.availableQuantity) <= 0) {
-      newErrors.availableQuantity = 'La cantidad disponible debe ser un número mayor que cero';
-    }
+    if (!formData.originLocationId) newErrors.originLocationId = 'La ubicación de origen es requerida'; // Validates the selection
+    if (!formData.price.trim()) newErrors.price = 'El precio es requerido';
+    else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) newErrors.price = 'El precio debe ser un número mayor que cero';
+    if (!formData.availableQuantity.trim()) newErrors.availableQuantity = 'La cantidad disponible es requerida';
+    else if (isNaN(parseFloat(formData.availableQuantity)) || parseFloat(formData.availableQuantity) < 0) newErrors.availableQuantity = 'La cantidad disponible debe ser un número positivo o cero'; // Allow 0
     if (!formData.unitMeasure) newErrors.unitMeasure = 'La unidad de medida es requerida';
-    
-    // Validate that at least one image is provided (either existing or new)
-    if (existingImages.length === 0 && selectedFiles.length === 0) {
-      newErrors.images = 'Debes proporcionar al menos una imagen del producto';
-    }
-    
+    if (existingImages.length === 0 && selectedFiles.length === 0) newErrors.images = 'Debes proporcionar al menos una imagen del producto';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
     
-    // Double-check certifications before submission
     if (user?.userType !== 'ADMIN' && isAuthenticated && user?.id) {
       try {
         const certificationStatus = await certificationService.verifyUserCertifications(user.id);
-        
         if (!certificationStatus.hasAllCertifications) {
           setSubmitError('Para crear productos necesitas tener los 4 certificados colombianos verificados');
           alert(`Para crear productos necesitas tener los 4 certificados colombianos verificados. Serás redirigido para completar tus certificados.`);
@@ -375,7 +418,6 @@ const ProductCreate: React.FC = () => {
           return;
         }
       } catch (err) {
-        console.error("Error checking user certifications during form submission:", err);
         setSubmitError('Error al verificar tus certificados. Por favor, intenta nuevamente.');
         return;
       }
@@ -386,64 +428,51 @@ const ProductCreate: React.FC = () => {
     
     try {
       const formDataToSend = new FormData();
-      
-      // Append product data
       formDataToSend.append('name', formData.name);
       formDataToSend.append('categoryId', formData.categoryId);
       formDataToSend.append('description', formData.description);
-      formDataToSend.append('region', formData.region);
+      formDataToSend.append('originLocationId', formData.originLocationId);
       formDataToSend.append('quality', formData.quality);
-      formDataToSend.append('price', formData.price);
-      formDataToSend.append('availableQuantity', formData.availableQuantity);
+      formDataToSend.append('basePrice', formData.price); 
+      formDataToSend.append('stockQuantity', formData.availableQuantity);
       formDataToSend.append('unitMeasure', formData.unitMeasure);
       formDataToSend.append('isFeatured', formData.isFeatured.toString());
       
-      // Append images
-      selectedFiles.forEach(file => {
-        formDataToSend.append('images', file);
-      });
+      if (user && user.id) {
+        formDataToSend.append('sellerId', user.id);
+      } else {
+        console.error("User ID not available for sellerId");
+        setSubmitError('Error: No se pudo identificar al vendedor. Por favor, reintenta.');
+        setIsSubmitting(false);
+        return;
+      }
       
-      // Append existing images to keep
-      existingImages.forEach(image => {
-        formDataToSend.append('existingImages[]', image);
-      });
+      selectedFiles.forEach(file => formDataToSend.append('images', file));
+      existingImages.forEach(image => formDataToSend.append('existingImages[]', image)); // Backend needs to handle this
       
       let response;
-      
       if (isEditMode && productId) {
-        response = await api.put(`/api/products/${productId}`, formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        response = await api.put(`/api/products/${productId}`, formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
       } else {
-        response = await api.post('/api/products', formDataToSend, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        response = await api.post('/api/products', formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
       }
       
       if (response.data.success) {
         setSubmitSuccess(true);
-        
-        // Redirect after a brief delay
-        setTimeout(() => {
-          navigate('/pages/products/my-products');
-        }, 1500);
+        setTimeout(() => { navigate('/pages/products/my-products'); }, 1500);
       } else {
         throw new Error(response.data.error?.message || 'Error al guardar el producto');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting product:', err);
-      setSubmitError(err instanceof Error ? err.message : 'Error al guardar el producto');
+      const backendError = err.response?.data?.error?.details || err.response?.data?.error?.message || err.response?.data?.message || err.message;
+      setSubmitError(backendError ? `Error del servidor: ${typeof backendError === 'string' ? backendError : JSON.stringify(backendError)}` : 'Error desconocido al guardar el producto');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCancel = () => {
-    // Clean up preview URLs to avoid memory leaks
     previewUrls.forEach(url => URL.revokeObjectURL(url));
     navigate('/pages/products/my-products');
   };
@@ -452,7 +481,6 @@ const ProductCreate: React.FC = () => {
     <>
       <Header />
       <div className="container mx-auto px-4 py-8">
-        {/* User Profile Section */}
         <Card className="mb-6">
           <div className="p-4">
             <UserProfile user={user} variant="detailed" showActions={false} />
@@ -465,9 +493,8 @@ const ProductCreate: React.FC = () => {
           </h1>
         </div>
 
-        {/* Form Card */}
         <Card className="mb-8">
-          {isLoading ? (
+          {isLoading && !isEditMode ? ( // Only show main loader for edit mode initial load
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-1"></div>
             </div>
@@ -489,7 +516,6 @@ const ProductCreate: React.FC = () => {
                 </div>
               )}
 
-              {/* Basic Information */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4 text-gray-800">Información Básica</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -502,13 +528,12 @@ const ProductCreate: React.FC = () => {
                     required
                   />
                   
-                  {/* Parent Category Dropdown */}
                   <FormField
                     label="Categoría Principal"
                     name="parentCategory"
                     value={selectedParentCategoryId}
                     onChange={handleInputChange}
-                    error={errors.categoryId}
+                    error={errors.categoryId} 
                   >
                     <select
                       name="parentCategory"
@@ -523,7 +548,7 @@ const ProductCreate: React.FC = () => {
                         {isLoadingCategories ? "Cargando categorías..." : "Selecciona Categoría Principal"}
                       </option>
                       {!isLoadingCategories && topLevelCategories.length === 0 && (
-                        <option value="" disabled>No hay categorías principales disponibles</option>
+                        <option value="" disabled>No hay categorías principales</option>
                       )}
                       {topLevelCategories.map(cat => (
                         <option key={cat.id} value={cat.id}>
@@ -533,8 +558,7 @@ const ProductCreate: React.FC = () => {
                     </select>
                   </FormField>
 
-                  {/* Child Category Dropdown - only if parent selected and has children */}
-                  {selectedParentCategoryId && (
+                  {selectedParentCategoryId && currentChildCategories.length > 0 && (
                     <FormField
                       label="Subcategoría"
                       name="categoryId"
@@ -550,14 +574,12 @@ const ProductCreate: React.FC = () => {
                         className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-green-1 ${
                           errors.categoryId ? 'border-red-500' : 'border-gray-300'
                         }`}
-                        disabled={isLoadingCategories || !selectedParentCategoryId || currentChildCategories.length === 0}
+                        disabled={isLoadingCategories || currentChildCategories.length === 0}
                       >
                         <option value="">
-                          {isLoadingCategories
-                            ? "Cargando subcategorías..."
-                            : currentChildCategories.length > 0
-                              ? "Selecciona Subcategoría"
-                              : "No hay subcategorías disponibles"}
+                          {isLoadingCategories 
+                            ? "Cargando..." 
+                            : "Selecciona Subcategoría"}
                         </option>
                         {currentChildCategories.map(cat => (
                           <option key={cat.id} value={cat.id}>
@@ -567,6 +589,13 @@ const ProductCreate: React.FC = () => {
                       </select>
                     </FormField>
                   )}
+                   {/* Show categoryId directly if parent has no children and is selected */}
+                   {selectedParentCategoryId && currentChildCategories.length === 0 && formData.categoryId && (
+                     <div className="md:col-span-1 p-2 bg-gray-50 rounded-md">
+                       <p className="text-sm text-gray-600">Categoría Seleccionada:</p>
+                       <p className="font-medium">{topLevelCategories.find(c => c.id === formData.categoryId)?.name || 'N/A'}</p>
+                     </div>
+                   )}
                 </div>
 
                 <div className="mt-6">
@@ -582,34 +611,52 @@ const ProductCreate: React.FC = () => {
                 </div>
               </div>
 
-              {/* Product Details */}
               <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">Detalles del Producto</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">Detalles del Producto y Origen</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  <FormField 
+                    label="Ubicación de Origen del Producto"
+                    name="originLocationId"
+                    value={formData.originLocationId}
+                    onChange={handleInputChange}
+                    error={errors.originLocationId}
+                    required
+                  >
+                    <select
+                      name="originLocationId"
+                      value={formData.originLocationId}
+                      onChange={handleInputChange}
+                      className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-green-1 ${
+                        errors.originLocationId ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      disabled={isLoadingUserLocations}
+                    >
+                      <option value="">
+                        {isLoadingUserLocations ? "Cargando ubicaciones..." : "Seleccionar ubicación existente"}
+                      </option>
+                      {userLocations.map(loc => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.addressLine1} ({loc.city}, {loc.department})
+                        </option>
+                      ))}
+                      <option value="CREATE_NEW_LOCATION">-- Crear nueva ubicación --</option>
+                    </select>
+                  </FormField>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Región <span className="text-red-1">*</span>
+                      Región (Departamento) <span className="text-xs text-gray-500">(Informativo, se toma de la ubicación)</span>
                     </label>
-                    <select
-                      name="region"
-                      value={formData.region}
-                      onChange={handleInputChange}
-                      className={`w-full py-2 px-3 border ${
-                        errors.region ? 'border-red-500' : 'border-gray-300'
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-green-1`}
-                      required
-                    >
-                      <option value="">Seleccionar Región</option>
-                      <option value="Antioquia">Antioquia</option>
-                      <option value="Nariño">Nariño</option>
-                      <option value="Cundinamarca">Cundinamarca</option>
-                      <option value="Valle">Valle</option>
-                      <option value="Cauca">Cauca</option>
-                    </select>
-                    {errors.region && (
-                      <p className="mt-1 text-sm text-red-500">{errors.region}</p>
-                    )}
+                    <StyledInput
+                      name="derivedRegion"
+                      type="text"
+                      value={userLocations.find(loc => loc.id === formData.originLocationId)?.department || ''}
+                      disabled // This field is derived
+                      readOnly
+                    />
                   </div>
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -644,8 +691,7 @@ const ProductCreate: React.FC = () => {
                     label="Cantidad Disponible"
                     name="availableQuantity"
                     type="number"
-                    min="0"
-                    step="0.01"
+                    min="0" // Allow 0
                     value={formData.availableQuantity}
                     onChange={handleInputChange}
                     error={errors.availableQuantity}
@@ -678,7 +724,7 @@ const ProductCreate: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center">
+                  <div className="flex items-center md:col-span-2">
                     <input
                       type="checkbox"
                       id="isFeatured"
@@ -688,23 +734,19 @@ const ProductCreate: React.FC = () => {
                       className="h-4 w-4 text-green-1 focus:ring-green-1 border-gray-300 rounded"
                     />
                     <label htmlFor="isFeatured" className="ml-2 block text-sm text-gray-900">
-                      Producto Destacado
+                      Producto Destacado (aparecerá en la página principal)
                     </label>
                   </div>
                 </div>
               </div>
 
-              {/* Image Upload */}
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4 text-gray-800">Imágenes del Producto</h2>
-                
                 {errors.images && (
                   <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
                     <p>{errors.images}</p>
                   </div>
                 )}
-
-                {/* Existing images */}
                 {existingImages.length > 0 && (
                   <div className="mb-4">
                     <h3 className="text-md font-medium mb-2 text-gray-700">Imágenes existentes</h3>
@@ -730,8 +772,6 @@ const ProductCreate: React.FC = () => {
                     </div>
                   </div>
                 )}
-
-                {/* Image upload area */}
                 <StyledBorder
                   variant={dragActive ? 'focus' : 'default'}
                   className={`border-2 border-dashed p-6 flex flex-col justify-center items-center ${
@@ -760,14 +800,12 @@ const ProductCreate: React.FC = () => {
                         />
                       </label>
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF hasta 10MB</p>
+                    <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF hasta 5MB por imagen</p>
                   </div>
                 </StyledBorder>
-
-                {/* Image previews */}
                 {previewUrls.length > 0 && (
                   <div className="mt-4">
-                    <h3 className="text-md font-medium mb-2 text-gray-700">Imágenes seleccionadas</h3>
+                    <h3 className="text-md font-medium mb-2 text-gray-700">Imágenes seleccionadas (nuevas)</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {previewUrls.map((url, index) => (
                         <div key={index} className="relative">
@@ -792,7 +830,6 @@ const ProductCreate: React.FC = () => {
                 )}
               </div>
 
-              {/* Form Actions */}
               <div className="flex justify-end space-x-3">
                 <StyledButton
                   type="button"
@@ -805,8 +842,8 @@ const ProductCreate: React.FC = () => {
                 <StyledButton
                   type="submit"
                   variant="primary"
-                  isLoading={isSubmitting}
-                  disabled={isSubmitting}
+                  isLoading={isSubmitting || isLoadingUserLocations || isLoadingCategories || isCertificateChecking}
+                  disabled={isSubmitting || isLoadingUserLocations || isLoadingCategories || isCertificateChecking}
                 >
                   {isSubmitting
                     ? (isEditMode ? 'Actualizando...' : 'Creando...')
@@ -818,6 +855,14 @@ const ProductCreate: React.FC = () => {
           )}
         </Card>
       </div>
+      
+      {/* Placeholder for LocationFormModal - replace with your actual modal component */}
+      <LocationFormModal 
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        onSubmit={handleNewLocationCreated}
+        userId={user?.id} // Pass userId if your createLocation API/modal needs it directly
+      />
     </>
   );
 };

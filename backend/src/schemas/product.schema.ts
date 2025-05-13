@@ -14,14 +14,14 @@ const productImageSchema = z.object({
 export const productSchema = z.object({
   name: z.string().min(1, { message: "Product name is required" }),
   description: z.string().optional().nullable(),
-  basePrice: z.number().positive("Price must be a positive number"),
-  stockQuantity: z.number().int().min(0, { message: 'Stock quantity cannot be negative' }).default(0),
+  basePrice: z.coerce.number().positive("Price must be a positive number"),
+  stockQuantity: z.coerce.number().int().min(0, { message: 'Stock quantity cannot be negative' }).default(0),
   unitMeasure: z.string().min(1, { message: 'Unit measure is required' }),
   categoryId: z.string().regex(/^[0-9a-fA-F]{24}$/, { message: 'Category ID must be a valid ObjectId' }).optional().nullable(),
   originLocationId: z.string().min(1, { message: "Location ID is required" }),
   sellerId: z.string().min(1, { message: "Seller ID is required" }),
-  isFeatured: z.boolean().optional().default(false),
-  isActive: z.boolean().optional().default(true),
+  isFeatured: z.coerce.boolean().optional().default(false),
+  isActive: z.coerce.boolean().optional().default(true),
 });
 
 // Schema for creating a product

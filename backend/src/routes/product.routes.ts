@@ -4,9 +4,38 @@ import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateRequest, validateQuery, validateParams } from "../middleware/validation.middleware";
 import { createProductSchema, updateProductSchema, productQuerySchema } from "../schemas/product.schema";
 import { z } from "zod";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 const productController = new ProductController();
+
+// Ensure uploads directory exists for products
+const productUploadsDir = path.join(__dirname, '../../../uploads/products'); 
+if (!fs.existsSync(productUploadsDir)) {
+  fs.mkdirSync(productUploadsDir, { recursive: true });
+  console.log(`Created product uploads directory: ${productUploadsDir}`);
+}
+
+// Configure Multer for product image uploads
+const productStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, productUploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'product-' + uniqueSuffix + ext);
+  }
+});
+
+const productUpload = multer({
+  storage: productStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB per image
+  }
+});
 
 /**
  * @swagger
@@ -30,6 +59,7 @@ router.post(
   "/",
   authenticate,
   authorize(["SELLER", "ADMIN"]),
+  productUpload.array('images', 10),
   validateRequest(createProductSchema),
   (req, res) => productController.createProduct(req, res)
 );

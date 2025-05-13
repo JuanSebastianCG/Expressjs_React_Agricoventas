@@ -522,7 +522,9 @@ export class ProductController {
       images: product.images?.map((image: any) => ({
         id: image.id,
         imageUrl: image.imageUrl,
+        altText: image.altText,
         isPrimary: image.isPrimary,
+        displayOrder: image.displayOrder,
       })),
       seller: product.seller
         ? {

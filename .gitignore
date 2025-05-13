@@ -93,3 +93,4 @@ cypress/screenshots/
 # Jest
 /jest-coverage
 .jest-cache 
+uploads/
