@@ -61,7 +61,6 @@ model Category {
   id                String    @id @default(auto()) @map("_id") @db.ObjectId
   name              String    @unique
   description       String?
-  iconUrl           String?   @map("icon_url")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime? @updatedAt @map("updated_at")
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import FormField from '../../components/ui/FormField';
@@ -9,6 +9,8 @@ import StyledBorder from '../../components/ui/StyledBorder';
 import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
 import { certificationService } from '../../services/certificationService';
+import { categoryService } from '../../services/categoryService';
+import { ICategory } from '../../interfaces/category';
 import Header from '../../components/layout/Header';
 import UserProfile from '../../components/common/UserProfile';
 
@@ -29,7 +31,7 @@ const ProductCreate: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
+    categoryId: '',
     description: '',
     region: '',
     quality: '',
@@ -45,23 +47,86 @@ const ProductCreate: React.FC = () => {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
-  // Certifications state
-  const [availableCertifications, setAvailableCertifications] = useState<Certification[]>([
-    { id: 'organico', name: 'Orgánico' },
-    { id: 'fair-trade', name: 'Fair Trade' },
-    { id: 'sin-pesticidas', name: 'Sin Pesticidas' },
-    { id: 'bio', name: 'Bio' },
-    { id: 'comercio-justo', name: 'Comercio Justo' }
-  ]);
-  const [selectedCertifications, setSelectedCertifications] = useState<string[]>([]);
-  const [certificationInput, setCertificationInput] = useState('');
-
   // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Categories state
+  const [categoriesList, setCategoriesList] = useState<ICategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [selectedParentCategoryId, setSelectedParentCategoryId] = useState<string>('');
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true);
+      setCategoriesList([]);
+      try {
+        const rawResponse = await categoryService.getCategories({
+          includeChildren: true,
+          includeParent: true
+        });
+        
+        const response: any = rawResponse;
+
+        let extractedCategories: ICategory[] = [];
+        if (response && response.success && response.data) {
+          if (Array.isArray(response.data.categories)) {
+            extractedCategories = response.data.categories;
+          } 
+          else if (Array.isArray(response.data)) {
+            extractedCategories = response.data;
+          } 
+          else if (typeof response.data === 'object' && response.data !== null) {
+            console.error("[ProductCreate] Could not find categories array within response.data. Structure of response.data:", response.data);
+          } else {
+            console.error("[ProductCreate] response.data was present but not in a recognized array format. Content:", response.data);
+          }
+        } else {
+          console.error("[ProductCreate] Main response object is not in expected {success: true, data: ...} format, or success/data is missing/false:", response);
+        }
+        
+        if (extractedCategories.length === 0 && response && response.success) {
+            console.warn("[ProductCreate] Successfully fetched response, but no categories were extracted. Check the structure of 'response.data'. Response was:", response);
+        }
+
+        setCategoriesList(extractedCategories);
+      } catch (error) {
+        console.error("[ProductCreate] Error fetching categories:", error);
+        setCategoriesList([]);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const topLevelCategories = useMemo(() => {
+    return categoriesList;
+  }, [categoriesList]);
+
+  const childCategoriesMap = useMemo(() => {
+    const map = new Map<string, ICategory[]>();
+    if (categoriesList) {
+        categoriesList.forEach(parentCategory => {
+          if (parentCategory.children && Array.isArray(parentCategory.children) && parentCategory.children.length > 0) {
+            map.set(parentCategory.id, parentCategory.children);
+          } else {
+            map.set(parentCategory.id, []); 
+          }
+        });
+    }
+    return map;
+  }, [categoriesList]);
+
+  const currentChildCategories = useMemo(() => {
+    if (!selectedParentCategoryId) return [];
+    const children = childCategoriesMap.get(selectedParentCategoryId) || [];
+    return children;
+  }, [selectedParentCategoryId, childCategoriesMap]);
 
   // Check if user is authenticated and a seller
   useEffect(() => {
@@ -111,10 +176,12 @@ const ProductCreate: React.FC = () => {
 
   // Load product data in edit mode
   useEffect(() => {
-    if (isEditMode && productId && !isCertificateChecking) {
+    // Ensure categories are loaded before trying to load product data that depends on them
+    if (isEditMode && productId && !isCertificateChecking && categoriesList.length > 0) {
       loadProductData(productId);
     }
-  }, [isEditMode, productId, isCertificateChecking]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [isEditMode, productId, isCertificateChecking, categoriesList]); // loadProductData is stable but not memoized, added categoriesList
 
   const loadProductData = async (productId: string) => {
     setIsLoading(true);
@@ -123,11 +190,18 @@ const ProductCreate: React.FC = () => {
       
       if (response.data.success) {
         const product = response.data.data;
+        const productCategoryId = product.categoryId || '';
         
-        // Set form data
+        let parentIdToSet = '';
+        // Attempt to find if the product's category is a child
+        const productCategory = categoriesList.find(c => c.id === productCategoryId);
+        if (productCategory && productCategory.parentId) {
+          parentIdToSet = productCategory.parentId;
+        }
+
         setFormData({
           name: product.name || '',
-          category: product.category || '',
+          categoryId: productCategoryId, // This will be the actual categoryId (child or parent)
           description: product.description || '',
           region: product.region || '',
           quality: product.quality || '',
@@ -137,11 +211,14 @@ const ProductCreate: React.FC = () => {
           isFeatured: product.isFeatured || false
         });
         
-        // Set certifications
-        if (product.certifications && Array.isArray(product.certifications)) {
-          setSelectedCertifications(product.certifications);
+        // Set parent category for the dropdown if applicable
+        if (parentIdToSet) {
+          setSelectedParentCategoryId(parentIdToSet);
+        } else if (productCategoryId && !productCategory?.parentId) {
+          // It's a top-level category
+          setSelectedParentCategoryId(productCategoryId);
         }
-        
+
         // Set existing images
         if (product.images && Array.isArray(product.images)) {
           setExistingImages(product.images);
@@ -162,11 +239,27 @@ const ProductCreate: React.FC = () => {
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-    }));
+
+    if (name === 'parentCategory') {
+      setSelectedParentCategoryId(value);
+      // When parent category changes, check for its children
+      const childrenOfSelectedParent = childCategoriesMap.get(value) || [];
+      if (childrenOfSelectedParent.length === 0) {
+        // If no children, the selected parent IS the category
+        setFormData(prev => ({ ...prev, categoryId: value }));
+      } else {
+        // If children exist, clear current categoryId, user must select a subcategory
+        setFormData(prev => ({ ...prev, categoryId: '' })); 
+      }
+    } else if (name === 'categoryId') {
+      // This is for the sub-category dropdown or a parent category that has no children
+      setFormData(prev => ({ ...prev, categoryId: value }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      }));
+    }
 
     // Clear error for the field
     if (errors[name]) {
@@ -235,34 +328,12 @@ const ProductCreate: React.FC = () => {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Handle certifications
-  const toggleCertification = (certId: string) => {
-    setSelectedCertifications(prev => 
-      prev.includes(certId)
-        ? prev.filter(id => id !== certId)
-        : [...prev, certId]
-    );
-  };
-
-  const addCertification = () => {
-    if (certificationInput.trim()) {
-      const newCert = {
-        id: certificationInput.toLowerCase().replace(/\s+/g, '-'),
-        name: certificationInput.trim()
-      };
-      
-      setAvailableCertifications(prev => [...prev, newCert]);
-      setSelectedCertifications(prev => [...prev, newCert.id]);
-      setCertificationInput('');
-    }
-  };
-
   // Validate form
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
     if (!formData.name.trim()) newErrors.name = 'El nombre es requerido';
-    if (!formData.category) newErrors.category = 'La categoría es requerida';
+    if (!formData.categoryId) newErrors.categoryId = 'La categoría es requerida';
     if (!formData.description.trim()) newErrors.description = 'La descripción es requerida';
     if (!formData.region) newErrors.region = 'La región es requerida';
     if (!formData.price.trim()) {
@@ -318,7 +389,7 @@ const ProductCreate: React.FC = () => {
       
       // Append product data
       formDataToSend.append('name', formData.name);
-      formDataToSend.append('category', formData.category);
+      formDataToSend.append('categoryId', formData.categoryId);
       formDataToSend.append('description', formData.description);
       formDataToSend.append('region', formData.region);
       formDataToSend.append('quality', formData.quality);
@@ -326,11 +397,6 @@ const ProductCreate: React.FC = () => {
       formDataToSend.append('availableQuantity', formData.availableQuantity);
       formDataToSend.append('unitMeasure', formData.unitMeasure);
       formDataToSend.append('isFeatured', formData.isFeatured.toString());
-      
-      // Append certifications
-      selectedCertifications.forEach(cert => {
-        formDataToSend.append('certifications[]', cert);
-      });
       
       // Append images
       selectedFiles.forEach(file => {
@@ -436,30 +502,71 @@ const ProductCreate: React.FC = () => {
                     required
                   />
                   
-                  <div className="col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Categoría <span className="text-red-1">*</span>
-                    </label>
+                  {/* Parent Category Dropdown */}
+                  <FormField
+                    label="Categoría Principal"
+                    name="parentCategory"
+                    value={selectedParentCategoryId}
+                    onChange={handleInputChange}
+                    error={errors.categoryId}
+                  >
                     <select
-                      name="category"
-                      value={formData.category}
+                      name="parentCategory"
+                      value={selectedParentCategoryId}
                       onChange={handleInputChange}
-                      className={`w-full py-2 px-3 border ${
-                        errors.category ? 'border-red-500' : 'border-gray-300'
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-green-1`}
-                      required
+                      className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-green-1 ${
+                        errors.categoryId ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      disabled={isLoadingCategories}
                     >
-                      <option value="">Seleccionar Categoría</option>
-                      <option value="Frutas">Frutas</option>
-                      <option value="Verduras">Verduras</option>
-                      <option value="Granos">Granos</option>
-                      <option value="Café">Café</option>
-                      <option value="Otros">Otros</option>
+                      <option value="">
+                        {isLoadingCategories ? "Cargando categorías..." : "Selecciona Categoría Principal"}
+                      </option>
+                      {!isLoadingCategories && topLevelCategories.length === 0 && (
+                        <option value="" disabled>No hay categorías principales disponibles</option>
+                      )}
+                      {topLevelCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
                     </select>
-                    {errors.category && (
-                      <p className="mt-1 text-sm text-red-500">{errors.category}</p>
-                    )}
-                  </div>
+                  </FormField>
+
+                  {/* Child Category Dropdown - only if parent selected and has children */}
+                  {selectedParentCategoryId && (
+                    <FormField
+                      label="Subcategoría"
+                      name="categoryId"
+                      value={formData.categoryId}
+                      onChange={handleInputChange}
+                      error={errors.categoryId}
+                      required={currentChildCategories.length > 0}
+                    >
+                      <select
+                        name="categoryId"
+                        value={formData.categoryId}
+                        onChange={handleInputChange}
+                        className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-green-1 ${
+                          errors.categoryId ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        disabled={isLoadingCategories || !selectedParentCategoryId || currentChildCategories.length === 0}
+                      >
+                        <option value="">
+                          {isLoadingCategories
+                            ? "Cargando subcategorías..."
+                            : currentChildCategories.length > 0
+                              ? "Selecciona Subcategoría"
+                              : "No hay subcategorías disponibles"}
+                        </option>
+                        {currentChildCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                  )}
                 </div>
 
                 <div className="mt-6">
@@ -584,46 +691,6 @@ const ProductCreate: React.FC = () => {
                       Producto Destacado
                     </label>
                   </div>
-                </div>
-              </div>
-
-              {/* Certifications */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">Certificaciones</h2>
-                
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {availableCertifications.map(cert => (
-                    <button
-                      key={cert.id}
-                      type="button"
-                      className={`py-1 px-3 text-sm rounded-full ${
-                        selectedCertifications.includes(cert.id)
-                          ? 'bg-green-1 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                      onClick={() => toggleCertification(cert.id)}
-                    >
-                      {cert.name}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex">
-                  <input
-                    type="text"
-                    value={certificationInput}
-                    onChange={e => setCertificationInput(e.target.value)}
-                    placeholder="Agregar otra certificación"
-                    className="flex-1 py-2 px-3 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-green-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={addCertification}
-                    disabled={!certificationInput.trim()}
-                    className="bg-green-1 hover:bg-green-0-9 text-white py-2 px-4 rounded-r-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-1 disabled:opacity-50"
-                  >
-                    Agregar
-                  </button>
                 </div>
               </div>
 

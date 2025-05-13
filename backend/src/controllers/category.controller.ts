@@ -49,8 +49,11 @@ export class CategoryController {
         data: {
           name: categoryData.name,
           description: categoryData.description,
-          iconUrl: categoryData.iconUrl,
           parentId: categoryData.parentId,
+        },
+        include: {
+          parent: categoryData.parentId ? true : undefined,
+          children: categoryData.parentId ? true : undefined,
         },
       });
       sendSuccessResponse(res, this.mapToCategoryResponse(category), HttpStatusCode.CREATED);
@@ -191,13 +194,15 @@ export class CategoryController {
         data: {
           name: updateData.name,
           description: updateData.description,
-          iconUrl: updateData.iconUrl,
           parentId: updateData.parentId === null ? null : updateData.parentId, // Explicitly allow unsetting parent
+        },
+        include: {
+          parent: updateData.parentId ? true : undefined,
+          children: updateData.parentId ? true : undefined,
         },
       });
       sendSuccessResponse(res, this.mapToCategoryResponse(updatedCategory));
-    } catch (error: any)
-{
+    } catch (error: any) {
       const categoryId = req.params.categoryId;
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         sendErrorResponse(res, 'Category with this name already exists.', HttpStatusCode.CONFLICT);
@@ -285,10 +290,9 @@ export class CategoryController {
       id: category.id,
       name: category.name,
       description: category.description,
-      iconUrl: category.iconUrl,
       parentId: category.parentId,
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
+      createdAt: category.createdAt.toISOString(),
+      updatedAt: category.updatedAt.toISOString(),
     };
 
     if (includeParent && category.parent) {

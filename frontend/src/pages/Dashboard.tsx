@@ -14,7 +14,6 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const goToProducts = () => {
-    console.log("Dashboard: Navigating to products");
     navigateToProducts();
   };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface StyledBorderProps {
+interface StyledBorderProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   variant?: 'default' | 'focus' | 'error' | 'success';
   rounded?: 'sm' | 'md' | 'lg' | 'full' | 'none';
@@ -22,6 +22,7 @@ const StyledBorder: React.FC<StyledBorderProps> = ({
   rounded = 'md',
   className = '',
   noBorder = false,
+  ...rest
 }) => {
   // Map variants to color classes
   const variantClasses = {
@@ -49,7 +50,7 @@ const StyledBorder: React.FC<StyledBorderProps> = ({
   `;
 
   return (
-    <div className={borderClasses}>
+    <div className={borderClasses} {...rest}>
       {children}
     </div>
   );

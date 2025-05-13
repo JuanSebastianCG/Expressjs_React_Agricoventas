@@ -9,6 +9,7 @@ interface FormFieldProps {
   error?: string;
   options?: { value: string; label: string }[];
   required?: boolean;
+  children?: React.ReactNode;
 }
 
 const FormField: React.FC<FormFieldProps> = ({
@@ -20,13 +21,16 @@ const FormField: React.FC<FormFieldProps> = ({
   error,
   options,
   required = false,
+  children
 }) => {
   return (
     <div className="mb-4">
       <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={name}>
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      {type === 'select' && options ? (
+      {children ? (
+        children
+      ) : type === 'select' && options ? (
         <select
           id={name}
           name={name}

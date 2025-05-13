@@ -54,40 +54,56 @@ const CertificationApproval: React.FC = () => {
     setError(null);
     
     try {
-      // Prepare parameters for the service call
       const params: Record<string, any> = {
         page,
-        limit: 5, // Or your preferred page size
+        limit: 5,
         status,
-        sortBy: 'uploadedAt', // Default sort
+        sortBy: 'uploadedAt',
         sortOrder: 'asc'
       };
 
-      // Call the updated service function
-      const response = await certificationService.getAllCertificationsAdmin(params);
-      console.log("Admin Certs: Raw response from service:", response);
+      // Assuming certificationService.getAllCertificationsAdmin returns an object like:
+      // { data: IUserCertificationBackend[], pagination: IPaginationBackend }
+      // Success is implied if no error is thrown by the service call.
+      const serviceResponse = await certificationService.getAllCertificationsAdmin(params);
 
-      // Access the application data within response.data
-      const applicationData = response.data; // This is { success: true, data: { data: [...], pagination: {...} } }
-      console.log("Admin Certs: Application data object:", applicationData);
+      if (serviceResponse && serviceResponse.data && serviceResponse.pagination) {
+        const backendCertifications = serviceResponse.data; // This is IUserCertificationBackend[]
+        const paginationInfo = serviceResponse.pagination;
 
-      // Check if the structure is as expected and access the nested data/pagination
-      if (applicationData && applicationData.success && applicationData.data && applicationData.data.data && applicationData.data.pagination) {
-        console.log("Admin Certs: Setting state with:", applicationData.data.data, applicationData.data.pagination);
-        setCertifications(applicationData.data.data); // List is here
-        setCurrentPage(applicationData.data.pagination.currentPage); // Pagination is here
-        setTotalPages(applicationData.data.pagination.totalPages);
-        setTotalItems(applicationData.data.pagination.totalItems);
+        // Map backendCertifications to frontend Certification type
+        const frontendCertifications: Certification[] = backendCertifications.map((cert: any) => ({
+          id: cert.id,
+          userId: cert.userId,
+          certificationName: cert.certificationName,
+          certificationType: cert.certificationType,
+          imageUrl: cert.imageUrl,
+          status: cert.status,
+          uploadedAt: cert.uploadedAt,
+          user: {
+            id: cert.user?.id || '',
+            username: cert.user?.username || 'N/A',
+            firstName: cert.user?.firstName,
+            lastName: cert.user?.lastName,
+            email: cert.user?.email || '',
+            profileImage: cert.user?.profileImage,
+          },
+          certificateNumber: cert.certificateNumber,
+          issuedDate: cert.issuedDate,
+          expiryDate: cert.expiryDate,
+        }));
+        
+        setCertifications(frontendCertifications);
+        setCurrentPage(paginationInfo.currentPage);
+        setTotalPages(paginationInfo.totalPages);
+        setTotalItems(paginationInfo.totalItems);
       } else {
-        // Handle case where structure is still not as expected
-        console.error("Unexpected application data structure:", applicationData);
         setCertifications([]);
-        throw new Error('Respuesta inesperada del servidor (app data structure error) al cargar certificaciones');
+        throw new Error('Respuesta inesperada del servidor al cargar certificaciones (structure error)');
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido al cargar certificaciones';
       setError(errorMsg);
-      console.error('Error fetching certifications:', err);
       setCertifications([]); // Clear data on error
     } finally {
       setIsLoading(false);

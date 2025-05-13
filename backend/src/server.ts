@@ -37,21 +37,16 @@ const certificationsDir = path.join(uploadsDir, 'certifications');
   if (!fs.existsSync(dir)) {
     try {
       fs.mkdirSync(dir, { recursive: true });
-      console.log(`Created directory: ${dir}`);
     } catch (err) {
-      console.error(`Failed to create directory: ${dir}`, err);
     }
   } else {
-    console.log(`Directory already exists: ${dir}`);
   }
 });
 
 // Log permissions for debugging
 try {
   fs.accessSync(certificationsDir, fs.constants.W_OK);
-  console.log(`Directory ${certificationsDir} is writable`);
 } catch (err) {
-  console.error(`Directory ${certificationsDir} is not writable:`, err);
 }
 
 /**
@@ -59,7 +54,6 @@ try {
  */
 const corsErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (err.name === 'CORSError' || (err.message && err.message.includes('CORS'))) {
-    console.error('CORS Error intercepted:', err);
     res.status(403).json({
       success: false,
       error: {
@@ -130,8 +124,6 @@ export function createApp(): Express {
   app.use('/uploads/profiles', express.static(path.join(__dirname, '../uploads/profiles'), staticOptions));
   
   // Log upload paths for debugging
-  console.log(`Serving static files from: ${path.join(__dirname, '../uploads')}`);
-  console.log(`Certifications path: ${path.join(__dirname, '../uploads/certifications')}`);
   
   // Middleware para manejar preflight OPTIONS requests
   app.use((req, res, next) => {

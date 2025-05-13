@@ -14,6 +14,7 @@ import MyProducts from './pages/products/MyProducts';
 import MyOrders from './pages/orders/MyOrders';
 import UploadCertificate from './pages/user/UploadCertificate';
 import CertificationApproval from './pages/admin/CertificationApproval';
+import ManageCategories from './pages/admin/ManageCategories';
 import './index.css';
 
 // Componente para rutas protegidas
@@ -43,33 +44,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 const SellerRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, user } = useAppContext();
   
-  console.log("SellerRoute - isAuthenticated:", isAuthenticated);
-  console.log("SellerRoute - user:", JSON.stringify(user));
-  console.log("SellerRoute - userType:", user?.userType);
   
   if (!isAuthenticated) {
-    console.log("SellerRoute - Not authenticated, redirecting to login");
     return <Navigate to="/login" replace />;
   }
   
   // Solo permitir vendedores o administradores
   if (user?.userType !== 'SELLER' && user?.userType !== 'ADMIN') {
-    console.log("SellerRoute - Not a seller or admin, redirecting to dashboard");
-    console.log("SellerRoute - User type comparison:", {
-      userType: user?.userType,
-      isSELLER: user?.userType === 'SELLER',
-      isADMIN: user?.userType === 'ADMIN'
-    });
+
     return <Navigate to="/dashboard" replace />;
   }
   
-  console.log("SellerRoute - Access granted");
   return <>{children}</>;
 };
 
 // Add a utility function for navigation that can be imported by other components
 export const navigateToProducts = () => {
-  console.log("FORCE NAVIGATION: Redirecting to products page");
   // Force hard navigation by setting window.location
   window.location.href = '/mis-productos';
 };
@@ -100,7 +90,6 @@ const App: React.FC = () => {
       }
       
       if (isProdsLink) {
-        console.log("Global handler: Intercepted navigation to /mis-productos");
         e.preventDefault();
         navigateToProducts();
       }
@@ -184,7 +173,7 @@ const App: React.FC = () => {
           <Route path="certifications" element={<CertificationApproval />} />
           <Route path="products" element={<React.Fragment>Gestión de Productos</React.Fragment>} />
           <Route path="orders" element={<React.Fragment>Gestión de Pedidos</React.Fragment>} />
-          <Route path="categories" element={<React.Fragment>Gestión de Categorías</React.Fragment>} />
+          <Route path="categories" element={<ManageCategories />} />
           
           {/* Ruta para manejar rutas no encontradas dentro de admin */}
           <Route path="*" element={<Navigate to="/admin/users" replace />} />

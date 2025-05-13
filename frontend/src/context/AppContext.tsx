@@ -72,7 +72,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           setIsAuthenticated(true);
         }
       } catch (error) {
-        console.error("AppContext - Error al obtener usuario actual:", error);
         // Si hay error, limpiar la sesión
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);

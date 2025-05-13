@@ -373,12 +373,15 @@ const MyProducts: React.FC = () => {
             ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
               <Card className="text-center py-12">
                 <p className="text-gray-1 text-lg mb-4">No tienes productos registrados.</p>
-                <button
-                  onClick={handleCreateProduct}
-                  className="bg-green-1 hover:bg-green-0-9 text-white py-2 px-4 rounded shadow-sm transition-colors"
-                >
-                  Crear tu primer producto
-                </button>
+                {canCreateProducts && (
+                  <button
+                    onClick={handleCreateProduct}
+                    className="bg-green-1 hover:bg-green-0-9 text-white py-2 px-4 rounded shadow-sm transition-colors"
+                  >
+                    Crear tu primer producto  
+                  </button>
+                )}
+
               </Card>
             ) : (
               viewType === ViewType.LIST ? (

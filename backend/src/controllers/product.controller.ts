@@ -535,7 +535,6 @@ export class ProductController {
             id: product.category.id,
             name: product.category.name,
             description: product.category.description,
-            iconUrl: product.category.iconUrl,
             parentId: product.category.parentId,
             createdAt: product.category.createdAt,
             updatedAt: product.category.updatedAt,

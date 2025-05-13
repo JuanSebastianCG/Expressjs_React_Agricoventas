@@ -2,24 +2,34 @@ import { z } from 'zod';
 
 // Base schema for Category
 export const categorySchema = z.object({
-  name: z.string().min(1, { message: 'Category name is required' }),
-  description: z.string().optional(),
-  iconUrl: z.string().url({ message: 'Icon URL must be a valid URL' }).optional(),
-  parentId: z.string().regex(/^[0-9a-fA-F]{24}$/, { message: 'Parent ID must be a valid ObjectId' }).optional().nullable(), // Optional, for parent category
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullish(),
+  parentId: z.string().nullish(),
+  createdAt: z.date(),
+  updatedAt: z.date().nullish(),
 });
 
 // Schema for creating a new category
-export const createCategorySchema = categorySchema;
+export const createCategorySchema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }),
+  description: z.string().optional().nullish(),
+  parentId: z.string().optional().nullish(),
+});
 
 // Schema for updating an existing category (all fields optional)
-export const updateCategorySchema = categorySchema.partial();
+export const updateCategorySchema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }).optional(),
+  description: z.string().optional().nullish(),
+  parentId: z.string().optional().nullish(),
+});
 
 // Query parameters for fetching categories
 export const categoryQuerySchema = z.object({
   parentId: z.string().regex(/^[0-9a-fA-F]{24}$/, { message: 'Parent ID must be a valid ObjectId' }).optional(),
-  includeChildren: z.boolean().optional().default(false),
-  includeParent: z.boolean().optional().default(false),
-  level: z.number().int().min(1).max(2).optional(), // For fetching specific levels
+  includeChildren: z.coerce.boolean().optional().default(false),
+  includeParent: z.coerce.boolean().optional().default(false),
+  level: z.coerce.number().int().min(1).max(2).optional(),
 });
 
 // Type for creating a category
@@ -36,10 +46,9 @@ export interface CategoryResponse {
   id: string;
   name: string;
   description?: string | null;
-  iconUrl?: string | null;
   parentId?: string | null;
-  createdAt: Date;
-  updatedAt: Date | null;
+  createdAt: string;
+  updatedAt?: string | null;
   parent?: CategoryResponse | null;     // Optional parent category
   children?: CategoryResponse[];    // Optional list of child categories
   // Add productCount or recommendationCount if needed later
