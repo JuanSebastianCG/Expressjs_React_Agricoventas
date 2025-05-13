@@ -56,24 +56,31 @@ model Location {
   @@map("locations")
 }
 
-model ProductType {
-  id                String                @id @default(auto()) @map("_id") @db.ObjectId
-  name              String                @unique
+// NEW Category Model
+model Category {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  name              String    @unique
   description       String?
-  iconUrl           String?               @map("icon_url")
-  createdAt         DateTime              @default(now()) @map("created_at")
-  
+  iconUrl           String?   @map("icon_url")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime? @updatedAt @map("updated_at")
+
+  // For self-relation (parent-child hierarchy)
+  parentId          String?   @db.ObjectId @map("parent_id")
+  parent            Category? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children          Category[] @relation("CategoryHierarchy")
+
   // Relations
   products          Product[]
   recommendations   ProductRecommendation[]
 
-  @@map("product_types")
+  @@map("categories")
 }
 
 model Product {
   id                 String               @id @default(auto()) @map("_id") @db.ObjectId
   sellerId           String               @db.ObjectId @map("seller_id")
-  productTypeId      String?              @db.ObjectId @map("product_type_id")
+  categoryId         String?              @db.ObjectId @map("category_id") // Changed from productTypeId to categoryId
   originLocationId   String               @db.ObjectId @map("origin_location_id")
   name               String
   description        String?
@@ -87,7 +94,7 @@ model Product {
   
   // Relations
   seller             User                 @relation(fields: [sellerId], references: [id])
-  productType        ProductType?         @relation(fields: [productTypeId], references: [id])
+  category           Category?            @relation(fields: [categoryId], references: [id]) // Changed to relate to Category
   originLocation     Location             @relation(fields: [originLocationId], references: [id])
   images             ProductImage[]
   orderItems         OrderItem[]
@@ -259,7 +266,7 @@ model ProductNotification {
 // --- Product Recommendations ---
 model ProductRecommendation {
   id                 String               @id @default(auto()) @map("_id") @db.ObjectId
-  productTypeId      String               @db.ObjectId @map("product_type_id")
+  categoryId         String               @db.ObjectId @map("category_id") // Changed to categoryId
   title              String
   message            String
   recommendedProductId String              @db.ObjectId @map("recommended_product_id")
@@ -268,7 +275,7 @@ model ProductRecommendation {
   createdAt          DateTime             @default(now()) @map("created_at")
   
   // Relations
-  productType        ProductType          @relation(fields: [productTypeId], references: [id])
+  category           Category             @relation(fields: [categoryId], references: [id]) // Changed to relate to Category
 
   @@map("product_recommendations")
 }

@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { ProductController } from "../controllers/product.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
-import { validateRequest } from "../middleware/validation.middleware";
-import { createProductSchema, updateProductSchema } from "../schemas/product.schema";
+import { validateRequest, validateQuery, validateParams } from "../middleware/validation.middleware";
+import { createProductSchema, updateProductSchema, productQuerySchema } from "../schemas/product.schema";
+import { z } from "zod";
 
 const router = Router();
 const productController = new ProductController();
@@ -180,5 +181,28 @@ router.delete("/:productId", authenticate, (req, res) => productController.delet
  *         description: List of featured products
  */
 router.get("/featured", (req, res) => productController.getFeaturedProducts(req, res));
+
+// Get a specific product by ID
+router.get(
+  '/:productId',
+  validateParams(z.object({ productId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Product ID') })),
+  (req, res) => productController.getProductById(req, res)
+);
+
+// Get products by user ID (seller ID)
+router.get(
+  '/user/:userId',
+  validateParams(z.object({ userId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid User ID') })),
+  validateQuery(productQuerySchema.pick({ page: true, limit: true, sortBy: true, sortOrder: true })), // Allow pagination/sorting
+  (req, res) => productController.getUserProducts(req, res)
+);
+
+// Get products by category ID
+router.get(
+  '/category/:categoryId',
+  validateParams(z.object({ categoryId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Category ID') })),
+  validateQuery(productQuerySchema.pick({ page: true, limit: true, sortBy: true, sortOrder: true })), // Allow pagination/sorting
+  (req, res) => productController.getCategoryProducts(req, res)
+);
 
 export default router; 

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
-import { CreateProductDto, UpdateProductDto, ProductQueryParams } from "../schemas/product.schema";
+import { PrismaClient, Prisma } from "@prisma/client";
+import { CreateProductDto, UpdateProductDto, ProductQueryParams, ProductResponse } from "../schemas/product.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
 import { hasRequiredCertifications, getCertificationsCount } from "../utils/certificateValidator";
@@ -8,6 +8,12 @@ import { hasRequiredCertifications, getCertificationsCount } from "../utils/cert
 const prisma = new PrismaClient();
 
 export class ProductController {
+  private db: PrismaClient;
+
+  constructor(dbClient: PrismaClient = prisma) {
+    this.db = dbClient;
+  }
+
   /**
    * Create a new product
    * @param req Express request
@@ -50,34 +56,42 @@ export class ProductController {
       }
 
       // Create the product
-      const product = await prisma.product.create({
+      const product = await this.db.product.create({
         data: {
           name: productData.name,
           description: productData.description,
           basePrice: productData.basePrice,
           stockQuantity: productData.stockQuantity,
           unitMeasure: productData.unitMeasure || "kg",
-          productTypeId: productData.productTypeId,
+          categoryId: productData.categoryId,
           sellerId: productData.sellerId,
           originLocationId: productData.originLocationId,
           isFeatured: productData.isFeatured || false,
-        },
+          isActive: productData.isActive || true,
+        } as any,
         include: {
-          productType: true,
+          category: true,
           seller: {
             select: {
               id: true,
               username: true,
             },
           },
-        },
+          originLocation: true,
+          images: true,
+        } as any,
       });
 
       // Map product to response object
       const productResponse = this.mapToProductResponse(product);
       sendSuccessResponse(res, productResponse, HttpStatusCode.CREATED);
     } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        sendErrorResponse(res, 'Product with this name already exists for the seller.', HttpStatusCode.CONFLICT);
+      } else {
+        console.error("Error creating product:", error);
+        sendErrorResponse(res, 'Failed to create product', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      }
     }
   }
 
@@ -90,10 +104,10 @@ export class ProductController {
     try {
       const productId = req.params.productId;
       
-      const product = await prisma.product.findUnique({
+      const product = await this.db.product.findUnique({
         where: { id: productId },
         include: {
-          productType: true,
+          category: true,
           seller: {
             select: {
               id: true,
@@ -102,7 +116,8 @@ export class ProductController {
           },
           originLocation: true,
           images: true,
-        },
+          reviews: true,
+        } as any,
       });
 
       if (!product) {
@@ -114,7 +129,9 @@ export class ProductController {
       const productResponse = this.mapToProductResponse(product);
       sendSuccessResponse(res, productResponse);
     } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      const productIdForError = req.params.productId;
+      console.error(`Error fetching product ${productIdForError}:`, error);
+      sendErrorResponse(res, 'Failed to fetch product', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -126,7 +143,7 @@ export class ProductController {
   async getProducts(req: Request, res: Response): Promise<void> {
     try {
       const queryParams: ProductQueryParams = {
-        productTypeId: req.query.productTypeId as string,
+        categoryId: req.query.categoryId as string,
         sellerId: req.query.sellerId as string,
         search: req.query.search as string,
         minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
@@ -136,10 +153,12 @@ export class ProductController {
         limit: req.query.limit ? Number(req.query.limit) : 10,
         sortBy: (req.query.sortBy as any) || "createdAt",
         sortOrder: (req.query.sortOrder as any) || "desc",
+        originLocationId: req.query.originLocationId as string,
+        isActive: req.query.isActive === "true" ? true : req.query.isActive === "false" ? false : undefined,
       };
 
       const {
-        productTypeId,
+        categoryId,
         sellerId,
         search,
         minPrice,
@@ -149,15 +168,17 @@ export class ProductController {
         limit = 10,
         sortBy = "createdAt",
         sortOrder = "desc",
+        originLocationId,
+        isActive,
       } = queryParams;
 
       const skip = (page - 1) * limit;
 
       // Build where clause for filtering
-      const where: any = { isActive: true };
+      const where: any = { isActive: isActive === undefined ? true : isActive };
 
-      if (productTypeId) {
-        where.productTypeId = productTypeId;
+      if (categoryId) {
+        where.categoryId = categoryId;
       }
 
       if (sellerId) {
@@ -174,6 +195,10 @@ export class ProductController {
         where.isFeatured = isFeatured;
       }
 
+      if (originLocationId) {
+        where.originLocationId = originLocationId;
+      }
+
       if (search) {
         where.OR = [
           { name: { contains: search, mode: "insensitive" } },
@@ -183,13 +208,13 @@ export class ProductController {
 
       // Get products and total count
       const [products, total] = await Promise.all([
-        prisma.product.findMany({
+        this.db.product.findMany({
           where,
           skip,
           take: limit,
           orderBy: { [sortBy]: sortOrder },
           include: {
-            productType: true,
+            category: true,
             seller: {
               select: {
                 id: true,
@@ -200,13 +225,18 @@ export class ProductController {
               where: { isPrimary: true },
               take: 1,
             },
-          },
+            reviews: {
+              select: { rating: true },
+            },
+          } as any,
         }),
-        prisma.product.count({ where }),
+        this.db.product.count({ where }),
       ]);
 
+      const responseProducts = products.map(this.mapToProductResponse);
+
       sendSuccessResponse(res, {
-        products: products.map(this.mapToProductResponse),
+        products: responseProducts,
         pagination: {
           total,
           page,
@@ -215,7 +245,8 @@ export class ProductController {
         },
       });
     } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      console.error("Error fetching products:", error);
+      sendErrorResponse(res, 'Failed to fetch products', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -230,7 +261,7 @@ export class ProductController {
       const updateData: UpdateProductDto = req.body;
 
       // Check if product exists
-      const product = await prisma.product.findUnique({
+      const product = await this.db.product.findUnique({
         where: { id: productId },
       });
       
@@ -253,16 +284,17 @@ export class ProductController {
       if (updateData.basePrice !== undefined) updateDataForPrisma.basePrice = updateData.basePrice;
       if (updateData.stockQuantity !== undefined) updateDataForPrisma.stockQuantity = updateData.stockQuantity;
       if (updateData.unitMeasure !== undefined) updateDataForPrisma.unitMeasure = updateData.unitMeasure;
-      if (updateData.productTypeId !== undefined) updateDataForPrisma.productTypeId = updateData.productTypeId;
+      if (updateData.categoryId !== undefined) updateDataForPrisma.categoryId = updateData.categoryId;
       if (updateData.originLocationId !== undefined) updateDataForPrisma.originLocationId = updateData.originLocationId;
       if (updateData.isFeatured !== undefined) updateDataForPrisma.isFeatured = updateData.isFeatured;
+      if (updateData.isActive !== undefined) updateDataForPrisma.isActive = updateData.isActive;
 
       // Update product
-      const updatedProduct = await prisma.product.update({
+      const updatedProduct = await this.db.product.update({
         where: { id: productId },
-        data: updateDataForPrisma,
+        data: updateDataForPrisma as any,
         include: {
-          productType: true,
+          category: true,
           seller: {
             select: {
               id: true,
@@ -271,14 +303,16 @@ export class ProductController {
           },
           originLocation: true,
           images: true,
-        },
+        } as any,
       });
 
       // Map product to response object
       const productResponse = this.mapToProductResponse(updatedProduct);
       sendSuccessResponse(res, productResponse);
     } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      const productIdForError = req.params.productId;
+      console.error(`Error updating product ${productIdForError}:`, error);
+      sendErrorResponse(res, 'Failed to update product', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -292,7 +326,7 @@ export class ProductController {
       const productId = req.params.productId;
 
       // Check if product exists
-      const product = await prisma.product.findUnique({
+      const product = await this.db.product.findUnique({
         where: { id: productId },
       });
       
@@ -308,14 +342,20 @@ export class ProductController {
       }
 
       // Soft delete product
-      await prisma.product.update({
+      await this.db.product.update({
         where: { id: productId },
         data: { isActive: false },
       });
 
       sendSuccessResponse(res, { message: "Product deleted successfully" }, HttpStatusCode.OK);
     } catch (error: any) {
-      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      const productIdForError = req.params.productId;
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        sendErrorResponse(res, 'Product not found', HttpStatusCode.NOT_FOUND);
+      } else {
+        console.error(`Error deleting product ${productIdForError}:`, error);
+        sendErrorResponse(res, 'Failed to delete product', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      }
     }
   }
 
@@ -328,7 +368,7 @@ export class ProductController {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : 6;
       
-      const products = await prisma.product.findMany({
+      const products = await this.db.product.findMany({
         where: {
           isActive: true,
           isFeatured: true,
@@ -336,7 +376,7 @@ export class ProductController {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          productType: true,
+          category: true,
           seller: {
             select: {
               id: true,
@@ -347,7 +387,7 @@ export class ProductController {
             where: { isPrimary: true },
             take: 1,
           },
-        },
+        } as any,
       });
 
       sendSuccessResponse(res, { 
@@ -359,11 +399,112 @@ export class ProductController {
   }
 
   /**
+   * Get all products for a specific user (seller)
+   * @param req Express request
+   * @param res Express response
+   */
+  async getUserProducts(req: Request, res: Response): Promise<void> {
+    try {
+      const { userId } = req.params;
+      const { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
+      const skip = (Number(page) - 1) * Number(limit);
+
+      const where: Prisma.ProductWhereInput = {
+        sellerId: userId,
+        isActive: true,
+      };
+
+      const [products, total] = await Promise.all([
+        this.db.product.findMany({
+          where,
+          skip,
+          take: Number(limit),
+          orderBy: { [sortBy as string]: sortOrder as string },
+          include: {
+            category: true,
+            seller: { select: { id: true, username: true } },
+            images: { where: { isPrimary: true }, take: 1 },
+            reviews: { select: { rating: true } },
+          } as any, // Prisma type workaround
+        }),
+        this.db.product.count({ where }),
+      ]);
+
+      const responseProducts = products.map(this.mapToProductResponse);
+      sendSuccessResponse(res, {
+        products: responseProducts,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          pages: Math.ceil(total / Number(limit)),
+        },
+      });
+    } catch (error: any) {
+      console.error(`Error fetching products for user ${req.params.userId}:`, error);
+      sendErrorResponse(res, 'Failed to fetch user products', HttpStatusCode.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Get all products for a specific category
+   * @param req Express request
+   * @param res Express response
+   */
+  async getCategoryProducts(req: Request, res: Response): Promise<void> {
+    try {
+      const { categoryId } = req.params;
+      const { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
+      const skip = (Number(page) - 1) * Number(limit);
+
+      const where: Prisma.ProductWhereInput = {
+        categoryId: categoryId,
+        isActive: true,
+      } as any; // Prisma type workaround for where clause
+
+      const [products, total] = await Promise.all([
+        this.db.product.findMany({
+          where,
+          skip,
+          take: Number(limit),
+          orderBy: { [sortBy as string]: sortOrder as string },
+          include: {
+            category: true,
+            seller: { select: { id: true, username: true } },
+            images: { where: { isPrimary: true }, take: 1 },
+            reviews: { select: { rating: true } },
+          } as any, // Prisma type workaround
+        }),
+        this.db.product.count({ where }),
+      ]);
+
+      const responseProducts = products.map(this.mapToProductResponse);
+      sendSuccessResponse(res, {
+        products: responseProducts,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          pages: Math.ceil(total / Number(limit)),
+        },
+      });
+    } catch (error: any) {
+      console.error(`Error fetching products for category ${req.params.categoryId}:`, error);
+      sendErrorResponse(res, 'Failed to fetch category products', HttpStatusCode.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
    * Map product entity to product response
    * @param product Product entity
    * @returns Product response
    */
-  private mapToProductResponse(product: any): any {
+  private mapToProductResponse(product: any): ProductResponse {
+    const averageRating = product.reviews && product.reviews.length > 0
+      ? product.reviews.reduce((acc: number, review: any) => acc + review.rating, 0) / product.reviews.length
+      : null;
+    const reviewCount = product.reviews ? product.reviews.length : 0;
+
     return {
       id: product.id,
       name: product.name,
@@ -372,7 +513,7 @@ export class ProductController {
       stockQuantity: product.stockQuantity,
       unitMeasure: product.unitMeasure,
       sellerId: product.sellerId,
-      productTypeId: product.productTypeId,
+      categoryId: product.categoryId,
       originLocationId: product.originLocationId,
       isFeatured: product.isFeatured,
       isActive: product.isActive,
@@ -389,12 +530,20 @@ export class ProductController {
             username: product.seller.username,
           }
         : undefined,
-      productType: product.productType
+      category: product.category
         ? {
-            id: product.productType.id,
-            name: product.productType.name,
+            id: product.category.id,
+            name: product.category.name,
+            description: product.category.description,
+            iconUrl: product.category.iconUrl,
+            parentId: product.category.parentId,
+            createdAt: product.category.createdAt,
+            updatedAt: product.category.updatedAt,
           }
         : undefined,
+      originLocation: product.originLocation,
+      averageRating: averageRating,
+      reviewCount: reviewCount,
     };
   }
 } 

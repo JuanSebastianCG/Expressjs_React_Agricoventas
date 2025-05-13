@@ -41,21 +41,3 @@ export const JWT_CONFIG = {
   issuer: 'agricoventas-api',
 };
 
-// API routes configuration
-export const ROUTES_CONFIG = {
-  api: '/api',
-  auth: '/api/auth',
-  users: '/api/users',
-  products: '/api/products',
-  orders: '/api/orders',
-  farmers: '/api/farmers',
-  payments: '/api/payments',
-  messages: '/api/messages',
-  notifications: '/api/notifications',
-  analitycs: '/api/analytics',
-  weather: '/api/weather',
-  market: '/api/market',
-  certifications: '/api/certifications',
-  uploads: '/api/uploads',
-  docs: '/api-docs',
-};

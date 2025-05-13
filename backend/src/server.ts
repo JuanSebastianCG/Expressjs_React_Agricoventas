@@ -9,13 +9,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
+import { isValidObjectId } from 'mongoose';
 
 // Application middleware
 import { errorHandler, notFound, ApiError } from './middleware/error.middleware';
 
 // Configuration
 import { swaggerSpec } from './config/swagger';
-import { CORS_CONFIG, ROUTES_CONFIG } from './config/app';
+import { CORS_CONFIG } from './config/app';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -24,6 +25,7 @@ import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
 import certificationRoutes from './routes/certification.routes';
 import uploadRoutes from './routes/upload.routes';
+import categoryRoutes from './routes/category.routes';
 
 // Ensure uploads directory exists with proper permissions
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -144,19 +146,20 @@ export function createApp(): Express {
   });
 
   // Swagger Documentation
-  app.use(ROUTES_CONFIG.docs, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  app.get(`${ROUTES_CONFIG.docs}.json`, (req, res) => {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/api-docs.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(swaggerSpec);
   });
 
   // Routes
-  app.use(ROUTES_CONFIG.auth, authRoutes);
-  app.use(ROUTES_CONFIG.users, userRoutes);
-  app.use(ROUTES_CONFIG.products, productRoutes);
-  app.use(ROUTES_CONFIG.orders, orderRoutes);
-  app.use(ROUTES_CONFIG.certifications, certificationRoutes);
-  app.use(ROUTES_CONFIG.uploads, uploadRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/users', userRoutes);
+  app.use('/api/products', productRoutes);
+  app.use('/api/orders', orderRoutes);
+  app.use('/api/certifications', certificationRoutes);
+  app.use('/api/uploads', uploadRoutes);
+  app.use('/api/categories', categoryRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

@@ -11,18 +11,19 @@ dotenv.config();
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import express from 'express';
-import cors from 'cors';
-import morgan from 'morgan';
+// import express from 'express'; // express import can be removed if app is solely from createApp
+// import cors from 'cors'; // Already in createApp
+// import morgan from 'morgan'; // Already in createApp
 
 // Configuration
 import { logger } from './config/logger';
 import { connectDB, disconnectDB } from './config/db';
-import { SERVER_CONFIG, ROUTES_CONFIG } from './config/app';
+// import { SERVER_CONFIG, ROUTES_CONFIG } from './config/app'; // ROUTES_CONFIG not needed here
+import { SERVER_CONFIG } from './config/app';
 
 // Application
 import { createApp } from './server';
-import routes from './routes';
+// import routes from './routes'; // Removed this import
 
 // Ensure uploads directories exist
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -76,22 +77,22 @@ async function startServer(): Promise<void> {
       throw new Error(`Invalid port: ${SERVER_CONFIG.port}`);
     }
 
-    // Create Express application
-    const app = express();
+    // Create Express application using createApp from server.ts
+    const app = createApp();
 
-    // Middleware
-    app.use(cors());
-    app.use(express.json());
-    app.use(morgan('dev'));
+    // Middleware - These are already applied in createApp, so remove them here
+    // app.use(cors());
+    // app.use(express.json());
+    // app.use(morgan('dev'));
 
-    // Serve static files from the uploads directory
-    app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+    // Serve static files from the uploads directory - This is also in createApp
+    // app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-    // API Routes
-    app.use('/api', routes);
+    // API Routes - This is also in createApp
+    // app.use('/api', routes);
 
     // Create HTTP server
-    const server = http.createServer(app);
+    const server = http.createServer(app); // Use the app from createApp
 
     // Handle server errors
     server.on('error', (error: NodeJS.ErrnoException) => {
@@ -118,7 +119,8 @@ async function startServer(): Promise<void> {
     server.listen(port, () => {
       const bind = typeof port === 'string' ? 'pipe ' + port : 'port ' + port;
       logger.info(`Server listening on ${bind}`);
-      logger.info(`Swagger docs available at http://localhost:${port}${ROUTES_CONFIG.docs}`);
+      // logger.info(`Swagger docs available at http://localhost:${port}${ROUTES_CONFIG.docs}`); // Path is hardcoded in server.ts
+      logger.info(`Swagger docs available at http://localhost:${port}/api-docs`);
     });
 
     // Set up graceful shutdown
@@ -161,4 +163,6 @@ function shutdown(server: http.Server): void {
 // Start the server
 startServer();
 
-export default express();
+// export default express(); // This is not standard for a main entry point that starts a server.
+// Typically, nothing is exported, or if it is, it would be the server instance for testing.
+// For now, removing it as the script's purpose is to start the server.
