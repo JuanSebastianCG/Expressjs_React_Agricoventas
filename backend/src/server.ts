@@ -27,6 +27,7 @@ import certificationRoutes from './routes/certification.routes';
 import uploadRoutes from './routes/upload.routes';
 import categoryRoutes from './routes/category.routes';
 import locationRoutes from './routes/location.routes';
+import reviewRoutes from './routes/review.routes';
 
 // Ensure uploads directory exists with proper permissions
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -215,6 +216,7 @@ export function createApp(): Express {
   app.use('/api/uploads', uploadRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/locations', locationRoutes);
+  app.use('/api/reviews', reviewRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

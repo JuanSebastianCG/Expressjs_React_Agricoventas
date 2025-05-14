@@ -42,7 +42,7 @@ const locationService = {
   async getUserLocations(userId: string): Promise<ILocation[]> {
     try {
       console.log("[ProductCreate] Fetching locations for user via API:", userId);
-      const response = await api.get(`/api/locations/user/${userId}`);
+      const response = await api.get(`/locations/user/${userId}`);
       if (response.data && response.data.success) {
         return response.data.data || []; // Assuming backend sends { success: true, data: ILocation[] }
       }
@@ -56,7 +56,7 @@ const locationService = {
   async getCurrentUserPrimaryLocation(): Promise<ILocation | null> {
     try {
       console.log("[ProductCreate] Fetching current user's primary location via API");
-      const response = await api.get(`/api/users/me/location`); // Using the new endpoint
+      const response = await api.get(`/users/me/location`); // Using the new endpoint
       if (response.data && response.data.success && response.data.data) {
         return response.data.data as ILocation;
       }
@@ -81,7 +81,7 @@ const locationService = {
     try {
       console.log("[ProductCreate] Creating new location via API:", data);
       // Ensure your actual API endpoint for creating locations is correct
-      const response = await api.post('/api/locations', data); 
+      const response = await api.post('/locations', data); 
       if (response.data && response.data.success) {
         return response.data.data; // Assuming backend sends { success: true, data: ILocation }
       }
@@ -298,7 +298,7 @@ const ProductCreate: React.FC = () => {
   const loadProductData = useCallback(async (productIdToLoad: string) => {
     setIsLoading(true);
     try {
-      const response = await api.get(`/api/products/${productIdToLoad}`);
+      const response = await api.get(`/products/${productIdToLoad}`);
       if (response.data.success) {
         const product = response.data.data;
         const productCategoryId = product.categoryId || '';
@@ -540,9 +540,9 @@ const ProductCreate: React.FC = () => {
       
       let response;
       if (isEditMode && productId) {
-        response = await api.put(`/api/products/${productId}`, formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
+        response = await api.put(`/products/${productId}`, formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
       } else {
-        response = await api.post('/api/products', formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
+        response = await api.post('/products', formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
       }
       
       if (response.data.success) {

@@ -208,22 +208,26 @@ model CartItem {
 
 // --- Review Model ---
 model Review {
-  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
-  userId             String               @db.ObjectId @map("user_id")
-  productId          String               @db.ObjectId @map("product_id")
-  orderId            String?              @db.ObjectId @map("order_id")
-  rating             Int
-  comment            String?
-  createdAt          DateTime             @default(now()) @map("created_at")
-  isVerifiedPurchase Boolean              @default(false) @map("is_verified_purchase")
-  isApproved         Boolean              @default(true) @map("is_approved")
-  
-  // Relations
-  user               User                 @relation(fields: [userId], references: [id])
-  product            Product              @relation(fields: [productId], references: [id])
-  order              Order?               @relation(fields: [orderId], references: [id])
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String    @db.ObjectId
+  productId         String    @db.ObjectId
+  orderId           String?   @db.ObjectId
+  rating            Float
+  comment           String?
+  isVerifiedPurchase Boolean   @default(false)
+  isApproved        Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  @@map("reviews")
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order             Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([orderId])
+  @@index([isApproved])
 }
 
 // --- Notification Models ---

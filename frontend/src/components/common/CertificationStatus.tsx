@@ -13,17 +13,21 @@ const CertificationStatus: React.FC<CertificationStatusProps> = ({ userId, class
   const [hasAllCertifications, setHasAllCertifications] = useState(false);
   const [certificationCount, setCertificationCount] = useState({ verified: 0, total: 4 });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkCertifications = async () => {
+      setError(null);
+      
       try {
-        const response = await api.get(`/api/certifications/verify/${userId}`);
+        const response = await api.get(`/certifications/verify/${userId}`);
         if (response.data.success) {
           setHasAllCertifications(response.data.data.hasAllCertifications);
           setCertificationCount(response.data.data.certificationsCount);
         }
       } catch (error) {
         console.error('Error checking certifications:', error);
+        setError('Error al verificar las certificaciones. Por favor, inténtalo más tarde.');
       } finally {
         setIsLoading(false);
       }

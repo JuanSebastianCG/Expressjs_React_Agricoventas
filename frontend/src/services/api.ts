@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
-// Base API configuration
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Base API configuration with fallback
+const baseURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+console.log('API baseURL:', baseURL); // Debug info to check the URL
 
 // Token storage key
 const TOKEN_KEY = 'auth_token';

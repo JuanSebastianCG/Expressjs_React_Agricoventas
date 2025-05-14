@@ -77,8 +77,12 @@ const MyOrders: React.FC = () => {
     setError(null);
     
     try {
-      const response = await api.get('/api/orders', {
-        params: { buyerUserId: user?.id }
+      const response = await api.get('/orders', {
+        params: { 
+          buyerUserId: user.id,
+          page: currentPage,
+          limit: ordersPerPage
+        }
       });
       
       if (response.data.success) {

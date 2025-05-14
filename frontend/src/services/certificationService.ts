@@ -30,7 +30,7 @@ export const certificationService = {
     
     try {
       // Upload the image first - use the correct endpoint
-      const imageResponse = await api.post('/api/uploads/certifications', formData, {
+      const imageResponse = await api.post('/uploads/certifications', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -45,7 +45,7 @@ export const certificationService = {
       console.log("Image upload success, URL:", imageUrl);
       
       // Create the certification with the image URL
-      const response = await api.post('/api/certifications/upload', {
+      const response = await api.post('/certifications/upload', {
         userId,
         certificationName: certName,
         certificationType: certType,
@@ -68,7 +68,7 @@ export const certificationService = {
    */
   async getUserCertifications(userId: string): Promise<IUserCertification[]> {
     try {
-      const response = await api.get(`/api/certifications/user/${userId}`);
+      const response = await api.get(`/certifications/user/${userId}`);
       // Check if the data is nested and return the array, otherwise return the direct data (or an empty array)
       const responseData = response.data;
       return Array.isArray(responseData?.data) ? responseData.data : Array.isArray(responseData) ? responseData : [];
@@ -89,7 +89,7 @@ export const certificationService = {
       total: number;
     };
   }> {
-    const response = await api.get(`/api/certifications/verify/${userId}`);
+    const response = await api.get(`/certifications/verify/${userId}`);
     return response.data;
   },
   
@@ -101,8 +101,8 @@ export const certificationService = {
     data: IUserCertification[];
     pagination: { currentPage: number; totalPages: number; totalItems: number; itemsPerPage: number; };
   }> {
-    // The backend now expects GET /api/certifications/admin
-    const response = await api.get('/api/certifications/admin', { params });
+    // The backend now expects GET /certifications/admin
+    const response = await api.get('/certifications/admin', { params });
     // The response from the backend is already { data: [...], pagination: {...} }
     // The api client might wrap this in another .data, so we check response.data.data first
     return response.data?.data && response.data?.pagination ? response.data : response; 
@@ -112,7 +112,7 @@ export const certificationService = {
    * Get all pending certifications (admin only)
    */
   async getPendingCertifications(): Promise<IUserCertification[]> {
-    const response = await api.get('/api/certifications/pending');
+    const response = await api.get('/certifications/pending');
     return response.data;
   },
   
@@ -122,7 +122,7 @@ export const certificationService = {
    * @param adminId - Admin user ID
    */
   async approveCertification(certificationId: string, adminId: string): Promise<IUserCertification> {
-    const response = await api.put(`/api/certifications/approve/${certificationId}`, { adminId });
+    const response = await api.put(`/certifications/approve/${certificationId}`, { adminId });
     return response.data;
   },
   
@@ -137,7 +137,7 @@ export const certificationService = {
     adminId: string,
     rejectionReason: string
   ): Promise<IUserCertification> {
-    const response = await api.put(`/api/certifications/reject/${certificationId}`, {
+    const response = await api.put(`/certifications/reject/${certificationId}`, {
       adminId,
       rejectionReason,
     });

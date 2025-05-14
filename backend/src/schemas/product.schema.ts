@@ -66,7 +66,7 @@ export interface ProductResponse {
   id: string;
   name: string;
   description?: string | null;
-  basePrice: number;
+  price: number;
   stockQuantity: number;
   unitMeasure: string;
   sellerId: string;

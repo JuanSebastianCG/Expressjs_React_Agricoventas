@@ -15,7 +15,11 @@ import MyOrders from './pages/orders/MyOrders';
 import UploadCertificate from './pages/user/UploadCertificate';
 import CertificationApproval from './pages/admin/CertificationApproval';
 import ManageCategories from './pages/admin/ManageCategories';
+import ProductDetail from './pages/products/ProductDetail';
+import NotFound from './pages/NotFound';
+// import UserCertifications from './pages/user/UserCertifications';
 import './index.css';
+import { CartProvider } from './context/CartContext';
 
 // Componente para rutas protegidas
 interface ProtectedRouteProps {
@@ -61,7 +65,7 @@ const SellerRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 // Add a utility function for navigation that can be imported by other components
 export const navigateToProducts = () => {
   // Force hard navigation by setting window.location
-  window.location.href = '/mis-productos';
+  window.location.href = '/productos';
 };
 
 const App: React.FC = () => {
@@ -75,7 +79,7 @@ const App: React.FC = () => {
       // Check if the click target is a products link or inside one
       const isProductLink = (el: HTMLElement): boolean => {
         if (!el) return false;
-        if (el.tagName === 'A' && el.getAttribute('href') === '/mis-productos') return true;
+        if (el.tagName === 'A' && el.getAttribute('href') === '/productos') return true;
         if (el.tagName === 'BUTTON' && el.dataset.nav === 'products') return true;
         return false;
       };
@@ -101,87 +105,98 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/mercado-general" element={<Marketplace />} />
-        
-        {/* Rutas protegidas para usuarios regulares */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/perfil" element={
-          <ProtectedRoute>
-            <Perfil />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/perfil/:userId" element={
-          <ProtectedRoute>
-            <Perfil />
-          </ProtectedRoute>
-        } />
-        
-        {/* Rutas para certificados */}
-        <Route path="/certificados" element={
-          <ProtectedRoute>
-            <UploadCertificate />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/admin/certificados" element={
-          <ProtectedRoute requiredRole="ADMIN">
-            <CertificationApproval />
-          </ProtectedRoute>
-        } />
-        
-        {/* Rutas para vendedores */}
-        <Route path="/mis-productos" element={<MyProducts />} />
-        
-        <Route path="/crear-producto" element={
-          <SellerRoute>
-            <ProductCreate />
-          </SellerRoute>
-        } />
-        
-        <Route path="/editar-producto/:productId" element={
-          <SellerRoute>
-            <ProductCreate />
-          </SellerRoute>
-        } />
-        
-        {/* Rutas para pedidos */}
-        <Route path="/mis-pedidos" element={
-          <ProtectedRoute>
-            <MyOrders />
-          </ProtectedRoute>
-        } />
-        
-        {/* Rutas protegidas para administradores */}
-        <Route path="/admin" element={
-          <ProtectedRoute requiredRole="ADMIN">
-            <AdminDashboard />
-          </ProtectedRoute>
-        }>
-          {/* Rutas anidadas dentro del dashboard de administración */}
-          <Route index element={<Navigate to="/admin/users" replace />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="certifications" element={<CertificationApproval />} />
-          <Route path="products" element={<React.Fragment>Gestión de Productos</React.Fragment>} />
-          <Route path="orders" element={<React.Fragment>Gestión de Pedidos</React.Fragment>} />
-          <Route path="categories" element={<ManageCategories />} />
+      <CartProvider>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/mercado-general" element={<Marketplace />} />
           
-          {/* Ruta para manejar rutas no encontradas dentro de admin */}
-          <Route path="*" element={<Navigate to="/admin/users" replace />} />
-        </Route>
-        
-        {/* Ruta para manejar rutas no encontradas */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Rutas protegidas para usuarios regulares */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/perfil" element={
+            <ProtectedRoute>
+              <Perfil />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/perfil/:userId" element={
+            <ProtectedRoute>
+              <Perfil />
+            </ProtectedRoute>
+          } />
+          
+          {/* Rutas para certificados */}
+          <Route path="/certificados" element={
+            <ProtectedRoute>
+              <UploadCertificate />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/certificados" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <CertificationApproval />
+            </ProtectedRoute>
+          } />
+          
+          {/* Rutas para vendedores */}
+          <Route path="/productos" element={
+            <SellerRoute>
+              <MyProducts />
+            </SellerRoute>
+          } />
+          
+          {/* Ruta adicional para mis-productos que redirige a /productos */}
+          <Route path="/mis-productos" element={<Navigate to="/productos" replace />} />
+          
+          <Route path="/crear-producto" element={
+            <SellerRoute>
+              <ProductCreate />
+            </SellerRoute>
+          } />
+          
+          <Route path="/editar-producto/:productId" element={
+            <SellerRoute>
+              <ProductCreate />
+            </SellerRoute>
+          } />
+          
+          <Route path="/product/:productId" element={<ProductDetail />} />
+          
+          {/* Rutas para pedidos */}
+          <Route path="/mis-pedidos" element={
+            <ProtectedRoute>
+              <MyOrders />
+            </ProtectedRoute>
+          } />
+          
+          {/* Rutas protegidas para administradores */}
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }>
+            {/* Rutas anidadas dentro del dashboard de administración */}
+            <Route index element={<Navigate to="/admin/users" replace />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="certifications" element={<CertificationApproval />} />
+            <Route path="products" element={<React.Fragment>Gestión de Productos</React.Fragment>} />
+            <Route path="orders" element={<React.Fragment>Gestión de Pedidos</React.Fragment>} />
+            <Route path="categories" element={<ManageCategories />} />
+            
+            {/* Ruta para manejar rutas no encontradas dentro de admin */}
+            <Route path="*" element={<Navigate to="/admin/users" replace />} />
+          </Route>
+          
+          {/* Ruta para manejar rutas no encontradas */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </CartProvider>
     </Router>
   );
 };

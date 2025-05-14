@@ -76,7 +76,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
       return imagePath;
     }
     // Si no, construimos la URL completa
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const apiUrl = import.meta.env.VITE_BACKEND_URL;
     // Asegurarse de que no haya doble slash
     const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
     const fullUrl = `${apiUrl}/${cleanPath}`;

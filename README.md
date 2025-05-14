@@ -177,7 +177,7 @@ JWT_REFRESH_EXPIRES_IN=7d
 
 ### Frontend (.env)
 ```
-VITE_API_URL=http://localhost:3001/api
+VITE_BACKEND_URL=http://localhost:3001/api
 ```
 
 ## Running the Application

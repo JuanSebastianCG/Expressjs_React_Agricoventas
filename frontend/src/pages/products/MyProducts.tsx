@@ -63,13 +63,28 @@ const MyProducts: React.FC = () => {
 
   // Check if user is authenticated and a seller
   useEffect(() => {
+    console.log("Authentication check - isAuthenticated:", isAuthenticated);
+    console.log("Authentication check - user:", user);
+    
     if (!isAuthenticated) {
+      console.error("MyProducts: User not authenticated, redirecting to login");
       navigate('/login');
       return;
     }
 
-    if (user?.userType !== 'SELLER' && user?.userType !== 'ADMIN') {
+    if (!user) {
+      console.error("MyProducts: User data missing, redirecting to login");
+      navigate('/login');
+      return;
+    }
+    
+    console.log("User type check:", user.userType);
+    
+    if (user.userType !== 'SELLER' && user.userType !== 'ADMIN') {
+      console.error(`MyProducts: User is not a seller or admin (${user.userType}), redirecting to dashboard`);
       navigate('/dashboard');
+    } else {
+      console.log("MyProducts: User is authorized as", user.userType);
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -131,17 +146,29 @@ const MyProducts: React.FC = () => {
       // Use a slight delay to ensure component is fully mounted
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const response = await api.get('/api/products', {
+      const response = await api.get('/products', {
         params: { sellerId: user?.id }
       });
+      
+      // Add debugging to inspect the response in more detail
+      console.log("Full API response:", JSON.stringify(response.data));
       
       if (response.data.success && response.data.data) {
         console.log("Products fetched successfully:", response.data.data);
         // Corrected data extraction for paginated response
         const productsData = Array.isArray(response.data.data.products) ? response.data.data.products : [];
-        setProducts(productsData);
-        setFilteredProducts(productsData);
-        setTotalProductsCount(response.data.data.pagination?.total || productsData.length);
+        
+        // If products is directly in data without pagination wrapper
+        if (productsData.length === 0 && Array.isArray(response.data.data)) {
+          console.log("Using direct data array as products");
+          setProducts(response.data.data);
+          setFilteredProducts(response.data.data);
+          setTotalProductsCount(response.data.data.length);
+        } else {
+          setProducts(productsData);
+          setFilteredProducts(productsData);
+          setTotalProductsCount(response.data.data.pagination?.total || productsData.length);
+        }
       } else {
         throw new Error(response.data.error?.message || 'Error al cargar productos');
       }
@@ -161,12 +188,8 @@ const MyProducts: React.FC = () => {
 
   // Load products on mount - with safety flag
   useEffect(() => {
-    // Skip initial mount cycle
-    const isFirstLoad = sessionStorage.getItem('is_loading_products');
-    
-    // Only fetch products if certificate check is done and user has all required certificates
-    if (!isFirstLoad && isAuthenticated && user?.id && !isCertificateChecking) {
-      sessionStorage.setItem('is_loading_products', 'true');
+    // Force fetch products on mount, regardless of session storage
+    if (isAuthenticated && user?.id && !isCertificateChecking) {
       console.log("Starting product fetch with delay...");
       
       // Add extra delay to ensure authentication is properly initialized
@@ -176,10 +199,6 @@ const MyProducts: React.FC = () => {
     } else {
       console.log("Skipping immediate product fetch");
     }
-    
-    return () => {
-      sessionStorage.removeItem('is_loading_products');
-    };
   }, [isAuthenticated, user, isCertificateChecking]);
 
   // Apply filters when filter values change
@@ -242,7 +261,7 @@ const MyProducts: React.FC = () => {
     setIsDeleting(true);
     
     try {
-      const response = await api.delete(`/api/products/${productToDelete}`);
+      const response = await api.delete(`/products/${productToDelete}`);
       
       if (response.data.success) {
         // Remove the deleted product from the local state

@@ -51,7 +51,7 @@ const UserManagement: React.FC = () => {
     setError(null);
     
     try {
-      const response = await api.get('/api/users');
+      const response = await api.get('/users');
 
       if (!response.data.success) {
         throw new Error('Error al cargar usuarios');
@@ -95,7 +95,7 @@ const UserManagement: React.FC = () => {
       setError(null);
       
       try {
-        const response = await api.delete(`/api/users/${userId}`);
+        const response = await api.delete(`/users/${userId}`);
         
         if (response.data.success) {
           fetchUsers();
@@ -151,7 +151,7 @@ const UserManagement: React.FC = () => {
         phoneNumber: formData.phoneNumber.trim() || null
       };
 
-      const response = await api.put(`/api/users/${selectedUser?.id}`, userData);
+      const response = await api.put(`/users/${selectedUser?.id}`, userData);
       
       if (response.data.success) {
         setIsModalOpen(false);

@@ -34,7 +34,7 @@ const getUserInitials = (user: User | null) => {
 // Helper function to get full image URL
 const getImageUrl = (imagePath: string | null) => {
   if (!imagePath) return defaultAvatar;
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const apiUrl = import.meta.env.VITE_BACKEND_URL;
   const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
   const fullUrl = `${apiUrl}/${cleanPath}`;
   return fullUrl;

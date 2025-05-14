@@ -41,7 +41,7 @@ const Marketplace: React.FC = () => {
       if (filters.region) queryParams.append('department', filters.region);
       if (filters.sortBy) queryParams.append('sortBy', filters.sortBy);
 
-      const response = await api.get(`/api/products?${queryParams.toString()}`);
+      const response = await api.get(`/products?${queryParams.toString()}`);
       
       if (response.data.success && response.data.data) {
         setProducts(response.data.data.products || []);

@@ -229,7 +229,7 @@ The frontend uses environment variables for configuration:
 
 ```
 # API connection
-VITE_API_URL=http://localhost:3001/api
+VITE_BACKEND_URL=http://localhost:3001/api
 
 # Feature flags
 VITE_ENABLE_ANALYTICS=false

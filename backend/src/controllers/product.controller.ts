@@ -814,7 +814,7 @@ export class ProductController {
       id: product.id,
       name: product.name,
       description: product.description,
-      basePrice: product.basePrice,
+      price: product.basePrice,
       stockQuantity: product.stockQuantity,
       unitMeasure: product.unitMeasure,
       sellerId: product.sellerId,
