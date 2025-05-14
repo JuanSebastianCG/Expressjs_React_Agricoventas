@@ -31,6 +31,9 @@ const getUserInitials = (user: User | null) => {
   return user.username ? user.username[0].toUpperCase() : '?';
 };
 
+// Default avatar image to use when profile image is missing
+const defaultAvatar = '/assets/default-avatar.png';
+
 // Helper function to get full image URL
 const getImageUrl = (imagePath: string | null) => {
   if (!imagePath) return defaultAvatar;

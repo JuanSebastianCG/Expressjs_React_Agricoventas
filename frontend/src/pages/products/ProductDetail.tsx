@@ -349,7 +349,7 @@ const ProductDetail: React.FC = () => {
                     {isAuthenticated && user ? (
                       <ReviewForm 
                         productId={product.id} 
-                        userId={user.userId}
+                        userId={user.id}
                         onReviewSubmitted={handleReviewSubmitted}
                       />
                     ) : (

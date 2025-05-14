@@ -72,19 +72,8 @@ const ReviewList: React.FC<ReviewListProps> = ({ reviews, isLoading }) => {
         <div key={review.id} className="border rounded-lg p-4 bg-white">
           <div className="flex items-start">
             <div className="mr-3">
-              {review.user?.profileImage ? (
-                <img
-                  src={review.user.profileImage}
-                  alt={review.user.username || 'Usuario'}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-green-0-5 flex items-center justify-center">
-                  <span className="text-green-1 font-semibold">
-                    {(review.user?.firstName?.[0] || review.user?.username?.[0] || 'U').toUpperCase()}
-                  </span>
-                </div>
-              )}
+
+              
             </div>
             
             <div className="flex-1">
