@@ -1,234 +1,371 @@
-# 🌾 Agricoventas
+# Agricoventas
 
-Una aplicación full-stack para la gestión y seguimiento de ventas agrícolas, diseñada para conectar agricultores con compradores de manera eficiente.
+Agricoventas is a full-stack e-commerce platform designed specifically for agricultural products in Colombia. The platform connects farmers and agricultural producers directly with buyers, creating a more efficient marketplace while ensuring product quality through certification verification.
 
-## 📋 Características Principales
+![Agricoventas](./frontend/src/assets/logo.png)
 
-- 🔐 **Sistema de Autenticación Robusto**
-  - Registro y login de usuarios
-  - Tokens JWT con refresh tokens
-  - Protección de rutas por roles
-  - Blacklisting de tokens para logout seguro
+## Table of Contents
 
-- 👥 **Gestión de Usuarios**
-  - Perfiles de usuario personalizables
-  - Roles diferenciados (admin, vendedor, comprador)
-  - Validación de datos en tiempo real
-  - Gestión de contraseñas segura con bcrypt
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Environment Variables](#environment-variables)
+- [Running the Application](#running-the-application)
+- [API Endpoints](#api-endpoints)
+- [Authentication](#authentication)
+- [Data Models](#data-models)
+- [Certification System](#certification-system)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
 
-- 🛠️ **Características Técnicas**
-  - API RESTful con Express
-  - Base de datos MongoDB con Prisma ORM
-  - Frontend moderno con React y Vite
-  - TypeScript end-to-end
-  - Documentación de API con Swagger
+## Features
 
-## 🚀 Tecnologías Utilizadas
+### User Features
+- User registration and authentication (JWT-based)
+- User profiles with location management
+- Role-based access control (Buyer, Seller, Admin)
+- Profile image upload and management
+- Phone number verification
+
+### Product Features
+- Product creation and management
+- Product categorization with hierarchical categories
+- Product image uploads (multiple images per product)
+- Product search and filtering
+- Featured products
+
+### Certification System
+- Upload and verification of Colombian agricultural certifications
+- Admin approval workflow for certifications
+- Certificate expiration tracking
+- Required certification enforcement for sellers
+
+### Shopping Features
+- Shopping cart functionality
+- Order processing and tracking
+- Product reviews and ratings
+- Favoriting products
+
+### Admin Features
+- User management
+- Product moderation
+- Certification approval
+- Category management
+- Dashboard with analytics
+
+## Tech Stack
 
 ### Backend
-- Node.js con Express
-- TypeScript
-- Prisma ORM
-- MongoDB
-- JWT para autenticación
-- Swagger para documentación
-- Zod para validación
-- Morgan y Pino para logging
+- **Node.js** with **Express.js** framework
+- **Prisma ORM** with **MongoDB** database
+- **JWT** for authentication
+- **Multer** for file uploads
+- **Zod** for validation
+- **bcrypt** for password hashing
 
 ### Frontend
-- React 19
-- TypeScript
-- Vite
-- TailwindCSS
-- React Router DOM
-- React Hook Form
-- Zustand para estado global
-- Axios para peticiones HTTP
+- **React** with TypeScript
+- **React Router** for navigation
+- **Context API** for state management
+- **Tailwind CSS** for styling
+- **Axios** for API requests
+- **React Toastify** for notifications
 
-## 💻 Requisitos Previos
+## Project Structure
 
-- Node.js (v18 o superior)
-- MongoDB (local o remota)
-- npm o yarn
-- Git
+```
+Expressjs_React_Agricoventas/
+├── backend/
+│   ├── prisma/            # Prisma schema and migrations
+│   ├── src/
+│   │   ├── config/        # Application configuration
+│   │   ├── controllers/   # Request handlers
+│   │   ├── middleware/    # Express middleware
+│   │   ├── routes/        # API routes
+│   │   ├── schemas/       # Validation schemas (Zod)
+│   │   ├── types/         # TypeScript type definitions
+│   │   ├── utils/         # Utility functions
+│   │   ├── __tests__/     # Backend tests
+│   │   ├── index.ts       # Application entry point
+│   │   └── server.ts      # Express server setup
+│   ├── uploads/           # Uploaded files storage
+│   └── package.json
+├── frontend/
+│   ├── public/            # Static assets
+│   ├── src/
+│   │   ├── assets/        # Images, fonts, etc.
+│   │   ├── components/    # React components
+│   │   │   ├── admin/     # Admin-specific components
+│   │   │   ├── common/    # Shared components
+│   │   │   ├── layout/    # Layout components
+│   │   │   ├── products/  # Product-related components
+│   │   │   └── ui/        # UI components (buttons, inputs, etc.)
+│   │   ├── context/       # React context providers
+│   │   ├── hooks/         # Custom React hooks
+│   │   ├── interfaces/    # TypeScript interfaces
+│   │   ├── pages/         # Application pages
+│   │   │   ├── admin/     # Admin pages
+│   │   │   ├── products/  # Product pages
+│   │   │   └── user/      # User account pages
+│   │   ├── services/      # API service functions
+│   │   ├── utils/         # Utility functions
+│   │   ├── App.tsx        # Main App component
+│   │   └── main.tsx       # Application entry point
+│   └── package.json
+├── .gitignore
+├── package.json
+└── README.md
+```
 
-## ⚙️ Configuración del Proyecto
+## Installation
 
-### 1. Clonar el Repositorio
+### Prerequisites
+- Node.js (v14 or later)
+- MongoDB (local or Atlas)
+- npm or yarn
+
+### Clone the Repository
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/yourusername/Expressjs_React_Agricoventas.git
 cd Expressjs_React_Agricoventas
 ```
 
-### 2. Configuración del Backend
-
-1. Instalar dependencias:
+### Install Dependencies
 ```bash
+# Install root dependencies
+npm install
+
+# Install backend dependencies
 cd backend
+npm install
+
+# Install frontend dependencies
+cd ../frontend
 npm install
 ```
 
-2. Configurar variables de entorno:
-   - Copiar `.env.example` a `.env`
-   - Configurar las siguientes variables:
-     ```env
-     NODE_ENV=development
-     PORT=3000
-     DATABASE_URL=<tu-url-de-mongodb>
-     JWT_SECRET=<tu-secret-key>
-     JWT_EXPIRES_IN=1d
-     REFRESH_TOKEN_SECRET=<tu-refresh-secret>
-     REFRESH_TOKEN_EXPIRES_IN=7d
-     ```
-
-3. Configurar Prisma:
+### Database Setup
+1. Set up a MongoDB database (local or MongoDB Atlas)
+2. Configure your database connection in `.env` (see Environment Variables section)
+3. Run Prisma migrations:
 ```bash
+cd backend
 npx prisma generate
 npx prisma db push
 ```
 
-4. Ejecutar Seeds (Datos Iniciales):
-```bash
-npx prisma db seed
+## Environment Variables
+
+### Backend (.env)
+```
+# Database
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/agricoventas?retryWrites=true&w=majority"
+
+# Server
+PORT=3001
+NODE_ENV=development
+API_URL=http://localhost:3001
+
+# Authentication
+JWT_SECRET=your_jwt_secret_key
+JWT_REFRESH_SECRET=your_jwt_refresh_secret_key
+JWT_EXPIRES_IN=1d
+JWT_REFRESH_EXPIRES_IN=7d
 ```
 
-Esto creará los siguientes usuarios por defecto:
-- **Admin User**
-  - Username: `admin`
-  - Password: `admin123`
-  - Email: `admin@agricoventas.com`
-  - Rol: `admin`
-
-- **Regular User**
-  - Username: `user`
-  - Password: `user123`
-  - Email: `user@agricoventas.com`
-  - Rol: `user`
-
-- **Test User**
-  - Username: `juanperez`
-  - Password: `Password123!`
-  - Email: `juan@agricoventas.com`
-  - Rol: `user`
-
-### 3. Configuración del Frontend
-
-1. Instalar dependencias:
-```bash
-cd frontend
-npm install
+### Frontend (.env)
+```
+VITE_API_URL=http://localhost:3001/api
 ```
 
-2. Configurar variables de entorno:
-   - Copiar `.env.example` a `.env`
-   - Configurar:
-     ```env
-     VITE_API_URL=http://localhost:3000/api
-     ```
+## Running the Application
 
-## 🚀 Ejecutar el Proyecto
-
-### Desarrollo
-
-1. Backend:
+### Development Mode
 ```bash
+# Start backend server
 cd backend
+npm run dev
+
+# Start frontend development server
+cd ../frontend
 npm run dev
 ```
 
-2. Frontend:
+The frontend will be available at `http://localhost:5173` and the backend at `http://localhost:3001`.
+
+### Production Build
 ```bash
+# Build frontend
 cd frontend
-npm run dev
-```
+npm run build
 
-### Producción
-
-1. Backend:
-```bash
-cd backend
+# Start production server
+cd ../backend
 npm run build
 npm start
 ```
 
-2. Frontend:
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - User login
+- `POST /api/auth/refresh-token` - Refresh access token
+- `POST /api/auth/logout` - User logout
+
+### Users
+- `GET /api/users/me` - Get current user profile
+- `GET /api/users/:userId` - Get user profile by ID
+- `PUT /api/users/:userId` - Update user profile
+- `PUT /api/users/me/profile-image` - Update profile image
+- `GET /api/users/me/location` - Get user's primary location
+
+### Products
+- `GET /api/products` - Get all products (with filtering)
+- `GET /api/products/:productId` - Get product by ID
+- `POST /api/products` - Create a new product
+- `PUT /api/products/:productId` - Update a product
+- `DELETE /api/products/:productId` - Delete a product
+- `GET /api/products/featured` - Get featured products
+- `GET /api/products/user/:userId` - Get products by user ID
+- `GET /api/products/category/:categoryId` - Get products by category ID
+
+### Certifications
+- `POST /api/certifications/upload` - Upload a certification
+- `GET /api/certifications/user/:userId` - Get user's certifications
+- `GET /api/certifications/verify/:userId` - Verify user's certifications
+- `GET /api/certifications/admin` - Get all certifications (admin)
+- `PUT /api/certifications/approve/:certificationId` - Approve a certification
+- `PUT /api/certifications/reject/:certificationId` - Reject a certification
+- `GET /api/certifications/user/:userId/required-status` - Get required certification status
+
+### Categories
+- `GET /api/categories` - Get all categories
+- `POST /api/categories` - Create a category (admin)
+- `PUT /api/categories/:categoryId` - Update a category (admin)
+- `DELETE /api/categories/:categoryId` - Delete a category (admin)
+
+### Locations
+- `GET /api/locations/user/:userId` - Get user locations
+- `POST /api/locations` - Create a location
+- `PUT /api/locations/:locationId` - Update a location
+- `DELETE /api/locations/:locationId` - Delete a location
+
+## Authentication
+
+The system uses JWT (JSON Web Tokens) for authentication:
+
+1. **Access Token**: Short-lived token (1 day) used for API access
+2. **Refresh Token**: Longer-lived token (7 days) used to issue new access tokens
+
+Authentication flow:
+1. User registers or logs in
+2. Server provides access token and refresh token
+3. Client includes access token in Authorization header
+4. When access token expires, client uses refresh token to get a new one
+
+## Data Models
+
+### User
+- Basic info: username, email, password, name
+- Role: BUYER, SELLER, or ADMIN
+- Location information
+- Profile image
+- Certification status (for sellers)
+
+### Product
+- Basic info: name, description, price
+- Category and origin location
+- Stock quantity and unit measure
+- Images
+- Seller information
+- Reviews and ratings
+
+### Certification
+- User association
+- Certification type (INVIMA, ICA, etc.)
+- Certificate number
+- Issue and expiry dates
+- Verification status
+
+### Category
+- Hierarchical structure (parent-child)
+- Name and description
+
+### Order
+- User association
+- Products and quantities
+- Pricing information
+- Status tracking
+- Payment and shipping details
+
+## Certification System
+
+Agricoventas implements a certification verification system to ensure product quality:
+
+1. Sellers must upload four required Colombian certifications:
+   - INVIMA (Instituto Nacional de Vigilancia de Medicamentos y Alimentos)
+   - ICA (Instituto Colombiano Agropecuario)
+   - Registro Sanitario
+   - Certificado Orgánico (if applicable)
+
+2. Each certification undergoes admin verification:
+   - Admins can approve or reject with a reason
+   - Sellers are notified of certification status
+   - Rejected certifications can be resubmitted
+
+3. Certification enforcement:
+   - Sellers cannot list products without verified certifications
+   - Certification expiry dates are tracked
+   - Certifications must be renewed before expiry
+
+## Deployment
+
+### Production Considerations
+- Use environment variables for sensitive information
+- Enable CORS for production domains
+- Configure rate limiting and security headers
+- Set up MongoDB indexes for performance
+- Implement proper logging
+
+### Deployment Options
+- **Render**: Easy deployment with automatic builds
+- **Vercel**: Great for the React frontend
+- **Railway**: Simple full-stack deployment
+- **AWS/GCP/Azure**: More control and scalability options
+
+### Containerization (Optional)
+The project can be containerized using Docker:
 ```bash
-cd frontend
-npm run build
-npm run preview
-```
-
-## 📚 Documentación de la API
-
-La documentación de la API está disponible en:
-- Desarrollo: `http://localhost:3000/api-docs`
-- Producción: `https://tu-dominio.com/api-docs`
-
-### Endpoints Principales
-
-#### Autenticación
-- `POST /api/auth/register` - Registro de usuarios
-- `POST /api/auth/login` - Login de usuarios
-- `POST /api/auth/logout` - Logout de usuarios
-- `POST /api/auth/refresh` - Refrescar token de acceso
-- `GET /api/auth/profile` - Obtener perfil de usuario
-
-## 🧪 Testing
-
-```bash
-# Backend
+# Build and run backend
 cd backend
-npm run test
+docker build -t agricoventas-backend .
+docker run -p 3001:3001 agricoventas-backend
 
-# Frontend
-cd frontend
-npm run test
+# Build and run frontend
+cd ../frontend
+docker build -t agricoventas-frontend .
+docker run -p 5173:80 agricoventas-frontend
 ```
 
-## 📦 Estructura del Proyecto
+## Contributing
 
-```
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── routes/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   └── utils/
-│   ├── prisma/
-│   └── tests/
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   ├── hooks/
-    │   ├── pages/
-    │   ├── services/
-    │   ├── store/
-    │   └── utils/
-    └── public/
-```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -m 'Add some feature'`
+4. Push to the branch: `git push origin feature/your-feature-name`
+5. Submit a pull request
 
-## 🤝 Contribuir
+## License
 
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 📝 Licencia
+## Acknowledgements
 
-Este proyecto está bajo la licencia ISC. Ver el archivo `LICENSE` para más detalles.
-
-## 👥 Autores
-
-- Juan Sebastian Giraldo - Desarrollador Principal
-
-## 📞 Soporte
-
-Si tienes alguna pregunta o problema:
-1. Revisa la [documentación](link-a-la-documentación)
-2. Abre un [issue](link-a-los-issues)
-3. Contacta al equipo de desarrollo 
+- [Express.js](https://expressjs.com/)
+- [React](https://reactjs.org/)
+- [Prisma](https://www.prisma.io/)
+- [MongoDB](https://www.mongodb.com/)
+- [Tailwind CSS](https://tailwindcss.com/) 

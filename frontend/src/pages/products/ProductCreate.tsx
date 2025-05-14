@@ -14,71 +14,84 @@ import { ICategory } from '../../interfaces/category';
 import Header from '../../components/layout/Header';
 import UserProfile from '../../components/common/UserProfile';
 
-// Placeholder ILocation - replace with your actual interface
+// Assuming you might want similar icons to Register.tsx, define or import them
+// For now, using placeholder text or simple SVGs if needed directly
+const LocationIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+const ChevronDownIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+);
+
 interface ILocation {
   id: string;
-  addressLine1: string; // Or a more descriptive name for the dropdown
+  addressLine1: string; 
+  addressLine2?: string;
   city: string;
   department: string;
+  postalCode?: string;
+  country?: string;
 }
-// Placeholder locationService - replace with your actual service
+
 const locationService = {
   async getUserLocations(userId: string): Promise<ILocation[]> {
-    console.log("[ProductCreate] Mock: Fetching locations for user:", userId);
-    // Replace with actual API call
-    // Example: return api.get(`/api/locations/user/${userId}`).then(res => res.data.data || []);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-    // Mock data for now
-    if (userId === "mockUserIdWithLocations") {
-      return [
-        { id: 'loc1', addressLine1: 'Finca La Esperanza', city: 'Salento', department: 'Quindío' },
-        { id: 'loc2', addressLine1: 'Bodega Central', city: 'Armenia', department: 'Quindío' },
-      ];
+    try {
+      console.log("[ProductCreate] Fetching locations for user via API:", userId);
+      const response = await api.get(`/api/locations/user/${userId}`);
+      if (response.data && response.data.success) {
+        return response.data.data || []; // Assuming backend sends { success: true, data: ILocation[] }
+      }
+      console.error("[ProductCreate] Failed to fetch user locations or unexpected response structure:", response.data);
+      return [];
+    } catch (error) {
+      console.error("[ProductCreate] Error calling getUserLocations API:", error);
+      return []; // Return empty array on error
     }
-    return [];
+  },
+  async getCurrentUserPrimaryLocation(): Promise<ILocation | null> {
+    try {
+      console.log("[ProductCreate] Fetching current user's primary location via API");
+      const response = await api.get(`/api/users/me/location`); // Using the new endpoint
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data as ILocation;
+      }
+      if (response.data && response.data.success && !response.data.data) {
+        // Success but no primary location set
+        console.log("[ProductCreate] Current user does not have a primary location set.");
+        return null;
+      }
+      console.error("[ProductCreate] Failed to fetch user's primary location or unexpected response structure:", response.data);
+      return null;
+    } catch (error: any) {
+      // Handle cases where the backend might send a 404 if no location is set, which might not be an error for this specific call
+      if (error.response && error.response.status === 404) {
+        console.log("[ProductCreate] No primary location found for the current user (404).");
+        return null;
+      }
+      console.error("[ProductCreate] Error calling getCurrentUserPrimaryLocation API:", error);
+      return null; 
+    }
   },
   async createLocation(data: Partial<ILocation>): Promise<ILocation> {
-    console.log("[ProductCreate] Mock: Creating new location:", data);
-    // Replace with actual API call
-    // Example: return api.post('/api/locations', data).then(res => res.data.data);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-    return { id: `new_loc_${Date.now()}`, ...data } as ILocation;
-  }
-};
-// Placeholder LocationFormModal - replace with your actual component
-const LocationFormModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (newLocation: ILocation) => void, userId: string | undefined }> = ({ isOpen, onClose, onSubmit, userId }) => {
-  if (!isOpen) return null;
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [department, setDepartment] = useState('');
-
-  const handleSubmit = async () => {
-    // Basic validation
-    if (!address || !city || !department || !userId) {
-      alert("Todos los campos son requeridos para la ubicación.");
-      return;
-    }
     try {
-      const newLoc = await locationService.createLocation({ addressLine1: address, city, department /*, userId - if backend needs it directly */ });
-      onSubmit(newLoc);
-    } catch (e) {
-      alert("Error creando ubicación");
-      console.error(e);
+      console.log("[ProductCreate] Creating new location via API:", data);
+      // Ensure your actual API endpoint for creating locations is correct
+      const response = await api.post('/api/locations', data); 
+      if (response.data && response.data.success) {
+        return response.data.data; // Assuming backend sends { success: true, data: ILocation }
+      }
+      throw new Error(response.data?.error?.message || 'Failed to create location or unexpected response structure');
+    } catch (error: any) {
+      console.error("[ProductCreate] Error calling createLocation API:", error);
+      // Re-throw or handle as appropriate for your UI
+      throw error; 
     }
-  };
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '400px' }}>
-        <h3>Crear Nueva Ubicación</h3>
-        <input type="text" placeholder="Nombre/Dirección" value={address} onChange={e => setAddress(e.target.value)} style={{ display: 'block', width: '90%', marginBottom: '10px', padding: '8px' }} />
-        <input type="text" placeholder="Ciudad" value={city} onChange={e => setCity(e.target.value)} style={{ display: 'block', width: '90%', marginBottom: '10px', padding: '8px' }} />
-        <input type="text" placeholder="Departamento" value={department} onChange={e => setDepartment(e.target.value)} style={{ display: 'block', width: '90%', marginBottom: '20px', padding: '8px' }} />
-        <button onClick={handleSubmit} style={{ padding: '10px 15px', marginRight: '10px' }}>Guardar Ubicación</button>
-        <button onClick={onClose} style={{ padding: '10px 15px' }}>Cancelar</button>
-      </div>
-    </div>
-  );
+  }
 };
 
 const ProductCreate: React.FC = () => {
@@ -93,8 +106,7 @@ const ProductCreate: React.FC = () => {
     name: '',
     categoryId: '',
     description: '',
-    originLocationId: '',
-    quality: '',
+    originLocationId: '', // Will hold ID if existing location is selected
     price: '',
     availableQuantity: '',
     unitMeasure: '',
@@ -104,7 +116,16 @@ const ProductCreate: React.FC = () => {
   // Location specific state
   const [userLocations, setUserLocations] = useState<ILocation[]>([]);
   const [isLoadingUserLocations, setIsLoadingUserLocations] = useState(false);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isLocationSectionExpanded, setIsLocationSectionExpanded] = useState(false);
+  const [locationSelectionMode, setLocationSelectionMode] = useState<'EXISTING' | 'NEW'>('EXISTING');
+  const [newLocationData, setNewLocationData] = useState<Partial<ILocation>>({
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    department: '',
+    postalCode: '',
+    country: 'Colombia' // Default country
+  });
   
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -120,6 +141,8 @@ const ProductCreate: React.FC = () => {
   const [categoriesList, setCategoriesList] = useState<ICategory[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [selectedParentCategoryId, setSelectedParentCategoryId] = useState<string>('');
+
+  const [showNewLocationFields, setShowNewLocationFields] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -200,33 +223,53 @@ const ProductCreate: React.FC = () => {
 
   // Fetch User Locations
   useEffect(() => {
-    const fetchUserLocations = async () => {
+    const fetchUserLocationsAndPrimary = async () => {
       if (user?.id) {
         setIsLoadingUserLocations(true);
         try {
-          // Replace 'mockUserIdWithLocations' with user.id for real use
-          const locations = await locationService.getUserLocations(user.id); 
-          setUserLocations(locations);
-          // If editing and product has an originLocationId, try to pre-select it
-          // This part might need adjustment based on how productData is loaded for edit mode
-          if (isEditMode && formData.originLocationId && locations.some(loc => loc.id === formData.originLocationId)) {
-            // Already set, or will be set by loadProductData
-          } else if (locations.length > 0 && !isEditMode) {
-            // Optionally, pre-select the first location for new products
-            // setFormData(prev => ({ ...prev, originLocationId: locations[0].id }));
+          // Fetch all user locations (existing behavior)
+          const allLocations = await locationService.getUserLocations(user.id);
+          let primaryLocation: ILocation | null = null;
+
+          // Fetch user's primary location
+          try {
+            primaryLocation = await locationService.getCurrentUserPrimaryLocation();
+          } catch (primaryLocError) {
+            console.error("[ProductCreate] Error fetching user's primary location specifically, continuing with all locations:", primaryLocError);
+            // Non-fatal, proceed with whatever allLocations returned
           }
+
+          let combinedLocations = [...allLocations];
+          if (primaryLocation) {
+            // Add primary to the list if not already present
+            if (!allLocations.some(loc => loc.id === primaryLocation!.id)) {
+              combinedLocations = [primaryLocation, ...allLocations]; // Prioritize primary by adding it to the front
+            }
+            // If creating a new product and no location is selected yet, pre-select the primary location.
+            if (!isEditMode && !formData.originLocationId) {
+              setFormData(prev => ({ ...prev, originLocationId: primaryLocation!.id }));
+              setLocationSelectionMode('EXISTING'); // Ensure mode is set to existing
+            }
+          }
+          
+          setUserLocations(combinedLocations);
+
+          // If editing and product has an originLocationId, it should be handled by loadProductData or already be in formData
+          // If creating and no primary location was found, but other locations exist, do nothing here (user has to pick)
+
         } catch (error) {
-          console.error("[ProductCreate] Error fetching user locations:", error);
-          // Optionally set an error state for locations
+          console.error("[ProductCreate] Error fetching user locations (general list):", error);
+          setUserLocations([]); // Clear locations on general error
         } finally {
           setIsLoadingUserLocations(false);
         }
       }
     };
+
     if (!isCertificateChecking) { // Fetch locations after certificate check
-        fetchUserLocations();
+      fetchUserLocationsAndPrimary();
     }
-  }, [user?.id, isCertificateChecking, isEditMode]); // formData.originLocationId removed from deps to avoid loop
+  }, [user?.id, isCertificateChecking, isEditMode]); // formData.originLocationId removed to prevent re-triggering on its own change
 
   const topLevelCategories = useMemo(() => {
     return categoriesList;
@@ -270,7 +313,6 @@ const ProductCreate: React.FC = () => {
           categoryId: productCategoryId,
           description: product.description || '',
           originLocationId: product.originLocationId || '',
-          quality: product.quality || '',
           price: product.basePrice?.toString() || '',
           availableQuantity: product.stockQuantity?.toString() || '',
           unitMeasure: product.unitMeasure || '',
@@ -310,48 +352,46 @@ const ProductCreate: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps 
   }, [isEditMode, productId, isCertificateChecking, categoriesList, isLoadingUserLocations]); // loadProductData is stable, added isLoadingUserLocations
 
+  const toggleLocationSectionExpanded = () => {
+    setIsLocationSectionExpanded(prev => !prev);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    console.log(`[ProductCreate] handleInputChange: name=${name}, value=${value}, type=${type}`);
+    // console.log(`[ProductCreate] handleInputChange: name=${name}, value=${value}, type=${type}`);
 
     if (name === 'parentCategory') {
       setSelectedParentCategoryId(value);
-      const childrenOfSelectedParent = childCategoriesMap.get(value) || [];
-      console.log("[ProductCreate] Children of selected parent (", value, "):", childrenOfSelectedParent.map(c=>c.name));
-      if (childrenOfSelectedParent.length === 0) {
+      setFormData(prev => ({ ...prev, categoryId: '' })); // Clear subcategory when parent changes
+      if (childCategoriesMap.get(value)?.length === 0) {
         setFormData(prev => ({ ...prev, categoryId: value }));
-        console.log("[ProductCreate] Parent category has no children. Set categoryId to:", value);
-      } else {
-        setFormData(prev => ({ ...prev, categoryId: '' })); 
-        console.log("[ProductCreate] Parent category has children. Cleared categoryId. User must select a subcategory.");
       }
-    } else if (name === 'categoryId') {
-      setFormData(prev => ({ ...prev, categoryId: value }));
-      console.log("[ProductCreate] Set categoryId (likely from subcategory selection) to:", value);
+    } else if (name === 'locationSelectionMode') {
+      setLocationSelectionMode(value as 'EXISTING' | 'NEW');
+      if (value === 'EXISTING') {
+        setNewLocationData({ addressLine1: '', addressLine2: '', city: '', department: '', postalCode: '', country: 'Colombia' });
+        // Potentially clear errors for newLocationData fields
+        setErrors(prev => ({...prev, newLocAddressLine1: '', newLocCity: '', newLocDepartment: ''})); 
+      } else {
+        setFormData(prev => ({ ...prev, originLocationId: '' })); // Clear existing selection if switching to NEW
+      }
+    } else if (name.startsWith('newLoc')) {
+      const fieldKey = name.substring(6).charAt(0).toLowerCase() + name.substring(7) as keyof Partial<ILocation>; // e.g. newLocAddressLine1 -> addressLine1
+      setNewLocationData(prev => ({ ...prev, [fieldKey]: value }));
+      if (errors[name]) setErrors(prev => ({...prev, [name]: ''})); // Clear error for this specific new location field
     } else if (name === 'originLocationId') {
-        if (value === "CREATE_NEW_LOCATION") {
-            setIsLocationModalOpen(true);
-        } else {
-            setFormData(prev => ({ ...prev, originLocationId: value }));
-        }
-    }
-    else {
+      setFormData(prev => ({ ...prev, originLocationId: value }));
+      setLocationSelectionMode('EXISTING'); // Ensure mode is EXISTING if they select from dropdown
+    } else {
       setFormData(prev => ({
         ...prev,
         [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
       }));
     }
 
-    if (errors[name]) {
+    if (errors[name] && !name.startsWith('newLoc')) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-  };
-
-  const handleNewLocationCreated = (newLocation: ILocation) => {
-    setUserLocations(prev => [...prev, newLocation]);
-    setFormData(prev => ({ ...prev, originLocationId: newLocation.id }));
-    setIsLocationModalOpen(false);
-    // Optionally, show a success toast/message for location creation
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -393,11 +433,20 @@ const ProductCreate: React.FC = () => {
     if (!formData.name.trim()) newErrors.name = 'El nombre es requerido';
     if (!formData.categoryId) newErrors.categoryId = 'La categoría es requerida (selecciona una subcategoría si aplica)';
     if (!formData.description.trim()) newErrors.description = 'La descripción es requerida';
-    if (!formData.originLocationId) newErrors.originLocationId = 'La ubicación de origen es requerida'; // Validates the selection
+    
+    if (locationSelectionMode === 'NEW') {
+      if (!newLocationData.addressLine1?.trim()) newErrors.newLocAddressLine1 = 'La dirección es requerida';
+      if (!newLocationData.city?.trim()) newErrors.newLocCity = 'La ciudad es requerida';
+      if (!newLocationData.department?.trim()) newErrors.newLocDepartment = 'El departamento es requerido';
+      // Add validation for other newLocationData fields if they become mandatory
+    } else { // EXISTING mode
+      if (!formData.originLocationId) newErrors.originLocationId = 'Debe seleccionar una ubicación de origen existente o crear una nueva.';
+    }
+
     if (!formData.price.trim()) newErrors.price = 'El precio es requerido';
     else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) newErrors.price = 'El precio debe ser un número mayor que cero';
     if (!formData.availableQuantity.trim()) newErrors.availableQuantity = 'La cantidad disponible es requerida';
-    else if (isNaN(parseFloat(formData.availableQuantity)) || parseFloat(formData.availableQuantity) < 0) newErrors.availableQuantity = 'La cantidad disponible debe ser un número positivo o cero'; // Allow 0
+    else if (isNaN(parseFloat(formData.availableQuantity)) || parseFloat(formData.availableQuantity) < 0) newErrors.availableQuantity = 'La cantidad disponible debe ser un número positivo o cero';
     if (!formData.unitMeasure) newErrors.unitMeasure = 'La unidad de medida es requerida';
     if (existingImages.length === 0 && selectedFiles.length === 0) newErrors.images = 'Debes proporcionar al menos una imagen del producto';
     setErrors(newErrors);
@@ -425,14 +474,47 @@ const ProductCreate: React.FC = () => {
     
     setIsSubmitting(true);
     setSubmitError(null);
-    
+    let finalOriginLocationId = formData.originLocationId;
+
     try {
+      // MODIFIED: Create location first if new location fields are shown
+      if (locationSelectionMode === 'NEW') {
+        if (!user?.id) {
+          setSubmitError("Error: Usuario no identificado para crear la ubicación.");
+          setIsSubmitting(false);
+          return;
+        }
+        try {
+          // Add any other necessary fields for location creation if your backend expects them
+          // e.g., country, postalCode. For now, using what's in newLocationData.
+          const createdLocation = await locationService.createLocation({
+            ...newLocationData,
+            // userId: user.id, // If your location service needs userId directly for creation
+          });
+          finalOriginLocationId = createdLocation.id;
+          // Optionally, add to userLocations state if you want it in the dropdown immediately after
+          setUserLocations(prev => [...prev, createdLocation]);
+        } catch (locError: any) {
+          console.error("[ProductCreate] Error creating new location:", locError);
+          setSubmitError(`Error al crear la nueva ubicación: ${locError.message || 'Error desconocido'}`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      console.log("[ProductCreate] handleSubmit: finalOriginLocationId before product save:", finalOriginLocationId);
+
+      if (!finalOriginLocationId) {
+        setSubmitError("Error: La ubicación de origen es requerida y no se pudo determinar (después de intento de creación).");
+        setIsSubmitting(false);
+        return;
+      }
+
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
       formDataToSend.append('categoryId', formData.categoryId);
       formDataToSend.append('description', formData.description);
-      formDataToSend.append('originLocationId', formData.originLocationId);
-      formDataToSend.append('quality', formData.quality);
+      formDataToSend.append('originLocationId', finalOriginLocationId); 
       formDataToSend.append('basePrice', formData.price); 
       formDataToSend.append('stockQuantity', formData.availableQuantity);
       formDataToSend.append('unitMeasure', formData.unitMeasure);
@@ -441,14 +523,20 @@ const ProductCreate: React.FC = () => {
       if (user && user.id) {
         formDataToSend.append('sellerId', user.id);
       } else {
-        console.error("User ID not available for sellerId");
-        setSubmitError('Error: No se pudo identificar al vendedor. Por favor, reintenta.');
+        console.error("[ProductCreate] handleSubmit: User ID not available for sellerId just before appending to FormData.");
+        setSubmitError('Error: No se pudo identificar al vendedor (ID faltante). Por favor, reintenta.');
         setIsSubmitting(false);
         return;
       }
       
       selectedFiles.forEach(file => formDataToSend.append('images', file));
-      existingImages.forEach(image => formDataToSend.append('existingImages[]', image)); // Backend needs to handle this
+      existingImages.forEach(image => formDataToSend.append('existingImages[]', image));
+
+      // Log FormData before sending
+      console.log("[ProductCreate] handleSubmit: FormData to be sent for product creation:");
+      for (let [key, value] of formDataToSend.entries()) {
+        console.log(`  ${key}: ${value instanceof File ? value.name : value}`);
+      }
       
       let response;
       if (isEditMode && productId) {
@@ -613,79 +701,170 @@ const ProductCreate: React.FC = () => {
 
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4 text-gray-800">Detalles del Producto y Origen</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  <FormField 
-                    label="Ubicación de Origen del Producto"
-                    name="originLocationId"
-                    value={formData.originLocationId}
-                    onChange={handleInputChange}
-                    error={errors.originLocationId}
-                    required
+                
+                {/* Collapsible Location Section Start */}
+                <div className="mt-6 border border-gray-300 rounded-md overflow-hidden mb-6">
+                  <button
+                    type="button"
+                    onClick={toggleLocationSectionExpanded}
+                    className={`w-full flex items-center justify-between p-4 text-left transition-colors ${(errors.originLocationId || errors.newLocAddressLine1 || errors.newLocCity || errors.newLocDepartment) ? 'bg-red-50' : 'bg-gray-50'} hover:bg-gray-100`}
                   >
-                    <select
-                      name="originLocationId"
-                      value={formData.originLocationId}
-                      onChange={handleInputChange}
-                      className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-green-1 ${
-                        errors.originLocationId ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      disabled={isLoadingUserLocations}
-                    >
-                      <option value="">
-                        {isLoadingUserLocations ? "Cargando ubicaciones..." : "Seleccionar ubicación existente"}
-                      </option>
-                      {userLocations.map(loc => (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.addressLine1} ({loc.city}, {loc.department})
-                        </option>
-                      ))}
-                      <option value="CREATE_NEW_LOCATION">-- Crear nueva ubicación --</option>
-                    </select>
-                  </FormField>
+                    <div className="flex items-center">
+                      <div className={`mr-2 ${(errors.originLocationId || errors.newLocAddressLine1 || errors.newLocCity || errors.newLocDepartment) ? 'text-red-500' : 'text-green-1'}`}>
+                        <LocationIcon />
+                      </div>
+                      <h3 className={`text-lg font-medium ${(errors.originLocationId || errors.newLocAddressLine1 || errors.newLocCity || errors.newLocDepartment) ? 'text-red-500' : 'text-gray-800'}`}>
+                        Ubicación de Origen del Producto
+                      </h3>
+                      {(errors.originLocationId || errors.newLocAddressLine1 || errors.newLocCity || errors.newLocDepartment) && (
+                        <div className="ml-2 text-red-500 text-sm">
+                          * Información requerida
+                        </div>
+                      )}
+                    </div>
+                    <div className={`transition-transform duration-300 ${isLocationSectionExpanded ? 'rotate-180' : ''} ${(errors.originLocationId || errors.newLocAddressLine1 || errors.newLocCity || errors.newLocDepartment) ? 'text-red-500' : 'text-green-1'}`}>
+                      <ChevronDownIcon />
+                    </div>
+                  </button>
 
+                  {isLocationSectionExpanded && (
+                    <div className="p-6 space-y-4 bg-white border-t border-gray-300">
+                      <div className="flex items-center space-x-4 mb-4">
+                        <label className="flex items-center cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="locationSelectionMode" 
+                            value="EXISTING"
+                            checked={locationSelectionMode === 'EXISTING'}
+                            onChange={handleInputChange}
+                            className="form-radio h-4 w-4 text-green-1 focus:ring-green-1"
+                          />
+                          <span className="ml-2 text-gray-700">Usar ubicación existente</span>
+                        </label>
+                        <label className="flex items-center cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="locationSelectionMode" 
+                            value="NEW"
+                            checked={locationSelectionMode === 'NEW'}
+                            onChange={handleInputChange}
+                            className="form-radio h-4 w-4 text-green-1 focus:ring-green-1"
+                          />
+                          <span className="ml-2 text-gray-700">Crear nueva ubicación</span>
+                        </label>
+                      </div>
+
+                      {locationSelectionMode === 'EXISTING' && (
+                        <div className="space-y-4">
+                          <FormField 
+                            label="Seleccionar Ubicación Existente"
+                            name="originLocationId"
+                            value={formData.originLocationId}
+                            onChange={handleInputChange}
+                            error={errors.originLocationId}
+                            required={locationSelectionMode === 'EXISTING'}
+                          >
+                            <select
+                              name="originLocationId"
+                              value={formData.originLocationId}
+                              onChange={handleInputChange}
+                              className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-green-1 ${errors.originLocationId ? 'border-red-500' : 'border-gray-300'}`}
+                              disabled={isLoadingUserLocations}
+                            >
+                              <option value="">{isLoadingUserLocations ? "Cargando..." : "Seleccionar..."}</option>
+                              {userLocations.map(loc => (
+                                <option key={loc.id} value={loc.id}>
+                                  {loc.addressLine1} ({loc.city}, {loc.department})
+                                </option>
+                              ))}
+                            </select>
+                          </FormField>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Región (Departamento)</label>
+                              <StyledInput type="text" value={userLocations.find(loc => loc.id === formData.originLocationId)?.department || ''} disabled readOnly />
+                          </div>
+                        </div>
+                      )}
+
+                      {locationSelectionMode === 'NEW' && (
+                        <div className="space-y-4">
+                          <StyledInput
+                            label="Dirección Principal"
+                            name="newLocAddressLine1"
+                            value={newLocationData.addressLine1 || ''}
+                            onChange={handleInputChange}
+                            error={errors.newLocAddressLine1}
+                            required
+                            placeholder="Ej. Calle 50 # 45-67"
+                          />
+                          <StyledInput
+                            label="Dirección Complementaria (Opcional)"
+                            name="newLocAddressLine2"
+                            value={newLocationData.addressLine2 || ''}
+                            onChange={handleInputChange}
+                            placeholder="Ej. Apto 301, Torre B"
+                          />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <StyledInput
+                              label="Ciudad"
+                              name="newLocCity"
+                              value={newLocationData.city || ''}
+                              onChange={handleInputChange}
+                              error={errors.newLocCity}
+                              required
+                              placeholder="Ej. Medellín"
+                            />
+                            <StyledInput
+                              label="Departamento"
+                              name="newLocDepartment"
+                              value={newLocationData.department || ''}
+                              onChange={handleInputChange}
+                              error={errors.newLocDepartment}
+                              required
+                              placeholder="Ej. Antioquia"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <StyledInput
+                              label="Código Postal (Opcional)"
+                              name="newLocPostalCode"
+                              value={newLocationData.postalCode || ''}
+                              onChange={handleInputChange}
+                              placeholder="Ej. 050001"
+                            />
+                            <StyledInput
+                              label="País"
+                              name="newLocCountry"
+                              value={newLocationData.country || 'Colombia'} // Default to Colombia
+                              onChange={handleInputChange}
+                              // Potentially make this read-only if always Colombia or validate if changed
+                              // required 
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* Collapsible Location Section End */}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Quality, Price, Quantity, Unit Measure, IsFeatured fields follow */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Región (Departamento) <span className="text-xs text-gray-500">(Informativo, se toma de la ubicación)</span>
+                      Precio (COP) <span className="text-red-1">*</span>
                     </label>
                     <StyledInput
-                      name="derivedRegion"
-                      type="text"
-                      value={userLocations.find(loc => loc.id === formData.originLocationId)?.department || ''}
-                      disabled // This field is derived
-                      readOnly
+                      name="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      error={errors.price}
+                      required
                     />
                   </div>
-
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Calidad
-                    </label>
-                    <select
-                      name="quality"
-                      value={formData.quality}
-                      onChange={handleInputChange}
-                      className="w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-1"
-                    >
-                      <option value="">Seleccionar Calidad</option>
-                      <option value="Premium">Premium</option>
-                      <option value="Estándar">Estándar</option>
-                      <option value="Económico">Económico</option>
-                    </select>
-                  </div>
-
-                  <StyledInput
-                    label="Precio (COP)"
-                    name="price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    error={errors.price}
-                    required
-                  />
 
                   <StyledInput
                     label="Cantidad Disponible"
@@ -697,7 +876,7 @@ const ProductCreate: React.FC = () => {
                     error={errors.availableQuantity}
                     required
                   />
-
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Unidad de Medida <span className="text-red-1">*</span>
@@ -855,14 +1034,6 @@ const ProductCreate: React.FC = () => {
           )}
         </Card>
       </div>
-      
-      {/* Placeholder for LocationFormModal - replace with your actual modal component */}
-      <LocationFormModal 
-        isOpen={isLocationModalOpen}
-        onClose={() => setIsLocationModalOpen(false)}
-        onSubmit={handleNewLocationCreated}
-        userId={user?.id} // Pass userId if your createLocation API/modal needs it directly
-      />
     </>
   );
 };

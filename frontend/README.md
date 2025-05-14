@@ -1,132 +1,324 @@
-# React + Vite + Tailwind CSS 4 Project
+# Agricoventas Frontend
 
-This project is a modern frontend application built with React, Vite, and Tailwind CSS 4. It follows best practices for code organization, component reusability, and responsive design.
+This is the frontend application for Agricoventas, a platform connecting Colombian agricultural producers directly with buyers. Built with React and TypeScript, it provides a modern, responsive user interface for the e-commerce system.
 
-## Features
+## Overview
 
-- **React 19** with TypeScript for type-safe development
-- **Vite** for fast development and optimized builds
-- **Tailwind CSS 4** for utility-first styling
-- Modular architecture with reusable components
-- Responsive design that works across devices
-- Custom hooks for common functionality
-- Context API for global state management
-- Consistent styling using a custom color palette
+The frontend application is structured as a single-page application (SPA) with these key features:
 
-## Project Structure
+- **Modern Tech Stack**: React, TypeScript, Vite, and Tailwind CSS
+- **Component-Based Architecture**: Reusable, modular components
+- **Responsive Design**: Mobile-first approach for all device sizes
+- **Context API**: For state management across the application
+- **Custom Hooks**: For encapsulating and reusing logic
+- **Type Safety**: Complete TypeScript implementation
+
+## Directory Structure
 
 ```
 frontend/
-├── public/                  # Static assets
+├── public/                  # Static assets served directly
+│   ├── favicon.ico          # Site favicon
+│   └── images/              # Static images
 ├── src/
-│   ├── assets/              # Project-specific assets (images, fonts)
-│   ├── components/          # Reusable UI components
-│   │   ├── common/          # Basic UI components (Button, Input, etc.)
-│   │   ├── layout/          # Layout components (Header, Footer, Sidebar)
-│   │   └── ui/              # Complex UI components
-│   ├── context/             # React Context for global state
+│   ├── assets/              # Bundled assets (images, fonts)
+│   │   ├── images/          # Application images
+│   │   └── styles/          # Global styles
+│   ├── components/          # React components
+│   │   ├── admin/           # Admin dashboard components
+│   │   │   ├── CategoryForm.tsx
+│   │   │   └── UserManagement.tsx
+│   │   ├── common/          # Shared components
+│   │   │   ├── Card.tsx
+│   │   │   ├── FormError.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── Notification.tsx
+│   │   │   └── UserProfile.tsx
+│   │   ├── layout/          # Layout components
+│   │   │   ├── Footer.tsx
+│   │   │   ├── Header.tsx
+│   │   │   ├── MainLayout.tsx
+│   │   │   ├── Navigation.tsx
+│   │   │   └── Sidebar.tsx
+│   │   ├── products/        # Product-related components
+│   │   │   ├── ProductCard.tsx
+│   │   │   ├── ProductFilter.tsx
+│   │   │   ├── ProductGrid.tsx
+│   │   │   └── ProductImageGallery.tsx
+│   │   └── ui/              # UI components
+│   │       ├── Button.tsx
+│   │       ├── Dropdown.tsx
+│   │       ├── Modal.tsx
+│   │       ├── StyledButton.tsx
+│   │       ├── StyledInput.tsx
+│   │       └── StyledTextArea.tsx
+│   ├── context/             # React Context providers
+│   │   ├── AppContext.tsx   # Main application context
+│   │   ├── AuthContext.tsx  # Authentication context
+│   │   └── CartContext.tsx  # Shopping cart context
 │   ├── hooks/               # Custom React hooks
-│   ├── pages/               # Full page components
-│   ├── services/            # API and external service integrations
-│   ├── utils/               # Utility functions and helpers
-│   ├── App.tsx              # Main App component
-│   ├── main.tsx             # Entry point
-│   └── index.css            # Global styles and Tailwind directives
-├── .gitignore
+│   │   ├── useAuth.ts       # Authentication hook
+│   │   ├── useCart.ts       # Shopping cart hook
+│   │   ├── useForm.ts       # Form handling hook
+│   │   └── useProducts.ts   # Product data hook
+│   ├── interfaces/          # TypeScript interfaces
+│   │   ├── auth.ts          # Authentication types
+│   │   ├── category.ts      # Category types
+│   │   ├── certification.ts # Certification types
+│   │   ├── order.ts         # Order types
+│   │   ├── product.ts       # Product types
+│   │   └── user.ts          # User types
+│   ├── pages/               # Application pages
+│   │   ├── admin/           # Admin pages
+│   │   │   ├── CertificationApproval.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   └── ManageCategories.tsx
+│   │   ├── products/        # Product pages
+│   │   │   ├── ProductCreate.tsx
+│   │   │   ├── ProductDetail.tsx
+│   │   │   └── ProductList.tsx
+│   │   └── user/            # User account pages
+│   │       ├── Login.tsx
+│   │       ├── Profile.tsx
+│   │       └── Register.tsx
+│   ├── services/            # API service functions
+│   │   ├── api.ts           # Axios instance and interceptors
+│   │   ├── authService.ts   # Authentication API calls
+│   │   ├── categoryService.ts # Category API calls
+│   │   ├── certificationService.ts # Certification API calls
+│   │   ├── orderService.ts  # Order API calls
+│   │   └── productService.ts # Product API calls
+│   ├── utils/               # Utility functions
+│   │   ├── dateUtils.ts     # Date formatting utilities
+│   │   ├── formatUtils.ts   # String/currency formatting
+│   │   ├── storageUtils.ts  # Local storage helpers
+│   │   └── validationUtils.ts # Input validation helpers
+│   ├── App.tsx              # Main application component
+│   ├── main.tsx             # Application entry point
+│   └── index.css            # Global CSS with Tailwind
+├── .env                     # Environment variables
+├── .env.example             # Example environment variables
 ├── index.html               # HTML entry point
-├── package.json             # Dependencies and scripts
-├── tailwind.config.js       # Tailwind CSS configuration
+├── package.json             # Project dependencies
 ├── tsconfig.json            # TypeScript configuration
-└── vite.config.ts           # Vite configuration
+├── tailwind.config.js       # Tailwind CSS configuration
+└── vite.config.ts           # Vite bundler configuration
 ```
 
-## Getting Started
+## Key Features
+
+### Component Architecture
+
+The frontend uses a hierarchical component structure:
+
+1. **UI Components**: Basic, reusable UI elements (buttons, inputs)
+2. **Common Components**: Shared components used across the application
+3. **Feature Components**: Components for specific features
+4. **Page Components**: Top-level components that represent routes
+5. **Layout Components**: Structural components that define the page layout
+
+### State Management
+
+State is managed through a combination of:
+
+- **Local State**: `useState` for component-specific state
+- **Context API**: For shared state across components
+- **Custom Hooks**: To encapsulate state logic and reuse it
+
+The main contexts are:
+
+1. **AppContext**: Global application state and user information
+2. **AuthContext**: Authentication state and functions
+3. **CartContext**: Shopping cart state and operations
+
+### Routing
+
+Routing is handled with React Router with these main route groups:
+
+- **Public Routes**: Accessible to all users
+- **Protected Routes**: Require authentication
+- **Role-Based Routes**: Accessible based on user roles (buyer, seller, admin)
+
+### API Integration
+
+Communication with the backend is handled through:
+
+1. **Axios Instance**: Configured with base URL and interceptors
+2. **Service Modules**: Organized by domain (auth, products, etc.)
+3. **Request/Response Handling**: Consistent error handling
+
+The `api.ts` service configures Axios with:
+- Authentication token management
+- Request/response interceptors
+- Error handling with retries for 401 responses
+- Consistent response structure
+
+### Form Handling
+
+Forms are handled using:
+
+1. **Custom `useForm` Hook**: For form state, validation, and submission
+2. **Reusable Form Components**: Consistent input styling and behavior
+3. **Validation**: Client-side validation with feedback
+
+### User Authentication Flow
+
+The authentication flow includes:
+
+1. **Registration**: Multi-step form with validation
+2. **Login**: Email/password with JWT storage
+3. **Token Refresh**: Automatic refresh of expired tokens
+4. **Logout**: Token invalidation and state cleanup
+5. **Protected Routes**: Authentication checking
+
+### User Roles and Permissions
+
+The application supports different user roles:
+
+1. **Buyer**: Can browse products, add to cart, and place orders
+2. **Seller**: Can create and manage products, upload certifications
+3. **Admin**: Can manage users, approve certifications, and moderate content
+
+## Styling and Design System
+
+The UI is built with Tailwind CSS following these principles:
+
+1. **Consistent Color Palette**: Defined in `tailwind.config.js`
+2. **Responsive Design**: Mobile-first approach with breakpoints
+3. **Component Consistency**: Shared styling through component props
+4. **Custom UI Components**: Styled extensions of HTML elements
+
+## Development Workflow
 
 ### Prerequisites
+- Node.js (v14 or later)
+- npm or yarn
 
-- Node.js 18.x or newer
-- npm 8.x or newer
+### Setup
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env` and configure the API URL
 
-### Installation
+### Local Development
+```bash
+# Start development server with hot module replacement
+npm run dev
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd frontend
-   ```
+# Lint code
+npm run lint
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+# Format code
+npm run format
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-4. Open your browser and navigate to:
-   ```
-   http://localhost:5173
-   ```
-
-## Available Scripts
-
-- `npm run dev` - Start the development server
-- `npm run build` - Build the production-ready app
-- `npm run lint` - Run ESLint to check for issues
-- `npm run preview` - Preview the production build locally
-
-## Component Examples
-
-### Button Component
-
-The Button component demonstrates several key principles:
-
-- Variants based on the global color palette
-- Multiple size options
-- Full-width capability
-- Accessibility support
-
-```tsx
-<Button variant="primary" size="md">Click Me</Button>
-<Button variant="success" size="lg" fullWidth>Submit</Button>
+# Run tests
+npm run test
 ```
 
-### Layout Components
+### Building for Production
+```bash
+# Build the application
+npm run build
 
-The layout system uses a combination of:
-
-- `Header` for the top navigation bar
-- `Footer` for the page footer
-- `Sidebar` for navigation (collapsible)
-- `MainLayout` which combines these components
-
-```tsx
-<MainLayout title="Dashboard" showSidebar>
-  {/* Page content */}
-</MainLayout>
+# Preview the production build locally
+npm run preview
 ```
 
-## Customization
+## Environment Configuration
 
-### Tailwind Theme
+The frontend uses environment variables for configuration:
 
-The Tailwind configuration is in `tailwind.config.js` and includes custom colors that can be used throughout the application.
+```
+# API connection
+VITE_API_URL=http://localhost:3001/api
 
-### Adding New Components
+# Feature flags
+VITE_ENABLE_ANALYTICS=false
+VITE_ENABLE_MOCK_API=false
+```
 
-1. Create a new file in the appropriate directory
-2. Use the existing components as a pattern
-3. Follow the project's TypeScript and styling conventions
+Configure these in `.env` for development or in deployment settings for production.
 
-## Contributing
+## Common Scenarios
 
-1. Ensure you follow the code style of the project
-2. Write meaningful commit messages
-3. Document new components and features
-4. Test across different screen sizes for responsive design
+### Adding a New Page
 
-## License
+1. Create a new component in the appropriate subdirectory of `src/pages/`
+2. Add the route in `App.tsx`
+3. Import and use any required services or components
 
-This project is licensed under the MIT License.
+### Creating a New Component
+
+1. Create a new file in the appropriate subdirectory of `src/components/`
+2. Define props interface using TypeScript
+3. Implement the component with proper typing
+4. Export the component for use in other parts of the application
+
+### Adding a New API Service
+
+1. Define the response interface in `src/interfaces/`
+2. Create a new service file in `src/services/`
+3. Implement service methods using the base API instance
+
+## Recommended Tools
+
+- **VS Code Extensions**:
+  - ESLint
+  - Prettier
+  - Tailwind CSS IntelliSense
+  - TypeScript React code snippets
+
+- **Browser Extensions**:
+  - React Developer Tools
+  - Redux DevTools (if using Redux)
+
+## Performance Optimization
+
+The application implements these optimizations:
+
+1. **Code Splitting**: Lazy loading of routes and large components
+2. **Memoization**: Using `useMemo` and `useCallback` for expensive operations
+3. **Virtualization**: For long lists with react-window
+4. **Image Optimization**: Proper sizing and formats
+5. **Bundle Analysis**: With rollup-plugin-visualizer
+
+## Deployment
+
+### Preparation
+1. Update environment variables for production
+2. Build the application: `npm run build`
+3. Test the production build: `npm run preview`
+
+### Deployment Options
+- **Vercel**: Recommended for easy deployment of React applications
+- **Netlify**: Simple hosting with continuous deployment
+- **GitHub Pages**: For static hosting
+- **Docker**: Containerization for consistent environments
+
+### Containerization
+The frontend includes a Dockerfile for containerization:
+```bash
+# Build Docker image
+docker build -t agricoventas-frontend .
+
+# Run container
+docker run -p 5173:80 agricoventas-frontend
+```
+
+## Troubleshooting
+
+### Common Issues
+- **API Connection**: Check API URL in environment variables
+- **CORS Errors**: Ensure backend has proper CORS configuration
+- **Authentication Issues**: Check token storage and refresh mechanism
+- **Styling Problems**: Check Tailwind configuration and specificity
+
+### Debug Mode
+Enable more verbose logging by setting `localStorage.debug = 'agricoventas:*'` in your browser console.
+
+## Additional Resources
+
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+- [Vite Documentation](https://vitejs.dev/guide/)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [Axios Documentation](https://axios-http.com/docs/intro)

@@ -568,4 +568,51 @@ export class UserController {
       }
     }
   }
+
+  /**
+   * Get a user's primary location
+   * @param req Express request
+   * @param res Express response
+   */
+  async getUserPrimaryLocation(req: Request, res: Response): Promise<void> {
+    try {
+      const { userId: paramUserId } = req.params;
+      const actualUserId = paramUserId === 'me' ? req.user?.userId : paramUserId;
+
+      if (!actualUserId) {
+        sendErrorResponse(res, 'User ID not provided or user not authenticated.', HttpStatusCode.BAD_REQUEST);
+        return;
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: actualUserId },
+        include: {
+          primaryLocation: true, // Include the related location
+        },
+      });
+
+      if (!user) {
+        sendNotFoundResponse(res, 'User not found');
+        return;
+      }
+
+      // Add detailed logging here
+      console.log(`[UserController] User details for ${actualUserId}:`, JSON.stringify(user, null, 2));
+
+      if (!user.primaryLocation) {
+        console.error(`[UserController] Primary location not resolved for user ${actualUserId}. User's primaryLocationId is: ${user.primaryLocationId}`);
+        sendNotFoundResponse(res, 'Primary location not set for this user');
+        return;
+      }
+
+      sendSuccessResponse(res, user.primaryLocation);
+    } catch (error: any) {
+      console.error('Error fetching user primary location:', error);
+      if (error instanceof ApiError) {
+         sendErrorResponse(res, error.message, error.statusCode, error.code);
+      } else {
+        sendErrorResponse(res, 'Failed to fetch user primary location', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
 } 

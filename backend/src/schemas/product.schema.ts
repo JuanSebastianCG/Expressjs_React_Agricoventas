@@ -48,6 +48,8 @@ export const productQuerySchema = z.object({
   isFeatured: z.coerce.boolean().optional(),
   isActive: z.coerce.boolean().optional().default(true),
   search: z.string().optional(),
+  city: z.string().optional(),
+  department: z.string().optional(),
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().optional().default(10),
   sortBy: z.enum(['name', 'basePrice', 'createdAt', 'stockQuantity']).optional().default('createdAt'),
@@ -94,6 +96,7 @@ export interface ProductResponse {
     city: string;
     department: string;
   };
+  region?: string;
   averageRating?: number | null;
   reviewCount?: number;
 } 

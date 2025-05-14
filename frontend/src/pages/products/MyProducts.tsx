@@ -135,12 +135,13 @@ const MyProducts: React.FC = () => {
         params: { sellerId: user?.id }
       });
       
-      if (response.data.success) {
-        console.log("Products fetched successfully:", response.data);
-        const productsData = Array.isArray(response.data.data) ? response.data.data : [];
+      if (response.data.success && response.data.data) {
+        console.log("Products fetched successfully:", response.data.data);
+        // Corrected data extraction for paginated response
+        const productsData = Array.isArray(response.data.data.products) ? response.data.data.products : [];
         setProducts(productsData);
         setFilteredProducts(productsData);
-        setTotalProductsCount(response.data.total || productsData.length);
+        setTotalProductsCount(response.data.data.pagination?.total || productsData.length);
       } else {
         throw new Error(response.data.error?.message || 'Error al cargar productos');
       }
@@ -187,20 +188,17 @@ const MyProducts: React.FC = () => {
       let result = [...products];
       
       if (categoryFilter) {
-        result = result.filter(product => product.category === categoryFilter);
+        // Assuming categoryFilter holds the category ID
+        result = result.filter(product => product.categoryId === categoryFilter);
       }
       
       if (regionFilter) {
         result = result.filter(product => product.region === regionFilter);
       }
       
-      if (qualityFilter) {
-        result = result.filter(product => product.quality === qualityFilter);
-      }
-      
       setFilteredProducts(result);
     }
-  }, [products, categoryFilter, regionFilter, qualityFilter]);
+  }, [products, categoryFilter, regionFilter]);
 
   // Toggle view type
   const toggleViewType = () => {

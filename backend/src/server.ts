@@ -26,27 +26,36 @@ import orderRoutes from './routes/order.routes';
 import certificationRoutes from './routes/certification.routes';
 import uploadRoutes from './routes/upload.routes';
 import categoryRoutes from './routes/category.routes';
+import locationRoutes from './routes/location.routes';
 
 // Ensure uploads directory exists with proper permissions
 const uploadsDir = path.join(__dirname, '../uploads');
 const profilesDir = path.join(uploadsDir, 'profiles');
 const certificationsDir = path.join(uploadsDir, 'certifications');
+const productsDir = path.join(uploadsDir, 'products');
 
 // Create directories if they don't exist
-[uploadsDir, profilesDir, certificationsDir].forEach(dir => {
+[uploadsDir, profilesDir, certificationsDir, productsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     try {
       fs.mkdirSync(dir, { recursive: true });
+      console.log(`[Server] Created directory: ${dir}`);
     } catch (err) {
+      console.error(`[Server] Failed to create directory: ${dir}`, err);
     }
   } else {
+    console.log(`[Server] Directory already exists: ${dir}`);
   }
 });
 
 // Log permissions for debugging
 try {
-  fs.accessSync(certificationsDir, fs.constants.W_OK);
+  fs.accessSync(uploadsDir, fs.constants.W_OK);
+  console.log(`[Server] Write access confirmed for: ${uploadsDir}`);
+  fs.accessSync(productsDir, fs.constants.W_OK);
+  console.log(`[Server] Write access confirmed for: ${productsDir}`);
 } catch (err) {
+  console.error(`[Server] Permission check failed:`, err);
 }
 
 /**
@@ -107,14 +116,30 @@ export function createApp(): Express {
         res.set('Content-Type', 'image/jpeg');
       } else if (filePath.endsWith('.png')) {
         res.set('Content-Type', 'image/png');
+      } else if (filePath.endsWith('.gif')) {
+        res.set('Content-Type', 'image/gif');
+      } else if (filePath.endsWith('.webp')) {
+        res.set('Content-Type', 'image/webp');
+      } else if (filePath.endsWith('.svg')) {
+        res.set('Content-Type', 'image/svg+xml');
       } else if (filePath.endsWith('.pdf')) {
         res.set('Content-Type', 'application/pdf');
+      } else {
+        // For files with unknown extension, try to get the mime type
+        const ext = path.extname(filePath).toLowerCase();
+        console.log(`[Server] Serving file with extension: ${ext} from path: ${filePath}`);
       }
       
-      // Disable caching for development
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.set('Pragma', 'no-cache');
-      res.set('Expires', '0');
+      // Modify cache control for images - cache for 1 hour in production
+      if (process.env.NODE_ENV === 'production' && 
+          (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i))) {
+        res.set('Cache-Control', 'public, max-age=3600'); // 1 hour
+      } else {
+        // Disable caching for development
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+      }
     }
   };
   
@@ -122,6 +147,43 @@ export function createApp(): Express {
   app.use('/uploads', express.static(path.join(__dirname, '../uploads'), staticOptions));
   app.use('/uploads/certifications', express.static(path.join(__dirname, '../uploads/certifications'), staticOptions));
   app.use('/uploads/profiles', express.static(path.join(__dirname, '../uploads/profiles'), staticOptions));
+  app.use('/uploads/products', express.static(path.join(__dirname, '../uploads/products'), staticOptions));
+  
+  // Add a direct route handler for product images to aid in debugging
+  app.get('/uploads/products/:filename', (req, res, next) => {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, '../uploads/products', filename);
+    
+    console.log(`[Server] Image request received for: ${filename}`);
+    console.log(`[Server] Checking file at path: ${filePath}`);
+    
+    // Check if file exists
+    if (fs.existsSync(filePath)) {
+      console.log(`[Server] File exists at: ${filePath}`);
+      
+      // Determine content type
+      let contentType = 'application/octet-stream';
+      if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+        contentType = 'image/jpeg';
+      } else if (filename.endsWith('.png')) {
+        contentType = 'image/png';
+      } else if (filename.endsWith('.gif')) {
+        contentType = 'image/gif';
+      } else if (filename.endsWith('.webp')) {
+        contentType = 'image/webp';
+      }
+      
+      console.log(`[Server] Serving file with content-type: ${contentType}`);
+      
+      // Serve the file
+      res.set('Content-Type', contentType);
+      res.set('Access-Control-Allow-Origin', '*');
+      res.sendFile(filePath);
+    } else {
+      console.log(`[Server] File NOT found at: ${filePath}`);
+      next(); // Continue to next handler (will result in 404 if none found)
+    }
+  });
   
   // Log upload paths for debugging
   
@@ -152,6 +214,7 @@ export function createApp(): Express {
   app.use('/api/certifications', certificationRoutes);
   app.use('/api/uploads', uploadRoutes);
   app.use('/api/categories', categoryRoutes);
+  app.use('/api/locations', locationRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

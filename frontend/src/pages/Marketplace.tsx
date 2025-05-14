@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
+// import Card from '../components/ui/Card'; // No longer needed directly for product items
 import { IProduct, ProductFilters } from '../interfaces/product';
 import api from '../services/api';
 import Header from '../components/layout/Header';
-import UserProfile from '../components/common/UserProfile';
+// import UserProfile from '../components/common/UserProfile'; // UserProfile is now within ProductCard if needed
+import ProductCard from '../components/products/ProductCard'; // Import ProductCard
 
 interface Seller {
   id: string;
@@ -36,16 +37,15 @@ const Marketplace: React.FC = () => {
     try {
       // Construct query parameters from filters
       const queryParams = new URLSearchParams();
-      if (filters.category) queryParams.append('category', filters.category);
-      if (filters.region) queryParams.append('region', filters.region);
-      if (filters.quality) queryParams.append('quality', filters.quality);
+      if (filters.category) queryParams.append('categoryId', filters.category);
+      if (filters.region) queryParams.append('department', filters.region);
       if (filters.sortBy) queryParams.append('sortBy', filters.sortBy);
 
       const response = await api.get(`/api/products?${queryParams.toString()}`);
       
-      if (response.data.success) {
-        setProducts(response.data.data);
-        setTotalProducts(response.data.total || response.data.data.length);
+      if (response.data.success && response.data.data) {
+        setProducts(response.data.data.products || []);
+        setTotalProducts(response.data.data.pagination?.total || (response.data.data.products || []).length);
       } else {
         throw new Error(response.data.error?.message || 'Error al cargar productos');
       }
@@ -120,19 +120,6 @@ const Marketplace: React.FC = () => {
           <div className="w-full sm:w-auto">
             <select
               className="w-full py-2 px-3 border border-gray-0-5 rounded-md focus:outline-none focus:ring-2 focus:ring-green-1"
-              value={filters.quality || ''}
-              onChange={(e) => handleFilterChange('quality', e.target.value)}
-            >
-              <option value="">Calidad</option>
-              <option value="Premium">Premium</option>
-              <option value="Estándar">Estándar</option>
-              <option value="Económico">Económico</option>
-            </select>
-          </div>
-
-          <div className="w-full sm:w-auto">
-            <select
-              className="w-full py-2 px-3 border border-gray-0-5 rounded-md focus:outline-none focus:ring-2 focus:ring-green-1"
               value={filters.sortBy || ''}
               onChange={(e) => handleFilterChange('sortBy', e.target.value)}
             >
@@ -165,73 +152,16 @@ const Marketplace: React.FC = () => {
 
         {/* Products grid */}
         {!isLoading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.length > 0 ? (
               products.map((product) => (
-                <Card key={product.id} className="relative">
-                  {/* Favorite button */}
-                  <button 
-                    className="absolute top-4 right-4 text-gray-0-5 hover:text-yellow-1"
-                    onClick={() => addToFavorites(product.id || '')}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-
-                  {/* Product image */}
-                  <div className="aspect-w-16 aspect-h-9 mb-4 cursor-pointer" onClick={() => navigate(`/product/${product.id}`)}>
-                    {product.images && product.images.length > 0 ? (
-                      <img 
-                        src={product.images[0]} 
-                        alt={product.name} 
-                        className="w-full h-48 object-cover rounded-md"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-md">
-                        <span className="text-gray-500">Sin imagen</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Product details */}
-                  <div className="cursor-pointer" onClick={() => navigate(`/product/${product.id}`)}>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{product.name}</h3>
-                    <p className="text-green-1 font-bold text-xl mb-2">
-                      ${product.price.toLocaleString('es-CO')} COP/{product.unitMeasure}
-                    </p>
-                    <div className="mb-2">
-                      <span className="text-sm text-gray-1">Región: {product.region}</span>
-                    </div>
-                  </div>
-
-                  {/* Seller info */}
-                  {product.seller && (
-                    <div className="border-t border-gray-0-5 mt-3 pt-3">
-                      <UserProfile 
-                        user={product.seller} 
-                        variant="basic" 
-                        showActions={true}
-                      />
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="mt-4 flex space-x-2">
-                    <button
-                      onClick={() => navigate(`/product/${product.id}`)}
-                      className="flex-1 bg-green-0-5 hover:bg-green-0-6 text-green-1 py-2 px-4 rounded transition-colors"
-                    >
-                      Ver Detalles
-                    </button>
-                    <button
-                      onClick={() => addToCart(product.id || '')}
-                      className="flex-1 bg-green-1 hover:bg-green-0-9 text-white py-2 px-4 rounded transition-colors"
-                    >
-                      Agregar al Carrito
-                    </button>
-                  </div>
-                </Card>
+                <ProductCard 
+                  key={product.id}
+                  product={product}
+                  onViewDetails={(productId) => navigate(`/product/${productId}`)}
+                  onAddToCart={addToCart}
+                  viewContext="marketplace"
+                />
               ))
             ) : (
               <div className="col-span-full text-center py-12">

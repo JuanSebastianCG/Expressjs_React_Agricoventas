@@ -5,17 +5,43 @@ export interface IProduct {
   id?: string;
   name: string;
   description: string;
-  category: string;
-  region: string;
-  quality: string;
+  categoryId?: string;
+  category?: {
+    id: string;
+    name: string;
+    description?: string | null;
+    parentId?: string | null;
+  } | null;
+  region?: string;
   price: number;
   availableQuantity: number;
   unitMeasure: string;
-  certifications: string[];
-  images: string[];
+  images: Array<{
+    id: string;
+    imageUrl: string;
+    altText?: string | null;
+    isPrimary: boolean;
+    displayOrder: number;
+  }>;
   isFeatured?: boolean;
   sellerId?: string;
-  sellerName?: string;
+  seller?: {
+    id: string;
+    username: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  };
+  originLocation?: {
+    id: string;
+    addressLine1: string;
+    city: string;
+    department: string;
+  };
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date | null;
+  averageRating?: number | null;
+  reviewCount?: number;
 }
 
 /**
@@ -36,6 +62,5 @@ export interface IProductService {
 export interface ProductFilters {
   category?: string;
   region?: string;
-  quality?: string;
   sortBy?: string;
 } 

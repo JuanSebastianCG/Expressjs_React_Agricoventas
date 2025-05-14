@@ -193,4 +193,75 @@ router.put(
   }
 );
 
+/**
+ * @swagger
+ * /users/{userId}/location:
+ *   get:
+ *     summary: Get a user's primary location
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID. Use 'me' to get the current authenticated user's primary location.
+ *     responses:
+ *       200:
+ *         description: User's primary location details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Location' # Assuming you have a Location schema defined
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found or primary location not set
+ */
+// Get user's primary location
+router.get(
+  "/:userId/location", 
+  authenticate, 
+  (req, res) => userController.getUserPrimaryLocation(req, res)
+);
+
+/**
+ * @swagger
+ * /users/me/location:
+ *   get:
+ *     summary: Get the current authenticated user's primary location
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user's primary location details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Location' # Assuming you have a Location schema defined
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found or primary location not set
+ */
+// Get current user's primary location
+router.get(
+  "/me/location", 
+  authenticate, 
+  (req, res) => {
+    // The controller's getUserPrimaryLocation method handles 'me' by looking at req.user.userId
+    // So we can directly call it. For clarity in Swagger, we define a separate /me/location path,
+    // but the controller logic for /:userId/location can resolve 'me' if passed.
+    // To make this route work as expected, we ensure the controller logic correctly handles `req.params.userId` being 'me'.
+    // Since the controller already handles 'me' if `req.params.userId` is 'me', we can just pass it.
+    // Or, more explicitly, we can ensure 'me' is set in params if this specific route is hit.
+    // For this setup, getUserPrimaryLocation should check if param is 'me' and use req.user.id.
+    req.params.userId = 'me'; // Ensure 'me' is passed to controller for this specific route.
+    userController.getUserPrimaryLocation(req, res);
+  }
+);
+
 export default router; 
