@@ -854,16 +854,16 @@ const ProductCreate: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Precio (COP) <span className="text-red-1">*</span>
                     </label>
-                    <StyledInput
-                      name="price"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      error={errors.price}
-                      required
-                    />
+                  <StyledInput
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    error={errors.price}
+                    required
+                  />
                   </div>
 
                   <StyledInput
@@ -876,7 +876,7 @@ const ProductCreate: React.FC = () => {
                     error={errors.availableQuantity}
                     required
                   />
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Unidad de Medida <span className="text-red-1">*</span>

@@ -425,17 +425,13 @@ const ProductDetail: React.FC = () => {
                 <div className="flex items-center justify-between border-t border-b py-4 my-4">
                   <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-3 overflow-hidden">
-                      {product.seller?.profileImage ? (
-                        <img src={product.seller.profileImage} alt={sellerFullName} className="w-full h-full object-cover" />
-                      ) : (
                         <span className="text-lg font-semibold text-white">{sellerFullName.charAt(0)}</span>
-                      )}
                     </div>
                     <div>
                       <p className="font-medium text-gray-800">{sellerFullName}</p>
                       <div className="flex items-center">
                         <span className="text-xs bg-green-0-5 text-green-1 px-2 py-0.5 rounded-full mr-2">Verificado</span>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Certificación De producto</span>
+                       {/*  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Certificación De producto</span> */}
                       </div>
                     </div>
                   </div>
@@ -452,14 +448,7 @@ const ProductDetail: React.FC = () => {
                     </svg>
                     Añadir al carrito
                   </button>
-                  <button 
-                    className="w-full py-3 px-4 bg-green-1 hover:bg-green-0-9 text-white font-medium rounded-md flex items-center justify-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    Enviar mensaje
-                  </button>
+
                 </div>
               </div>
             </div>

@@ -16,7 +16,7 @@ import UploadCertificate from './pages/user/UploadCertificate';
 import CertificationApproval from './pages/admin/CertificationApproval';
 import ManageCategories from './pages/admin/ManageCategories';
 import ProductDetail from './pages/products/ProductDetail';
-import NotFound from './pages/NotFound';
+import CartPage from './pages/cart/CartPage';
 // import UserCertifications from './pages/user/UserCertifications';
 import './index.css';
 import { CartProvider } from './context/CartContext';
@@ -111,6 +111,8 @@ const App: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/mercado-general" element={<Marketplace />} />
+          {/* Add the cart page route */}
+          <Route path="/carrito" element={<CartPage />} />
           
           {/* Rutas protegidas para usuarios regulares */}
           <Route path="/dashboard" element={
@@ -194,7 +196,7 @@ const App: React.FC = () => {
           </Route>
           
           {/* Ruta para manejar rutas no encontradas */}
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </CartProvider>
     </Router>

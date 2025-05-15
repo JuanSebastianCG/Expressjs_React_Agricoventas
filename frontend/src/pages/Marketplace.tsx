@@ -6,6 +6,10 @@ import api from '../services/api';
 import Header from '../components/layout/Header';
 // import UserProfile from '../components/common/UserProfile'; // UserProfile is now within ProductCard if needed
 import ProductCard from '../components/products/ProductCard'; // Import ProductCard
+import CartIcon from '../components/cart/CartIcon';
+import { useCart } from '../context/CartContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Seller {
   id: string;
@@ -18,6 +22,7 @@ interface Seller {
 
 interface ProductWithSeller extends IProduct {
   seller?: Seller;
+  stockQuantity?: number; // Add stockQuantity field for backend compatibility
 }
 
 const Marketplace: React.FC = () => {
@@ -27,7 +32,8 @@ const Marketplace: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ProductFilters>({});
   const [totalProducts, setTotalProducts] = useState(0);
-
+  const { addItem } = useCart();
+  
   useEffect(() => {
     fetchProducts();
   }, [filters]);
@@ -44,8 +50,23 @@ const Marketplace: React.FC = () => {
       const response = await api.get(`/products?${queryParams.toString()}`);
       
       if (response.data.success && response.data.data) {
-        setProducts(response.data.data.products || []);
-        setTotalProducts(response.data.data.pagination?.total || (response.data.data.products || []).length);
+        console.log("API Response:", response.data);
+        console.log("Example product:", response.data.data.products?.[0]);
+        
+        // Normalize the product data to ensure it has the fields we need
+        const normalizedProducts = (response.data.data.products || []).map((product: any) => {
+          // The backend might use different field names (basePrice/price, stockQuantity/availableQuantity)
+          return {
+            ...product,
+            price: product.price || product.basePrice,
+            availableQuantity: product.availableQuantity || product.stockQuantity || 999
+          };
+        });
+        
+        console.log("Normalized products:", normalizedProducts[0]);
+        
+        setProducts(normalizedProducts);
+        setTotalProducts(response.data.data.pagination?.total || normalizedProducts.length);
       } else {
         throw new Error(response.data.error?.message || 'Error al cargar productos');
       }
@@ -64,23 +85,62 @@ const Marketplace: React.FC = () => {
     }));
   };
 
-  const addToFavorites = (productId: string) => {
-    console.log(`Added product ${productId} to favorites`);
-    // Implement favorites functionality
-  };
+  const handleAddToCart = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+      toast.error('Producto no encontrado');
+      return;
+    }
 
-  const addToCart = (productId: string) => {
-    console.log(`Added product ${productId} to cart`);
-    // Implement cart functionality
+    // Add debug logging
+    console.log("Product being added to cart:", product);
+    console.log("Product availableQuantity:", product.availableQuantity);
+    console.log("Product stockQuantity:", product.stockQuantity);
+    
+    // Get primary image URL if available
+    const primaryImage = product.images?.find(img => img.isPrimary);
+    const imageUrl = primaryImage?.imageUrl || product.images?.[0]?.imageUrl;
+
+    // The backend might be using stockQuantity instead of availableQuantity
+    // Let's check both fields and use the one that's available
+    const stockAmount = typeof product.stockQuantity === 'number' ? 
+      product.stockQuantity : 
+      (typeof product.availableQuantity === 'number' ? 
+        product.availableQuantity : 0);
+
+    // Check if there is stock available
+    if (stockAmount <= 0) {
+      toast.error(`${product.name} no está disponible en inventario`);
+      return;
+    }
+
+    addItem({
+      productId: product.id || '',
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      unitMeasure: product.unitMeasure,
+      imageUrl,
+      sellerName: product.seller ? `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() : 'Agricultor verificado',
+      stockQuantity: stockAmount // Use the correct stock amount
+    });
+
+    toast.success(`${product.name} agregado al carrito`);
+    navigate('/carrito');
   };
 
   return (
     <>
       <Header />
       <div className="bg-green-1 text-white py-6">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl font-bold">Bienvenido a tu mercado agrícola</h1>
-          <p className="mt-2">Compra y vende directamente con productores</p>
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Bienvenido a tu mercado agrícola</h1>
+            <p className="mt-2">Compra y vende directamente con productores</p>
+          </div>
+          <div className="flex items-center">
+            <CartIcon className="text-white" />
+          </div>
         </div>
       </div>
 
@@ -159,7 +219,7 @@ const Marketplace: React.FC = () => {
                   key={product.id}
                   product={product}
                   onViewDetails={(productId) => navigate(`/product/${productId}`)}
-                  onAddToCart={addToCart}
+                  onAddToCart={handleAddToCart}
                   viewContext="marketplace"
                 />
               ))
@@ -183,6 +243,19 @@ const Marketplace: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Toast notifications */}
+      <ToastContainer 
+        position="bottom-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </>
   );
 };

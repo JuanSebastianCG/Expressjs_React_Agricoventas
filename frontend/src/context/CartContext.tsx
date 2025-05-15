@@ -9,6 +9,8 @@ export interface CartItem {
   quantity: number;
   unitMeasure: string;
   imageUrl?: string;
+  sellerName?: string;
+  stockQuantity: number;
 }
 
 // Define the context type
@@ -36,37 +38,82 @@ const CartContext = createContext<CartContextType>({
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load cart from localStorage or initialize empty
   const [items, setItems] = useState<CartItem[]>(() => {
+    // Load cart from localStorage on initial render
     const savedCart = localStorage.getItem('cart');
-    return savedCart ? JSON.parse(savedCart) : [];
+    if (!savedCart) return [];
+    
+    try {
+      const parsedCart = JSON.parse(savedCart);
+      
+      // Validate that parsed items have the required stockQuantity field
+      // If any items don't have stockQuantity, it's safer to clear the cart
+      const isValid = Array.isArray(parsedCart) && parsedCart.every(
+        (item: any) => typeof item.stockQuantity === 'number'
+      );
+      
+      return isValid ? parsedCart : [];
+    } catch (e) {
+      console.error('Error parsing cart from localStorage:', e);
+      return [];
+    }
   });
-
-  // Calculate total items and price
-  const totalItems = items.reduce((total, item) => total + item.quantity, 0);
-  const totalPrice = items.reduce((total, item) => total + item.price * item.quantity, 0);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(items));
   }, [items]);
 
+  // Calculate total items and price
+  const totalItems = items.reduce((total, item) => total + item.quantity, 0);
+  const totalPrice = items.reduce((total, item) => total + (item.price * item.quantity), 0);
+
   // Add an item to the cart
   const addItem = (itemToAdd: Omit<CartItem, 'id'>) => {
-    setItems(prevItems => {
-      // Check if the item already exists in the cart
-      const existingItemIndex = prevItems.findIndex(item => item.productId === itemToAdd.productId);
-      
+    // Ensure stockQuantity is a number, default to a reasonable value if not provided
+    const stockQty = typeof itemToAdd.stockQuantity === 'number' && !isNaN(itemToAdd.stockQuantity) ? 
+      itemToAdd.stockQuantity : 
+      (itemToAdd.stockQuantity ? Number(itemToAdd.stockQuantity) : 999); // Default to 999 if undefined/invalid
+    
+    // Only block if explicitly 0 or negative
+    if (stockQty < 0) {
+      console.error('Invalid stock quantity:', itemToAdd.stockQuantity);
+      alert('Error: No se puede agregar producto sin stock disponible.');
+      return;
+    }
+    
+    setItems((prevItems) => {
+      // Check if item already exists in cart
+      const existingItemIndex = prevItems.findIndex(
+        item => item.productId === itemToAdd.productId
+      );
+
       if (existingItemIndex >= 0) {
-        // Update quantity if item exists
+        // Item exists, update quantity
         const updatedItems = [...prevItems];
-        updatedItems[existingItemIndex].quantity += itemToAdd.quantity;
-        return updatedItems;
+        const existingItem = updatedItems[existingItemIndex];
+        
+        // Calculate new quantity, but don't exceed stock if we know it
+        const newQuantity = existingItem.quantity + 1;
+        if (stockQty === 999 || newQuantity <= stockQty) {
+          updatedItems[existingItemIndex] = {
+            ...existingItem,
+            quantity: newQuantity,
+            stockQuantity: stockQty // Update stock quantity in case it changed
+          };
+          return updatedItems;
+        } else {
+          // Stock limit reached, return unchanged
+          alert(`No se pueden agregar más unidades. Stock disponible: ${stockQty}`);
+          return prevItems;
+        }
       } else {
-        // Add new item with a generated ID
-        return [...prevItems, {
-          ...itemToAdd,
-          id: `cart-item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        // Item doesn't exist, add new item with validated stockQuantity
+        return [...prevItems, { 
+          ...itemToAdd, 
+          id: `${Date.now()}`, 
+          quantity: 1,
+          stockQuantity: stockQty
         }];
       }
     });
@@ -79,32 +126,45 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Update the quantity of an item
   const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(productId);
-      return;
-    }
-    
-    setItems(prevItems => 
-      prevItems.map(item => 
-        item.productId === productId ? { ...item, quantity } : item
-      )
-    );
+    setItems(prevItems => {
+      const updatedItems = [...prevItems];
+      const itemIndex = updatedItems.findIndex(item => item.productId === productId);
+      
+      if (itemIndex >= 0) {
+        const item = updatedItems[itemIndex];
+        
+        // Validate quantity against stock
+        const stockQty = typeof item.stockQuantity === 'number' && !isNaN(item.stockQuantity) ?
+          item.stockQuantity : 999; // Default to 999 if undefined/invalid
+        
+        if (stockQty === 999 || quantity <= stockQty) {
+          updatedItems[itemIndex] = { ...item, quantity };
+          return updatedItems;
+        } else {
+          // Show alert if quantity exceeds stock
+          alert(`No se pueden agregar más unidades. Stock disponible: ${stockQty}`);
+          return prevItems;
+        }
+      }
+      
+      return updatedItems;
+    });
   };
 
-  // Clear the entire cart
+  // Clear the cart
   const clearCart = () => {
     setItems([]);
   };
 
   return (
-    <CartContext.Provider value={{
-      items,
-      addItem,
-      removeItem,
-      updateQuantity,
-      clearCart,
-      totalItems,
-      totalPrice
+    <CartContext.Provider value={{ 
+      items, 
+      addItem, 
+      removeItem, 
+      updateQuantity, 
+      clearCart, 
+      totalItems, 
+      totalPrice 
     }}>
       {children}
     </CartContext.Provider>
