@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Card from '../components/ui/Card';
@@ -6,6 +6,14 @@ import MainLayout from '../components/layout/MainLayout';
 import PageContainer from '../components/layout/PageContainer';
 import StyledButton from '../components/ui/StyledButton';
 import { navigateToProducts } from '../App';
+import api from '../services/api';
+
+interface DashboardStats {
+  productCount: number;
+  orderCount: number;
+  totalRevenue: number;
+  pendingOrders: number;
+}
 
 const Dashboard: React.FC = () => {
   const { user } = useAppContext();
@@ -13,16 +21,166 @@ const Dashboard: React.FC = () => {
   const isSeller = user?.userType === 'SELLER' || user?.userType === 'ADMIN';
   const navigate = useNavigate();
 
+  // Estados para los datos dinámicos
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    productCount: 0,
+    orderCount: 0,
+    totalRevenue: 0,
+    pendingOrders: 0
+  });
+  
+  // Estados separados para el loading de cada sección
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  
+  // Estados separados para los errores
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchProductData();
+      fetchOrderData();
+    }
+  }, [user]);
+
+  // Función para obtener los datos de productos
+  const fetchProductData = async () => {
+    setProductsLoading(true);
+    setProductsError(null);
+    
+    try {
+      // Obtener recuento de productos del usuario
+      let productCount = 0;
+      if (isSeller) {
+        const productsResponse = await api.get('/products', {
+          params: { sellerId: user?.id }
+        });
+        
+        if (productsResponse.data.success) {
+          if (productsResponse.data.data.pagination) {
+            productCount = productsResponse.data.data.pagination.total;
+          } else if (Array.isArray(productsResponse.data.data.products)) {
+            productCount = productsResponse.data.data.products.length;
+          } else if (Array.isArray(productsResponse.data.data)) {
+            productCount = productsResponse.data.data.length;
+          }
+          
+          // Actualizar solo la parte de productos
+          setDashboardStats(prev => ({
+            ...prev,
+            productCount
+          }));
+        } else {
+          throw new Error(productsResponse.data.error?.message || 'Error al cargar productos');
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching product data:", err);
+      setProductsError("No se pudieron cargar los datos de productos");
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  // Función separada para obtener datos de pedidos
+  const fetchOrderData = async () => {
+    setOrdersLoading(true);
+    setOrdersError(null);
+    
+    try {
+      // Obtener pedidos del usuario
+      let orderCount = 0;
+      let totalRevenue = 0;
+      let pendingOrders = 0;
+      
+      // Para vendedores, buscamos pedidos donde sus productos fueron vendidos
+      // Para compradores, buscamos pedidos que ellos han realizado
+      const orderEndpoint = isSeller ? '/orders/seller' : '/orders';
+      
+      const ordersResponse = await api.get(orderEndpoint);
+      
+      if (ordersResponse.data.success) {
+        // Procesar datos de pedidos
+        const orders = Array.isArray(ordersResponse.data.data)
+          ? ordersResponse.data.data
+          : (ordersResponse.data.data.orders || []);
+        
+        orderCount = orders.length;
+        
+        // Calcular ingresos y pedidos pendientes
+        orders.forEach((order: any) => {
+          totalRevenue += parseFloat(order.totalAmount || 0);
+          if (order.status === 'PENDING' || order.status === 'PROCESSING') {
+            pendingOrders++;
+          }
+        });
+        
+        // Actualizar solo la parte de pedidos
+        setDashboardStats(prev => ({
+          ...prev,
+          orderCount,
+          totalRevenue,
+          pendingOrders
+        }));
+      } else {
+        throw new Error(ordersResponse.data.error?.message || 'Error al cargar pedidos');
+      }
+    } catch (err: any) {
+      console.error("Error fetching order data:", err);
+      // Mensaje de error más específico 
+      const errorMessage = err.response?.status === 500 
+        ? "Error del servidor al cargar pedidos. El endpoint puede no estar implementado." 
+        : "No se pudieron cargar los datos de pedidos";
+      setOrdersError(errorMessage);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+  };
+
   const goToProducts = () => {
     navigateToProducts();
   };
-
-  
 
   return (
     <MainLayout>
       <div className="container mx-auto py-6 px-4">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Panel de Control</h1>
+        
+        {/* Mensaje de error para productos */}
+        {productsError && (
+          <div className="mb-6 bg-red-100 border-l-4 border-red-1 text-red-1 p-4 rounded-md">
+            <p>{productsError}</p>
+            <button 
+              onClick={fetchProductData}
+              className="mt-2 text-sm underline"
+            >
+              Reintentar carga de productos
+            </button>
+          </div>
+        )}
+        
+        {/* Mensaje de error para pedidos */}
+        {ordersError && (
+          <div className="mb-6 bg-yellow-100 border-l-4 border-yellow-1 text-yellow-1 p-4 rounded-md">
+            <p>{ordersError}</p>
+            <button 
+              onClick={fetchOrderData}
+              className="mt-2 text-sm underline"
+            >
+              Reintentar carga de pedidos
+            </button>
+          </div>
+        )}
         
         {/* Prominent Products button for sellers */}
         {isSeller && (
@@ -68,7 +226,11 @@ const Dashboard: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-medium ml-4 text-gray-800">Mis Productos</h3>
                 </div>
-                <p className="text-3xl font-bold text-gray-900 mb-3">12</p>
+                {productsLoading ? (
+                  <div className="h-12 bg-gray-200 animate-pulse rounded-md mb-3"></div>
+                ) : (
+                  <p className="text-3xl font-bold text-gray-900 mb-3">{dashboardStats.productCount}</p>
+                )}
                 <p className="text-sm text-gray-500 mb-4">
                   Gestiona tus productos agrícolas en venta.
                 </p>
@@ -104,7 +266,25 @@ const Dashboard: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-medium ml-4 text-gray-800">Mis Pedidos</h3>
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-3">8</p>
+              {ordersLoading ? (
+                <div className="h-12 bg-gray-200 animate-pulse rounded-md mb-3"></div>
+              ) : ordersError ? (
+                <div className="flex items-center text-yellow-1">
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm">Datos no disponibles</span>
+                </div>
+              ) : (
+                <p className="text-3xl font-bold text-gray-900 mb-3">
+                  {dashboardStats.orderCount}
+                  {dashboardStats.pendingOrders > 0 && (
+                    <span className="text-sm font-normal text-yellow-1 ml-2">
+                      ({dashboardStats.pendingOrders} pendientes)
+                    </span>
+                  )}
+                </p>
+              )}
               <p className="text-sm text-gray-500 mb-4">
                 Consulta el estado de tus pedidos activos.
               </p>
@@ -131,7 +311,20 @@ const Dashboard: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-medium ml-4 text-gray-800">Ingresos</h3>
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-3">$2,500</p>
+              {ordersLoading ? (
+                <div className="h-12 bg-gray-200 animate-pulse rounded-md mb-3"></div>
+              ) : ordersError ? (
+                <div className="flex items-center text-yellow-1">
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm">Datos no disponibles</span>
+                </div>
+              ) : (
+                <p className="text-3xl font-bold text-gray-900 mb-3">
+                  {formatCurrency(dashboardStats.totalRevenue)}
+                </p>
+              )}
               <p className="text-sm text-gray-500 mb-4">
                 Resumen de tus ingresos por ventas.
               </p>
@@ -146,8 +339,6 @@ const Dashboard: React.FC = () => {
               </Link>
             </div>
           </Card>
-          
-
           
           {/* Acciones rápidas */}
           <Card className="col-span-full bg-white shadow-sm">
@@ -200,7 +391,6 @@ const Dashboard: React.FC = () => {
             </div>
           </Card>
 
-
           {/* Admin Panel - Prominently displayed for admins */}
           {isAdmin && (
             <div className="mb-8 bg-green-0-5 rounded-lg p-6 shadow-md">
@@ -221,9 +411,6 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           )}
-          
-
-
         </div>
       </div>
     </MainLayout>

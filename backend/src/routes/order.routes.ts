@@ -34,6 +34,36 @@ router.post(
 
 /**
  * @swagger
+ * /orders/seller:
+ *   get:
+ *     summary: Get orders for the current seller
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: List of orders for the seller
+ */
+router.get("/seller", authenticate, authorize(["SELLER", "ADMIN"]), (req, res) => orderController.getSellerOrders(req, res));
+
+/**
+ * @swagger
  * /orders/{orderId}:
  *   get:
  *     summary: Get an order by ID

@@ -495,6 +495,124 @@ export class OrderController {
   }
 
   /**
+   * Get orders for the current seller
+   * @param req Express request
+   * @param res Express response
+   */
+  async getSellerOrders(req: Request, res: Response): Promise<void> {
+    try {
+      // Verify seller ID is available from the authenticated user
+      if (!req.user || !req.user.userId) {
+        sendErrorResponse(res, "Authentication required", HttpStatusCode.UNAUTHORIZED);
+        return;
+      }
+
+      const sellerId = req.user.userId;
+
+      // Parse query parameters
+      const status = req.query.status as string;
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 10;
+      const sortBy = (req.query.sortBy as string) || "createdAt";
+      const sortOrder = (req.query.sortOrder as "asc" | "desc") || "desc";
+
+      const skip = (page - 1) * limit;
+
+      // Build where clause for filtering
+      const where: any = {
+        items: {
+          some: {
+            product: {
+              sellerId
+            }
+          }
+        }
+      };
+
+      // Add status filter if provided
+      if (status) {
+        where.status = status;
+      }
+
+      // Find orders containing products sold by the seller
+      const [orders, total] = await Promise.all([
+        prisma.order.findMany({
+          where,
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    basePrice: true,
+                    sellerId: true,
+                    images: {
+                      where: { isPrimary: true },
+                      take: 1
+                    }
+                  }
+                }
+              }
+            },
+            buyer: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
+          },
+          skip,
+          take: limit,
+          orderBy: { [sortBy]: sortOrder }
+        }),
+        prisma.order.count({
+          where
+        })
+      ]);
+
+      // Filter items in each order to only include items from the current seller
+      const processedOrders = orders.map(order => {
+        // Only include items that belong to this seller
+        const sellerItems = order.items.filter(item => 
+          item.product && item.product.sellerId === sellerId
+        );
+        
+        // Calculate seller's portion of the order total
+        const sellerTotal = sellerItems.reduce((sum, item) => 
+          sum + (item.unitPrice * item.quantity), 0
+        );
+
+        return {
+          ...order,
+          items: sellerItems,
+          // Include the seller's portion of the order
+          sellerTotal
+        };
+      });
+
+      sendSuccessResponse(res, {
+        orders: processedOrders.map(this.mapToOrderResponse),
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit),
+        }
+      });
+    } catch (error: any) {
+      console.error("Error in getSellerOrders:", error);
+      sendErrorResponse(res, 
+        error.message || "Failed to fetch seller orders", 
+        HttpStatusCode.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
    * Map order entity to order response
    * @param order Order entity with relations
    * @returns Order response
