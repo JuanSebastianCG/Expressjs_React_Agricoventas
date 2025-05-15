@@ -64,6 +64,11 @@ const MyOrders: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage, setOrdersPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  
   // Check if user is authenticated
   useEffect(() => {
     if (!isAuthenticated) {
@@ -79,27 +84,31 @@ const MyOrders: React.FC = () => {
     try {
       const response = await api.get('/orders', {
         params: { 
-          buyerUserId: user.id,
+          buyerUserId: user?.id,
           page: currentPage,
           limit: ordersPerPage
         }
       });
       
       if (response.data.success) {
-        // Ensure data is an array
-        const ordersData = Array.isArray(response.data.data) 
-          ? response.data.data 
-          : [];
-        
-        // If no orders returned from API, use mock data for testing
-        if (ordersData.length === 0) {
+        // Check if data is structured with pagination
+        if (response.data.data && response.data.data.orders) {
+          setOrders(response.data.data.orders);
+          setTotalPages(response.data.data.pagination?.pages || 1);
+        } 
+        // Check if data is just an array of orders
+        else if (Array.isArray(response.data.data)) {
+          setOrders(response.data.data);
+        }
+        // If no orders, use mock data for development
+        else if (response.data.data && Array.isArray(response.data.data.orders) && response.data.data.orders.length === 0) {
           console.log('No orders returned from API, using mock data for testing');
           setOrders(MOCK_ORDERS);
         } else {
-          setOrders(ordersData);
+          setOrders([]);
         }
       } else {
-        // If API call fails, use mock data
+        // If API call fails, use mock data for development
         console.log('API call failed, using mock data for testing');
         setOrders(MOCK_ORDERS);
         throw new Error(response.data.error?.message || 'Error al cargar pedidos');
@@ -259,7 +268,7 @@ const MyOrders: React.FC = () => {
                       
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => navigate(`/pedido/${order.id}`)}
+                          onClick={() => navigate(`/pedidos/${order.id}`)}
                           className="bg-gray-50 hover:bg-gray-100 text-gray-600 py-2 px-4 text-sm rounded transition-colors"
                         >
                           Ver detalles

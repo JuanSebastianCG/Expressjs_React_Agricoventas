@@ -12,6 +12,7 @@ import Marketplace from './pages/Marketplace';
 import ProductCreate from './pages/products/ProductCreate';
 import MyProducts from './pages/products/MyProducts';
 import MyOrders from './pages/orders/MyOrders';
+import OrderDetails from './pages/orders/OrderDetails';
 import UploadCertificate from './pages/user/UploadCertificate';
 import CertificationApproval from './pages/admin/CertificationApproval';
 import ManageCategories from './pages/admin/ManageCategories';
@@ -174,6 +175,12 @@ const App: React.FC = () => {
           <Route path="/mis-pedidos" element={
             <ProtectedRoute>
               <MyOrders />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/pedidos/:orderId" element={
+            <ProtectedRoute>
+              <OrderDetails />
             </ProtectedRoute>
           } />
           

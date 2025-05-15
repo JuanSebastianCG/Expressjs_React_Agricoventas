@@ -5,11 +5,15 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import { useCart } from '../../context/CartContext';
+import { useAppContext } from '../../context/AppContext';
+import api from '../../services/api';
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
-  const { items, totalItems, totalPrice, updateQuantity, removeItem } = useCart();
+  const { items, totalItems, totalPrice, updateQuantity, removeItem, clearCart } = useCart();
+  const { user } = useAppContext();
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity > 0) {
@@ -40,7 +44,51 @@ const CartPage: React.FC = () => {
   };
 
   const handleCheckout = () => {
-    navigate('/checkout');
+    if (!user || !user.id) {
+      alert('Debes iniciar sesión para realizar un pedido');
+      navigate('/login');
+      return;
+    }
+    
+    // Show a confirmation dialog
+    if (window.confirm('¿Estás seguro de que deseas finalizar la compra?')) {
+      // Create an array of cart items formatted for the API
+      const orderItems = items.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity
+      }));
+      
+      // Set loading state to show processing
+      setIsProcessing(true);
+      
+      // Call the API to create an order
+      api.post('/orders', {
+        items: orderItems,
+        paymentMethod: 'CASH', // Default payment method
+        buyerUserId: user.id,
+        notes: 'Orden realizada desde la página web'
+      })
+      .then(response => {
+        if (response.data.success) {
+          // Clear the cart after successful order creation
+          clearCart();
+          // Show success message
+          alert('¡Tu pedido ha sido procesado correctamente!');
+          // Navigate to the order details page
+          navigate(`/pedidos/${response.data.data.id}`);
+        } else {
+          throw new Error(response.data.error?.message || 'Error al procesar el pedido');
+        }
+      })
+      .catch(error => {
+        console.error('Error creating order:', error);
+        const errorMessage = error.response?.data?.error?.message || error.message || 'Error desconocido';
+        alert(`Error al procesar el pedido: ${errorMessage}`);
+      })
+      .finally(() => {
+        setIsProcessing(false);
+      });
+    }
   };
 
   const handleContinueShopping = () => {
@@ -249,12 +297,22 @@ const CartPage: React.FC = () => {
                   <button
                     onClick={handleCheckout}
                     className="w-full bg-green-1 hover:bg-green-0-9 text-white py-3 px-4 rounded-md shadow-sm transition-colors font-medium"
+                    disabled={isProcessing}
                   >
-                    Finalizar Compra
+                    {isProcessing ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Procesando...
+                      </span>
+                    ) : 'Finalizar Compra'}
                   </button>
                   <button
                     onClick={handleContinueShopping}
                     className="w-full bg-white border border-green-1 text-green-1 hover:bg-green-0-4 py-3 px-4 rounded-md transition-colors font-medium"
+                    disabled={isProcessing}
                   >
                     Seguir Comprando
                   </button>
