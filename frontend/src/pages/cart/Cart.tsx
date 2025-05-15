@@ -35,7 +35,6 @@ const Cart: React.FC = () => {
     setIsProcessing(true);
     // Simulate checkout process (would connect to backend in production)
     setTimeout(() => {
-      alert('¡Pedido procesado con éxito!');
       clearCart();
       navigate('/mis-pedidos');
       setIsProcessing(false);

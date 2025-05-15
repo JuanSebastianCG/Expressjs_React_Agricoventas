@@ -165,12 +165,10 @@ const ProductCreate: React.FC = () => {
           }
           const certificationStatus = await certificationService.verifyUserCertifications(user.id);
           if (!certificationStatus.hasAllCertifications) {
-            alert(`Para crear o editar productos necesitas tener los 4 certificados colombianos verificados. Actualmente tienes ${certificationStatus.certificationsCount.verified} de ${certificationStatus.certificationsCount.total}. Serás redirigido para completar tus certificados.`);
             navigate('/certificados');
           }
         } catch (err) {
           console.error("Error checking user certifications:", err);
-          alert(`Error al verificar tus certificados. Por favor, intenta nuevamente más tarde o contacta a soporte.`);
           navigate('/dashboard');
         } finally {
           setIsCertificateChecking(false);
@@ -462,7 +460,6 @@ const ProductCreate: React.FC = () => {
         const certificationStatus = await certificationService.verifyUserCertifications(user.id);
         if (!certificationStatus.hasAllCertifications) {
           setSubmitError('Para crear productos necesitas tener los 4 certificados colombianos verificados');
-          alert(`Para crear productos necesitas tener los 4 certificados colombianos verificados. Serás redirigido para completar tus certificados.`);
           navigate('/certificados');
           return;
         }

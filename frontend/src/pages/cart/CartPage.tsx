@@ -45,50 +45,47 @@ const CartPage: React.FC = () => {
 
   const handleCheckout = () => {
     if (!user || !user.id) {
-      alert('Debes iniciar sesión para realizar un pedido');
+      // Redirect to login without alert
       navigate('/login');
       return;
     }
     
-    // Show a confirmation dialog
-    if (window.confirm('¿Estás seguro de que deseas finalizar la compra?')) {
-      // Create an array of cart items formatted for the API
-      const orderItems = items.map(item => ({
-        productId: item.productId,
-        quantity: item.quantity
-      }));
-      
-      // Set loading state to show processing
-      setIsProcessing(true);
-      
-      // Call the API to create an order
-      api.post('/orders', {
-        items: orderItems,
-        paymentMethod: 'CASH', // Default payment method
-        buyerUserId: user.id,
-        notes: 'Orden realizada desde la página web'
-      })
-      .then(response => {
-        if (response.data.success) {
-          // Clear the cart after successful order creation
-          clearCart();
-          // Show success message
-          alert('¡Tu pedido ha sido procesado correctamente!');
-          // Navigate to the order details page
-          navigate(`/pedidos/${response.data.data.id}`);
-        } else {
-          throw new Error(response.data.error?.message || 'Error al procesar el pedido');
-        }
-      })
-      .catch(error => {
-        console.error('Error creating order:', error);
-        const errorMessage = error.response?.data?.error?.message || error.message || 'Error desconocido';
-        alert(`Error al procesar el pedido: ${errorMessage}`);
-      })
-      .finally(() => {
-        setIsProcessing(false);
-      });
-    }
+    // Remove the confirmation dialog and proceed directly
+    // Create an array of cart items formatted for the API
+    const orderItems = items.map(item => ({
+      productId: item.productId,
+      quantity: item.quantity
+    }));
+    
+    // Set loading state to show processing
+    setIsProcessing(true);
+    
+    // Call the API to create an order
+    api.post('/orders', {
+      items: orderItems,
+      paymentMethod: 'CASH', // Default payment method
+      buyerUserId: user.id,
+      notes: 'Orden realizada desde la página web'
+    })
+    .then(response => {
+      if (response.data.success) {
+        // Clear the cart after successful order creation
+        clearCart();
+        // Navigate to the order details page without alert
+        navigate(`/pedidos/${response.data.data.id}`);
+      } else {
+        throw new Error(response.data.error?.message || 'Error al procesar el pedido');
+      }
+    })
+    .catch(error => {
+      console.error('Error creating order:', error);
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Error desconocido';
+      // Log error without alert
+      console.error(`Error al procesar el pedido: ${errorMessage}`);
+    })
+    .finally(() => {
+      setIsProcessing(false);
+    });
   };
 
   const handleContinueShopping = () => {
@@ -277,7 +274,7 @@ const CartPage: React.FC = () => {
                       </svg>
                     </div>
                     <p className="text-sm text-green-1">
-                      Tiempo estimado de entrega: 2-3 días hábiles
+                      Tiempo estimado de entrega: 10-25 dias hábiles
                     </p>
                   </div>
                 </div>

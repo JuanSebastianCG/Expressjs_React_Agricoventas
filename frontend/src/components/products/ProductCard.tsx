@@ -37,12 +37,40 @@ const ProductCard: React.FC<ProductCardProps> = ({
     setCurrentImageIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
   };
 
+  const handleCardClick = () => {
+    console.log("Card clicked! Product ID:", product.id);
+    onViewDetails(product.id || '');
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click event
+    if (onAddToCart) {
+      onAddToCart(product.id || '');
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click event
+    if (onEdit) {
+      onEdit(product.id || '');
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click event
+    if (onDelete) {
+      onDelete(product.id || '');
+    }
+  };
+
   return (
-    <Card className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+    <Card 
+      className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer relative z-10" 
+      onClick={handleCardClick}
+    >
       {/* Product Image with Carousel */}
       <div 
-        className="w-full h-48 bg-gray-200 cursor-pointer overflow-hidden relative" // Added relative for button positioning
-        onClick={() => onViewDetails(product.id || '')}
+        className="w-full h-48 bg-gray-200 overflow-hidden relative"
       >
         {images.length > 0 ? (
           <img 
@@ -53,20 +81,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-gray-500">Sin imagen</span>
-          </div>
-        )}
+        </div>
+      )}
         {images.length > 1 && (
           <>
             <button 
               onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 text-white p-1 rounded-full hover:bg-opacity-50 transition-opacity focus:outline-none"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 text-white p-1 rounded-full hover:bg-opacity-50 transition-opacity focus:outline-none z-20"
               aria-label="Previous image"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <button 
               onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 text-white p-1 rounded-full hover:bg-opacity-50 transition-opacity focus:outline-none"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 text-white p-1 rounded-full hover:bg-opacity-50 transition-opacity focus:outline-none z-20"
               aria-label="Next image"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -83,15 +111,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
               ))}
             </div>
           </>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Product Info */}
+        {/* Product Info */}
       <div className="p-4 flex flex-col flex-grow">
         <h3 
-          className="text-lg font-semibold text-gray-800 mb-1 cursor-pointer truncate" 
+          className="text-lg font-semibold text-gray-800 mb-1 truncate" 
           title={product.name}
-          onClick={() => onViewDetails(product.id || '')}
         >
           {product.name}
         </h3>
@@ -104,8 +131,21 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <p className="text-sm text-gray-600 mb-1">
           Región: <span className="font-medium text-gray-700">{product.region || 'N/A'}</span>
         </p>
-        <p className="text-sm text-gray-600 mb-3">
+        <p className="text-sm text-gray-600 mb-1">
           Vendedor: <span className="font-medium text-gray-700">{sellerName}</span>
+        </p>
+        
+        {/* Stock Availability */}
+        <p className="text-sm mb-3">
+          {(product.availableQuantity > 0 || product.stockQuantity > 0) ? (
+            <span className="text-green-1 font-medium">
+              Stock: {product.availableQuantity || product.stockQuantity} {product.unitMeasure}
+            </span>
+          ) : (
+            <span className="text-red-500 font-medium">
+              Sin stock disponible
+            </span>
+          )}
         </p>
         
         {/* Spacer to push buttons to the bottom if content is short */}
@@ -113,56 +153,42 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Action Buttons based on context */}
         <div className="mt-auto pt-3 border-t border-gray-200">
-          {viewContext === 'marketplace' && (
+          {viewContext === 'marketplace' && onAddToCart && (
             <div className="flex space-x-2">
               <button
-                onClick={() => onViewDetails(product.id || '')}
-                className="flex-1 bg-green-1 hover:bg-green-0-9 text-white py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-0-8 focus:ring-opacity-50"
+                onClick={handleAddToCart}
+                disabled={!(product.availableQuantity > 0 || product.stockQuantity > 0)}
+                className={`w-full py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-opacity-50 relative z-20 ${
+                  (product.availableQuantity > 0 || product.stockQuantity > 0)
+                    ? 'bg-yellow-1 hover:bg-yellow-1-5 text-gray-800 focus:ring-yellow-2' 
+                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                }`}
               >
-                Ver Detalles
+                {(product.availableQuantity > 0 || product.stockQuantity > 0) ? 'Agregar al Carrito' : 'Sin Stock'}
               </button>
-              {onAddToCart && (
-                <button
-                  onClick={() => onAddToCart(product.id || '')}
-                  className="flex-1 bg-yellow-1 hover:bg-yellow-1-5 text-gray-800 py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-2 focus:ring-opacity-50"
-                >
-                  Agregar al Carrito
-                </button>
-              )}
-            </div>
+        </div>
           )}
           {viewContext === 'my-products' && onEdit && onDelete && (
             <div className="flex space-x-2">
-              <button
-                onClick={() => onViewDetails(product.id || '')}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
-              >
-                Detalles
-              </button>
-              <button
-                onClick={() => onEdit(product.id || '')}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
-              >
-                Editar
-              </button>
-              <button
-                onClick={() => onDelete(product.id || '')}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50"
-              >
-                Eliminar
-              </button>
-            </div>
+        <button
+                onClick={handleEditClick}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 relative z-20"
+        >
+          Editar
+        </button>
+        <button
+                onClick={handleDeleteClick}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 relative z-20"
+        >
+          Eliminar
+        </button>
+      </div>
           )}
         </div>
       </div>
       {product.isActive === false && viewContext === 'my-products' && (
         <div className="absolute top-2 right-2 bg-red-1 text-white text-xs font-semibold px-2 py-1 rounded-md shadow">
           Inactivo
-        </div>
-      )}
-       {product.isFeatured && (
-        <div className="absolute top-2 left-2 bg-yellow-1-5 text-gray-800 text-xs font-bold px-2 py-1 rounded-md shadow-lg transform -rotate-3">
-          DESTACADO
         </div>
       )}
     </Card>

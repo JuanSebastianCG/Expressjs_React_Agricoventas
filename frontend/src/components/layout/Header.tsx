@@ -242,8 +242,8 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
         {/* Mobile Menu Button and Cart Icon */}
         <div className="md:hidden flex items-center space-x-4">
           <CartIcon className="text-gray-700" />
-          <button
-            onClick={toggleMobileMenu}
+        <button
+          onClick={toggleMobileMenu}
             className="text-gray-1 hover:text-green-1 focus:outline-none"
           >
             {mobileMenuOpen ? (
@@ -252,10 +252,10 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
               </svg>
             ) : (
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
             )}
-          </button>
+        </button>
         </div>
       </div>
 
@@ -294,7 +294,7 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                   Mi Perfil
                 </Link>
                 <div className="border-t border-gray-200 pt-2">
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="text-red-600 font-medium hover:text-red-700 py-2 px-4 rounded hover:bg-gray-50 w-full text-left"
                   >
@@ -309,8 +309,8 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                   className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Iniciar Sesión
-                </Link>
+                        Iniciar Sesión
+                      </Link>
                 <Link 
                   to="/register" 
                   className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"

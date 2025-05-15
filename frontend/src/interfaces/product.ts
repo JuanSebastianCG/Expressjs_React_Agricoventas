@@ -15,6 +15,7 @@ export interface IProduct {
   region?: string;
   price: number;
   availableQuantity: number;
+  stockQuantity?: number;
   unitMeasure: string;
   images: Array<{
     id: string;

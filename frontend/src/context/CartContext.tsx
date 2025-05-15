@@ -16,7 +16,7 @@ export interface CartItem {
 // Define the context type
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, 'id'>) => void;
+  addItem: (item: Omit<CartItem, 'id'>) => boolean;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -27,7 +27,7 @@ interface CartContextType {
 // Create the context with default values
 const CartContext = createContext<CartContextType>({
   items: [],
-  addItem: () => {},
+  addItem: () => false,
   removeItem: () => {},
   updateQuantity: () => {},
   clearCart: () => {},
@@ -39,6 +39,14 @@ export const useCart = () => useContext(CartContext);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
+    // Check if user is logged in
+    const authToken = localStorage.getItem('auth_token');
+    
+    // If no auth token exists, return empty cart
+    if (!authToken) {
+      return [];
+    }
+    
     // Load cart from localStorage on initial render
     const savedCart = localStorage.getItem('cart');
     if (!savedCart) return [];
@@ -59,6 +67,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  // Check auth status changes to clear cart if user logs out
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const authToken = localStorage.getItem('auth_token');
+      if (!authToken) {
+        // User logged out, clear the cart in state
+        setItems([]);
+      }
+    };
+
+    // Listen for storage events (like logout in another tab)
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(items));
@@ -70,16 +96,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Add an item to the cart
   const addItem = (itemToAdd: Omit<CartItem, 'id'>) => {
-    // Ensure stockQuantity is a number, default to a reasonable value if not provided
+    // Ensure stockQuantity is a number, default to 0 if not provided or invalid
     const stockQty = typeof itemToAdd.stockQuantity === 'number' && !isNaN(itemToAdd.stockQuantity) ? 
-      itemToAdd.stockQuantity : 
-      (itemToAdd.stockQuantity ? Number(itemToAdd.stockQuantity) : 999); // Default to 999 if undefined/invalid
+      itemToAdd.stockQuantity : 0;
     
-    // Only block if explicitly 0 or negative
-    if (stockQty < 0) {
-      console.error('Invalid stock quantity:', itemToAdd.stockQuantity);
-      alert('Error: No se puede agregar producto sin stock disponible.');
-      return;
+    // Block if explicitly 0 or negative
+    if (stockQty <= 0) {
+      console.error('Cannot add product with no stock:', itemToAdd.name);
+      return false; // Return false to indicate failure
     }
     
     setItems((prevItems) => {
@@ -93,9 +117,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updatedItems = [...prevItems];
         const existingItem = updatedItems[existingItemIndex];
         
-        // Calculate new quantity, but don't exceed stock if we know it
+        // Calculate new quantity, but don't exceed stock
         const newQuantity = existingItem.quantity + 1;
-        if (stockQty === 999 || newQuantity <= stockQty) {
+        if (newQuantity <= stockQty) {
           updatedItems[existingItemIndex] = {
             ...existingItem,
             quantity: newQuantity,
@@ -103,8 +127,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           return updatedItems;
         } else {
-          // Stock limit reached, return unchanged
-          alert(`No se pueden agregar más unidades. Stock disponible: ${stockQty}`);
+          // Stock limit reached
+          console.log(`Cannot add more items. Available stock: ${stockQty}`);
           return prevItems;
         }
       } else {
@@ -117,6 +141,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }];
       }
     });
+    
+    return true; // Return true to indicate success
   };
 
   // Remove an item from the cart
@@ -135,15 +161,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Validate quantity against stock
         const stockQty = typeof item.stockQuantity === 'number' && !isNaN(item.stockQuantity) ?
-          item.stockQuantity : 999; // Default to 999 if undefined/invalid
+          item.stockQuantity : 0; // Default to 0 if undefined/invalid
         
-        if (stockQty === 999 || quantity <= stockQty) {
+        if (quantity <= stockQty) {
           updatedItems[itemIndex] = { ...item, quantity };
           return updatedItems;
         } else {
-          // Show alert if quantity exceeds stock
-          alert(`No se pueden agregar más unidades. Stock disponible: ${stockQty}`);
-          return prevItems;
+          // Limit to maximum available stock
+          console.log(`Cannot add more items. Available stock: ${stockQty}`);
+          updatedItems[itemIndex] = { ...item, quantity: stockQty };
+          return updatedItems;
         }
       }
       

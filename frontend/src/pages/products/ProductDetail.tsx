@@ -10,6 +10,9 @@ import { useAppContext } from '../../context/AppContext';
 import ReviewList, { ReviewItem } from '../../components/reviews/ReviewList';
 import ReviewForm from '../../components/reviews/ReviewForm';
 import ReviewStats from '../../components/reviews/ReviewStats';
+import { useCart } from '../../context/CartContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const StarRating: React.FC<{ rating: number, reviewCount?: number }> = ({ rating, reviewCount }) => {
   const fullStars = Math.floor(rating);
@@ -54,6 +57,7 @@ const ProductDetail: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAppContext();
+  const { addItem } = useCart();
   const [product, setProduct] = useState<IProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -144,8 +148,55 @@ const ProductDetail: React.FC = () => {
   const handleAddToCart = () => {
     if (!product) return;
     
-    console.log('Adding to cart:', product.id);
-    // Implementation will depend on your cart context
+    // Check if there is available stock using various potential field names and formats
+    const hasStock = (
+      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
+      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
+      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
+      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
+    );
+    
+    if (!hasStock) {
+      toast.error('Este producto no tiene stock disponible');
+      return;
+    }
+    
+    // Determine the actual stock amount
+    const stockAmount = (
+      typeof product.availableQuantity === 'number' ? product.availableQuantity :
+      typeof product.stockQuantity === 'number' ? product.stockQuantity :
+      product.availableQuantity ? parseInt(String(product.availableQuantity)) :
+      product.stockQuantity ? parseInt(String(product.stockQuantity)) :
+      0
+    );
+    
+    try {
+      // Create a cart item from the product data
+      const success = addItem({
+        productId: product.id || '',
+        name: product.name,
+        price: product.price,
+        quantity: 1, // Default quantity
+        unitMeasure: product.unitMeasure || 'unidad',
+        imageUrl: product.images?.[0]?.imageUrl || '', // First image URL if available
+        sellerName: product.seller ? 
+          `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() || 
+          ((product.seller as any)?.username || 'Vendedor') : 
+          'Vendedor',
+        stockQuantity: stockAmount
+      });
+      
+      if (success) {
+        // Show success message and navigate to cart
+        toast.success('Producto añadido al carrito');
+        navigate('/carrito');
+      } else {
+        toast.error('No se pudo añadir el producto. Stock insuficiente.');
+      }
+    } catch (error) {
+      console.error('Error adding product to cart:', error);
+      toast.error('No se pudo añadir el producto al carrito');
+    }
   };
 
   // Handle review submission complete
@@ -213,8 +264,9 @@ const ProductDetail: React.FC = () => {
   }
 
   const sellerFullName = product.seller ? 
-    `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() : 
-    product.seller?.username || 'Vendedor';
+    `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() || 
+    ((product.seller as any)?.username || 'Vendedor') : 
+    'Vendedor';
 
   return (
     <>
@@ -348,8 +400,8 @@ const ProductDetail: React.FC = () => {
                     {/* Review form for authenticated users */}
                     {isAuthenticated && user ? (
                       <ReviewForm 
-                        productId={product.id} 
-                        userId={user.id}
+                        productId={product.id || ''} 
+                        userId={user.id || ''}
                         onReviewSubmitted={handleReviewSubmitted}
                       />
                     ) : (
@@ -414,11 +466,24 @@ const ProductDetail: React.FC = () => {
                   </span>
                 </div>
 
+                {/* Stock availability with clear messaging */}
                 <div className="flex items-center mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
-                  <span className="text-gray-700">Disponible: {product.availableQuantity} {product.unitMeasure}</span>
+                  {(
+                    // Check for stock using several possible fields and formats
+                    (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) || 
+                    (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
+                    (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
+                    (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
+                  ) ? (
+                    <span className="text-gray-700">
+                      Disponible: {product.availableQuantity || product.stockQuantity} {product.unitMeasure}
+                    </span>
+                  ) : (
+                    <span className="text-red-500 font-medium">Sin stock disponible</span>
+                  )}
                 </div>
 
                 {/* Seller info with badge */}
@@ -437,18 +502,35 @@ const ProductDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Action buttons */}
+                {/* Action buttons with disabled state when no stock */}
                 <div className="space-y-3">
                   <button 
                     onClick={handleAddToCart}
-                    className="w-full py-3 px-4 bg-yellow-1 hover:bg-yellow-1-5 text-gray-800 font-medium rounded-md flex items-center justify-center"
+                    disabled={!(
+                      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
+                      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
+                      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
+                      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
+                    )}
+                    className={`w-full py-3 px-4 ${
+                      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
+                      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
+                      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
+                      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
+                        ? 'bg-yellow-1 hover:bg-yellow-1-5 text-gray-800' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    } font-medium rounded-md flex items-center justify-center`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    Añadir al carrito
+                    {(
+                      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
+                      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
+                      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
+                      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
+                    ) ? 'Añadir al carrito' : 'Sin stock disponible'}
                   </button>
-
                 </div>
               </div>
             </div>
@@ -485,6 +567,7 @@ const ProductDetail: React.FC = () => {
         </div>
       </div>
       <Footer />
+      <ToastContainer position="bottom-right" autoClose={3000} hideProgressBar={false} />
     </>
   );
 };

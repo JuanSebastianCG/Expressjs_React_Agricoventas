@@ -140,6 +140,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // Limpiar localStorage
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('cart'); // Clear cart data when logging out
     
     // Actualizar estado
     setIsAuthenticated(false);

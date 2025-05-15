@@ -1,7 +1,7 @@
 import React from 'react';
 import StyledBorder from './StyledBorder';
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
   variant?: 'default' | 'focus' | 'success' | 'error';
@@ -14,7 +14,8 @@ const Card: React.FC<CardProps> = ({
   className = '',
   variant = 'default',
   noBorder = false,
-  elevation = 'sm'
+  elevation = 'sm',
+  ...rest
 }) => {
   // Shadow classes based on elevation
   const shadowClasses = {
@@ -37,6 +38,7 @@ const Card: React.FC<CardProps> = ({
       rounded="md" 
       noBorder={noBorder} 
       className={cardClasses}
+      {...rest}
     >
       {children}
     </StyledBorder>

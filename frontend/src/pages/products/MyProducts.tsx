@@ -118,13 +118,13 @@ const MyProducts: React.FC = () => {
           } else {
              console.warn("MyProducts: hasAllCertifications property missing or invalid in response:", certificationStatusResponse);
              setCanCreateProducts(false);
-             alert('No se pudo verificar el estado de tus certificaciones. Por favor, intenta de nuevo más tarde.');
+             // Remove alert and silently navigate
              navigate('/dashboard');
           }
         } catch (err: any) {
           console.error("MyProducts: Error checking user certifications:", err);
           const errorMessage = err.response?.data?.error || err.message || 'Error desconocido al verificar certificados.';
-          alert(`Error al verificar certificaciones: ${errorMessage}`);
+          console.error(`Error al verificar certificaciones: ${errorMessage}`);
           setCanCreateProducts(false);
         } finally {
           setIsCertificateChecking(false);
@@ -156,19 +156,27 @@ const MyProducts: React.FC = () => {
       if (response.data.success && response.data.data) {
         console.log("Products fetched successfully:", response.data.data);
         // Corrected data extraction for paginated response
-        const productsData = Array.isArray(response.data.data.products) ? response.data.data.products : [];
+        let productsData = Array.isArray(response.data.data.products) ? response.data.data.products : [];
         
         // If products is directly in data without pagination wrapper
         if (productsData.length === 0 && Array.isArray(response.data.data)) {
           console.log("Using direct data array as products");
-          setProducts(response.data.data);
-          setFilteredProducts(response.data.data);
-          setTotalProductsCount(response.data.data.length);
-        } else {
-          setProducts(productsData);
-          setFilteredProducts(productsData);
-          setTotalProductsCount(response.data.data.pagination?.total || productsData.length);
+          productsData = response.data.data;
         }
+        
+        // Normalize the product data to ensure it has the fields we need
+        const normalizedProducts = productsData.map((product: any) => {
+          // The backend might use different field names (basePrice/price, stockQuantity/availableQuantity)
+          return {
+            ...product,
+            price: product.price || product.basePrice,
+            availableQuantity: product.availableQuantity || product.stockQuantity || 0
+          };
+        });
+        
+        setProducts(normalizedProducts);
+        setFilteredProducts(normalizedProducts);
+        setTotalProductsCount(response.data.data.pagination?.total || normalizedProducts.length);
       } else {
         throw new Error(response.data.error?.message || 'Error al cargar productos');
       }
@@ -236,8 +244,8 @@ const MyProducts: React.FC = () => {
 
   // Handle view product details
   const handleViewDetails = (productId: string) => {
-    // Navigate to product details page or show a modal
-    console.log(`View details for product ${productId}`);
+    // Navigate to product details page
+    navigate(`/product/${productId}`);
   };
 
   // Open delete confirmation modal

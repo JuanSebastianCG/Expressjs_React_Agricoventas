@@ -107,47 +107,47 @@ const App: React.FC = () => {
   return (
     <Router>
       <CartProvider>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/mercado-general" element={<Marketplace />} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/mercado-general" element={<Marketplace />} />
           {/* Add the cart page route */}
           <Route path="/carrito" element={<CartPage />} />
-          
-          {/* Rutas protegidas para usuarios regulares */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/perfil" element={
-            <ProtectedRoute>
-              <Perfil />
-            </ProtectedRoute>
-          } />
+        
+        {/* Rutas protegidas para usuarios regulares */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/perfil" element={
+          <ProtectedRoute>
+            <Perfil />
+          </ProtectedRoute>
+        } />
 
-          <Route path="/perfil/:userId" element={
-            <ProtectedRoute>
-              <Perfil />
-            </ProtectedRoute>
-          } />
-          
-          {/* Rutas para certificados */}
-          <Route path="/certificados" element={
-            <ProtectedRoute>
-              <UploadCertificate />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/certificados" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <CertificationApproval />
-            </ProtectedRoute>
-          } />
-          
-          {/* Rutas para vendedores */}
+        <Route path="/perfil/:userId" element={
+          <ProtectedRoute>
+            <Perfil />
+          </ProtectedRoute>
+        } />
+        
+        {/* Rutas para certificados */}
+        <Route path="/certificados" element={
+          <ProtectedRoute>
+            <UploadCertificate />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/certificados" element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <CertificationApproval />
+          </ProtectedRoute>
+        } />
+        
+        {/* Rutas para vendedores */}
           <Route path="/productos" element={
             <SellerRoute>
               <MyProducts />
@@ -156,55 +156,55 @@ const App: React.FC = () => {
           
           {/* Ruta adicional para mis-productos que redirige a /productos */}
           <Route path="/mis-productos" element={<Navigate to="/productos" replace />} />
-          
-          <Route path="/crear-producto" element={
-            <SellerRoute>
-              <ProductCreate />
-            </SellerRoute>
-          } />
-          
-          <Route path="/editar-producto/:productId" element={
-            <SellerRoute>
-              <ProductCreate />
-            </SellerRoute>
-          } />
+        
+        <Route path="/crear-producto" element={
+          <SellerRoute>
+            <ProductCreate />
+          </SellerRoute>
+        } />
+        
+        <Route path="/editar-producto/:productId" element={
+          <SellerRoute>
+            <ProductCreate />
+          </SellerRoute>
+        } />
           
           <Route path="/product/:productId" element={<ProductDetail />} />
-          
-          {/* Rutas para pedidos */}
-          <Route path="/mis-pedidos" element={
-            <ProtectedRoute>
-              <MyOrders />
-            </ProtectedRoute>
-          } />
+        
+        {/* Rutas para pedidos */}
+        <Route path="/mis-pedidos" element={
+          <ProtectedRoute>
+            <MyOrders />
+          </ProtectedRoute>
+        } />
           
           <Route path="/pedidos/:orderId" element={
             <ProtectedRoute>
               <OrderDetails />
             </ProtectedRoute>
           } />
+        
+        {/* Rutas protegidas para administradores */}
+        <Route path="/admin" element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <AdminDashboard />
+          </ProtectedRoute>
+        }>
+          {/* Rutas anidadas dentro del dashboard de administración */}
+          <Route index element={<Navigate to="/admin/users" replace />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="certifications" element={<CertificationApproval />} />
+          <Route path="products" element={<React.Fragment>Gestión de Productos</React.Fragment>} />
+          <Route path="orders" element={<React.Fragment>Gestión de Pedidos</React.Fragment>} />
+          <Route path="categories" element={<ManageCategories />} />
           
-          {/* Rutas protegidas para administradores */}
-          <Route path="/admin" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }>
-            {/* Rutas anidadas dentro del dashboard de administración */}
-            <Route index element={<Navigate to="/admin/users" replace />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="certifications" element={<CertificationApproval />} />
-            <Route path="products" element={<React.Fragment>Gestión de Productos</React.Fragment>} />
-            <Route path="orders" element={<React.Fragment>Gestión de Pedidos</React.Fragment>} />
-            <Route path="categories" element={<ManageCategories />} />
-            
-            {/* Ruta para manejar rutas no encontradas dentro de admin */}
-            <Route path="*" element={<Navigate to="/admin/users" replace />} />
-          </Route>
-          
-          {/* Ruta para manejar rutas no encontradas */}
+          {/* Ruta para manejar rutas no encontradas dentro de admin */}
+          <Route path="*" element={<Navigate to="/admin/users" replace />} />
+        </Route>
+        
+        {/* Ruta para manejar rutas no encontradas */}
           <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
+      </Routes>
       </CartProvider>
     </Router>
   );

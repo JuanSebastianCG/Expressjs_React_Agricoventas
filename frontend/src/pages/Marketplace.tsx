@@ -33,7 +33,7 @@ const Marketplace: React.FC = () => {
   const [filters, setFilters] = useState<ProductFilters>({});
   const [totalProducts, setTotalProducts] = useState(0);
   const { addItem } = useCart();
-  
+
   useEffect(() => {
     fetchProducts();
   }, [filters]);
@@ -59,7 +59,7 @@ const Marketplace: React.FC = () => {
           return {
             ...product,
             price: product.price || product.basePrice,
-            availableQuantity: product.availableQuantity || product.stockQuantity || 999
+            availableQuantity: product.availableQuantity || product.stockQuantity || 0
           };
         });
         
@@ -92,15 +92,6 @@ const Marketplace: React.FC = () => {
       return;
     }
 
-    // Add debug logging
-    console.log("Product being added to cart:", product);
-    console.log("Product availableQuantity:", product.availableQuantity);
-    console.log("Product stockQuantity:", product.stockQuantity);
-    
-    // Get primary image URL if available
-    const primaryImage = product.images?.find(img => img.isPrimary);
-    const imageUrl = primaryImage?.imageUrl || product.images?.[0]?.imageUrl;
-
     // The backend might be using stockQuantity instead of availableQuantity
     // Let's check both fields and use the one that's available
     const stockAmount = typeof product.stockQuantity === 'number' ? 
@@ -114,7 +105,12 @@ const Marketplace: React.FC = () => {
       return;
     }
 
-    addItem({
+    // Get primary image URL if available
+    const primaryImage = product.images?.find(img => img.isPrimary);
+    const imageUrl = primaryImage?.imageUrl || product.images?.[0]?.imageUrl;
+
+    // Add item to cart and check result
+    const success = addItem({
       productId: product.id || '',
       name: product.name,
       price: product.price,
@@ -125,8 +121,12 @@ const Marketplace: React.FC = () => {
       stockQuantity: stockAmount // Use the correct stock amount
     });
 
-    toast.success(`${product.name} agregado al carrito`);
-    navigate('/carrito');
+    if (success) {
+      toast.success(`${product.name} agregado al carrito`);
+      navigate('/carrito');
+    } else {
+      toast.error(`No se pudo agregar ${product.name} al carrito. Stock insuficiente.`);
+    }
   };
 
   return (
@@ -135,8 +135,8 @@ const Marketplace: React.FC = () => {
       <div className="bg-green-1 text-white py-6">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Bienvenido a tu mercado agrícola</h1>
-            <p className="mt-2">Compra y vende directamente con productores</p>
+          <h1 className="text-2xl font-bold">Bienvenido a tu mercado agrícola</h1>
+          <p className="mt-2">Compra y vende directamente con productores</p>
           </div>
           <div className="flex items-center">
             <CartIcon className="text-white" />
