@@ -47,16 +47,26 @@ const UploadCertificate: React.FC = () => {
         const statusResponse = await certificationService.verifyUserCertifications(user.id);
         console.log("Received statusResponse:", statusResponse); // Log the raw response
 
-        // Access the counts directly from the response
-        const counts = statusResponse.certificationsCount;
-        console.log("Extracted counts object:", counts); 
-
-        if (counts && typeof counts.verified === 'number' && typeof counts.total === 'number') {
-          setStatus(counts);
-          console.log("Certification status state updated:", counts);
+        // Extract the certification counts correctly
+        if (statusResponse && statusResponse.certificationsCount && 
+            typeof statusResponse.certificationsCount.verified === 'number' && 
+            typeof statusResponse.certificationsCount.total === 'number') {
+          // Direct access when the structure is as expected
+          setStatus(statusResponse.certificationsCount);
+          console.log("Certification status state updated:", statusResponse.certificationsCount);
+        } else if (statusResponse && typeof statusResponse.hasAllCertifications === 'boolean') {
+          // Fallback: If we at least know whether all certs are verified
+          console.log("Fallback certification status from hasAllCertifications");
+          
+          // Count verified certifications from the certs array we already loaded
+          const verifiedCount = certs.filter(cert => cert.status === "VERIFIED").length;
+          setStatus({
+            verified: verifiedCount,
+            total: 4 // Fixed required value
+          });
         } else {
-          console.warn("CertificationsCount is missing or invalid in the response:", statusResponse);
-          setStatus({ verified: 0, total: 4 }); // Fallback to default
+          console.warn("Could not determine certification status:", statusResponse);
+          setStatus({ verified: 0, total: 4 }); // Default fallback
         }
       } catch (err) {
         setError('No se pudieron cargar tus certificaciones');
@@ -186,16 +196,29 @@ const UploadCertificate: React.FC = () => {
       const updatedStatusResponse = await certificationService.verifyUserCertifications(user!.id);
       console.log("Received updatedStatusResponse:", updatedStatusResponse);
 
-      // Access counts directly from the response
-      const updatedCounts = updatedStatusResponse.certificationsCount;
-      console.log("Extracted updated counts:", updatedCounts);
-
-      if (updatedCounts && typeof updatedCounts.verified === 'number' && typeof updatedCounts.total === 'number') {
-        setStatus(updatedCounts);
-        console.log("Certification status state updated after upload:", updatedCounts);
+      // Extract the certification counts correctly
+      if (updatedStatusResponse && updatedStatusResponse.certificationsCount && 
+          typeof updatedStatusResponse.certificationsCount.verified === 'number' && 
+          typeof updatedStatusResponse.certificationsCount.total === 'number') {
+        // Direct access when the structure is as expected
+        setStatus(updatedStatusResponse.certificationsCount);
+        console.log("Certification status state updated after upload:", updatedStatusResponse.certificationsCount);
+      } else if (updatedStatusResponse && typeof updatedStatusResponse.hasAllCertifications === 'boolean') {
+        // Fallback: If we at least know whether all certs are verified
+        console.log("Fallback certification status from hasAllCertifications after upload");
+        
+        // Refetch the certifications to get the latest state
+        const refreshedCerts = await certificationService.getUserCertifications(user!.id);
+        const verifiedCount = refreshedCerts.filter(cert => cert.status === "VERIFIED").length;
+        setStatus({
+          verified: verifiedCount,
+          total: 4 // Fixed required value
+        });
+        // Update the certificates list with the latest data
+        setUserCertifications(refreshedCerts);
       } else {
-        console.warn("UpdatedCertificationsCount is missing or invalid:", updatedStatusResponse);
-        // Keep the previous state
+        console.warn("Could not determine certification status after upload:", updatedStatusResponse);
+        // Keep previous state
       }
       
       // Show success message
@@ -309,7 +332,7 @@ const UploadCertificate: React.FC = () => {
         <div className="bg-green-0-4 rounded-lg p-5 mb-8">
           <h2 className="text-lg font-semibold mb-2">Estado de tus Certificaciones</h2>
           <p className="mb-2">
-            Tienes {certificationStatus?.verified || 0} de {certificationStatus?.total || 4} certificaciones requeridas verificadas.
+            Tienes certificaciones requeridos para publicar productos.
           </p>
           {certificationStatus?.verified === certificationStatus?.total ? (
             <div className="bg-green-0-5 text-green-1 p-4 rounded-md font-medium">

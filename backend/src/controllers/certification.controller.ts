@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { hasRequiredCertifications, getCertificationsCount, REQUIRED_CERTIFICATIONS } from '../utils/certificateValidator';
-import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler';
+import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
 import fs from 'fs'; // Import fs for file operations
 import path from 'path'; // Import path for path operations
@@ -114,27 +114,41 @@ export class CertificationController {
   }
 
   /**
-   * Get certifications by user ID
-   * @param req Express request
+   * Get certifications for a specific user
+   * @param req Express request with userId
    * @param res Express response
    */
   async getUserCertifications(req: Request, res: Response): Promise<void> {
     try {
       const { userId } = req.params;
+      
+      if (!userId) {
+        sendErrorResponse(res, "User ID is required", HttpStatusCode.BAD_REQUEST);
+        return;
+      }
 
       const certifications = await this.db.userCertification.findMany({
-        where: {
-          userId
-        },
-        orderBy: {
-          uploadedAt: 'desc'
+        where: { userId: userId },
+        orderBy: { uploadedAt: 'desc' }
+      });
+      
+      // Get server base URL
+      const protocol = req.protocol;
+      const host = req.get('host') || 'localhost:3001';
+      const baseUrl = `${protocol}://${host}`;
+      
+      // Process certification images to ensure absolute URLs
+      const processedCertifications = certifications.map(cert => {
+        if (cert.imageUrl && !cert.imageUrl.startsWith('http')) {
+          cert.imageUrl = this.ensureAbsoluteUrl(cert.imageUrl, baseUrl);
         }
+        return cert;
       });
 
-      sendSuccessResponse(res, certifications);
+      sendSuccessResponse(res, processedCertifications);
     } catch (error: any) {
-      console.error('Error fetching certifications:', error);
-      sendErrorResponse(res, 'Error fetching certifications', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      console.error("Error fetching user certifications:", error);
+      sendErrorResponse(res, error.message || "Error fetching user certifications", HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -180,80 +194,115 @@ export class CertificationController {
         userId?: string; 
         page?: string; 
         limit?: string;
-        sortBy?: 'uploadedAt' | 'verifiedAt' | 'certificationName' | 'user.username'; // Add more valid sort fields
+        sortBy?: 'uploadedAt' | 'verifiedAt' | 'certificationName';
         sortOrder?: 'asc' | 'desc';
       };
 
-      const pageNumber = parseInt(page, 10);
-      const limitNumber = parseInt(limit, 10);
-      const skip = (pageNumber - 1) * limitNumber;
+      console.log(`[CertificationController.getAllCertificationsAdmin] Query params:`, req.query);
 
-      // Build the where clause for Prisma query
-      const whereClause: any = {};
+      // Parse pagination parameters
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      // Build where clause for filtering
+      const where: any = {};
       if (status) {
-        whereClause.status = status;
+        where.status = status;
       }
       if (userId) {
-        whereClause.userId = userId;
-      }
-      
-      // Build the orderBy clause
-      const orderByClause: any = {};
-      if (sortBy === 'user.username') {
-        // Handle sorting by related field
-        orderByClause.user = { username: sortOrder };
-      } else if (sortBy) {
-         orderByClause[sortBy] = sortOrder;
+        where.userId = userId;
       }
 
-      // Fetch certifications with pagination and filtering
-      const certifications = await this.db.userCertification.findMany({
-        where: whereClause,
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              profileImage: true
-            }
-          },
-          // Include verifier admin details if needed
-          verifierAdmin: {
-             select: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true
+      // Fetch certifications with user data and pagination
+      const [certifications, totalCount] = await Promise.all([
+        this.db.userCertification.findMany({
+          where,
+          skip,
+          take: limitNum,
+          orderBy: { [sortBy]: sortOrder },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true
+              }
             }
           }
-        },
-        orderBy: orderByClause,
-        skip: skip,
-        take: limitNumber,
+        }),
+        this.db.userCertification.count({ where })
+      ]);
+      
+      // Get server base URL for image URLs
+      const protocol = req.protocol;
+      const host = req.get('host') || 'localhost:3001';
+      const baseUrl = `${protocol}://${host}`;
+      
+      // Process certification data to ensure imageUrls are absolute
+      const processedCertifications = certifications.map(cert => {
+        // Handle user profile image
+        if (cert.user && cert.user.profileImage) {
+          if (!cert.user.profileImage.startsWith('http')) {
+            cert.user.profileImage = this.ensureAbsoluteUrl(cert.user.profileImage, baseUrl);
+          }
+        }
+        
+        // Handle certification image
+        if (cert.imageUrl && !cert.imageUrl.startsWith('http')) {
+          cert.imageUrl = this.ensureAbsoluteUrl(cert.imageUrl, baseUrl);
+        }
+        
+        return cert;
       });
 
-      // Get the total count for pagination
-      const totalCertifications = await this.db.userCertification.count({
-        where: whereClause,
-      });
-
-      // Send response with data and pagination info
-      sendSuccessResponse(res, {
-        data: certifications,
+      // Calculate pagination information
+      const totalPages = Math.ceil(totalCount / limitNum);
+      
+      // Construct structured response
+      const response = {
+        certifications: processedCertifications,
         pagination: {
-          currentPage: pageNumber,
-          totalPages: Math.ceil(totalCertifications / limitNumber),
-          totalItems: totalCertifications,
-          itemsPerPage: limitNumber,
-        },
+          total: totalCount,
+          page: pageNum,
+          limit: limitNum,
+          pages: totalPages
+        }
+      };
+
+      // Log response shape for debugging
+      console.log(`[CertificationController.getAllCertificationsAdmin] Response structure:`, {
+        certifications: `Array of ${processedCertifications.length} items`,
+        paginationInfo: response.pagination
       });
+
+      // Send response with consistent format
+      sendSuccessResponse(res, response);
     } catch (error: any) {
-      console.error('Error fetching all certifications for admin:', error);
-      sendErrorResponse(res, 'Error fetching certifications', HttpStatusCode.INTERNAL_SERVER_ERROR);
+      console.error('[CertificationController.getAllCertificationsAdmin] Error:', error);
+      sendErrorResponse(res, 'Failed to fetch certifications: ' + (error.message || 'Unknown error'), HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  /**
+   * Helper method to ensure image URLs are absolute
+   */
+  private ensureAbsoluteUrl(url: string, baseUrl: string): string {
+    if (!url) return url;
+    
+    // Already absolute URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Remove leading slash if present
+    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+    
+    // Combine with base URL
+    return `${baseUrl}/${cleanUrl}`;
   }
 
   /**
@@ -370,6 +419,81 @@ export class CertificationController {
       console.error('Error fetching required certification details:', error);
       sendErrorResponse(res, 'Error fetching required certification details', HttpStatusCode.INTERNAL_SERVER_ERROR);
       // No return needed here as sendErrorResponse is the last statement
+    }
+  }
+
+  /**
+   * Get a single certification by ID
+   * @param req Express request with certificationId
+   * @param res Express response
+   */
+  async getCertificationById(req: Request, res: Response): Promise<void> {
+    try {
+      const { certificationId } = req.params;
+      
+      if (!certificationId) {
+        sendErrorResponse(res, "Certification ID is required", HttpStatusCode.BAD_REQUEST);
+        return;
+      }
+      
+      // Validate MongoDB ObjectID format (24 character hex string)
+      const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+      if (!objectIdRegex.test(certificationId)) {
+        sendErrorResponse(res, "Invalid certification ID format", HttpStatusCode.BAD_REQUEST);
+        return;
+      }
+
+      const certification = await this.db.userCertification.findUnique({
+        where: { id: certificationId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              profileImage: true
+            }
+          },
+          verifierAdmin: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
+
+      if (!certification) {
+        sendNotFoundResponse(res, "Certification not found");
+        return;
+      }
+
+      // Get server base URL
+      const protocol = req.protocol;
+      const host = req.get('host') || 'localhost:3001';
+      const baseUrl = `${protocol}://${host}`;
+      
+      // Process certification image to ensure absolute URL
+      if (certification.imageUrl && !certification.imageUrl.startsWith('http')) {
+        certification.imageUrl = this.ensureAbsoluteUrl(certification.imageUrl, baseUrl);
+      }
+      
+      // Process user profile image if present
+      if (certification.user && certification.user.profileImage && 
+          !certification.user.profileImage.startsWith('http')) {
+        certification.user.profileImage = this.ensureAbsoluteUrl(
+          certification.user.profileImage, baseUrl
+        );
+      }
+
+      sendSuccessResponse(res, certification);
+    } catch (error: any) {
+      console.error("Error fetching certification:", error);
+      sendErrorResponse(res, error.message || "Error fetching certification", HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
 }

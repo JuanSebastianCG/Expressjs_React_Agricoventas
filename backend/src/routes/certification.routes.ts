@@ -70,4 +70,7 @@ router.get('/admin', authorize(['ADMIN']), (req, res) => certificationController
 router.put('/approve/:certificationId', authorize(['ADMIN']), (req, res) => certificationController.approveCertification(req, res));
 router.put('/reject/:certificationId', authorize(['ADMIN']), (req, res) => certificationController.rejectCertification(req, res));
 
+// Get a single certification by ID - DEBE IR AL FINAL para no interceptar otras rutas
+router.get('/:certificationId', (req, res) => certificationController.getCertificationById(req, res));
+
 export default router; 

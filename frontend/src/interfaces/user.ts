@@ -37,19 +37,33 @@ export enum CertificationStatus {
  * User certification interface
  */
 export interface IUserCertification {
-  id?: string;
+  id: string;
   userId: string;
   certificationName: string;
   certificationType: CertificationType;
-  certificateNumber?: string;
-  issuedDate?: Date;
-  expiryDate?: Date;
+  certificateNumber: string;
+  issuedDate: string;
+  expiryDate: string;
   imageUrl: string;
   status: CertificationStatus;
-  uploadedAt?: Date;
-  verifiedAt?: Date;
+  uploadedAt: string;
+  verifiedAt?: string;
   verifierAdminId?: string;
   rejectionReason?: string;
+  user?: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    profileImage?: string;
+  };
+  verifierAdmin?: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 /**

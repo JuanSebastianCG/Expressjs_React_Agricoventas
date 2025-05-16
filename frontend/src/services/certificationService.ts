@@ -94,18 +94,93 @@ export const certificationService = {
   },
   
   /**
-   * Get all certifications for admin view (paginated and filterable)
-   * @param params - Optional query parameters for filtering and pagination (e.g., { status: 'VERIFIED', userId: '...', page: 1, limit: 10 })
+   * Get all certifications for admin view
    */
   async getAllCertificationsAdmin(params?: Record<string, any>): Promise<{
     data: IUserCertification[];
     pagination: { currentPage: number; totalPages: number; totalItems: number; itemsPerPage: number; };
   }> {
-    // The backend now expects GET /certifications/admin
-    const response = await api.get('/certifications/admin', { params });
-    // The response from the backend is already { data: [...], pagination: {...} }
-    // The api client might wrap this in another .data, so we check response.data.data first
-    return response.data?.data && response.data?.pagination ? response.data : response; 
+    try {
+      console.log('Fetching admin certifications with params:', params);
+      const response = await api.get('/certifications/admin', { params });
+      console.log('Admin certifications response:', response);
+
+      // Ensure we handle different response formats correctly
+      if (response && response.data) {
+        if (response.data.success === true) {
+          // Standard API response format: { success: true, data: {...} }
+          let certifications: IUserCertification[] = [];
+          let pagination = {
+            currentPage: 1,
+            totalPages: 1,
+            totalItems: 0,
+            itemsPerPage: 10
+          };
+
+          if (response.data.data) {
+            // Direct data property containing items and pagination
+            if (Array.isArray(response.data.data.certifications)) {
+              certifications = response.data.data.certifications;
+              
+              if (response.data.data.pagination) {
+                pagination = {
+                  currentPage: response.data.data.pagination.page || 1,
+                  totalPages: response.data.data.pagination.pages || 1,
+                  totalItems: response.data.data.pagination.total || 0,
+                  itemsPerPage: response.data.data.pagination.limit || 10
+                };
+              }
+            } 
+            // Alternative: data directly contains certifications array
+            else if (Array.isArray(response.data.data)) {
+              certifications = response.data.data;
+            }
+            // Alternative: data contains different named fields
+            else if (typeof response.data.data === 'object') {
+              if (Array.isArray(response.data.data.items)) {
+                certifications = response.data.data.items;
+              }
+              
+              if (response.data.data.meta || response.data.data.paging) {
+                const paginationData = response.data.data.meta || response.data.data.paging;
+                pagination = {
+                  currentPage: paginationData.page || paginationData.currentPage || 1,
+                  totalPages: paginationData.totalPages || paginationData.pages || 1,
+                  totalItems: paginationData.total || paginationData.totalItems || 0,
+                  itemsPerPage: paginationData.limit || paginationData.pageSize || 10
+                };
+              }
+            }
+          }
+
+          console.log('Processed certifications:', certifications.length);
+          console.log('Processed pagination:', pagination);
+
+          return {
+            data: certifications,
+            pagination
+          };
+        } else {
+          // Non-success response
+          console.error('API returned success:false:', response.data.error);
+          throw new Error(response.data.error?.message || 'Error fetching certifications');
+        }
+      }
+
+      // Fallback for unexpected response format
+      console.error('Unexpected response format:', response);
+      throw new Error('Respuesta inesperada del servidor');
+    } catch (error: any) {
+      console.error('Error in getAllCertificationsAdmin:', error);
+      
+      if (error.response?.data?.error) {
+        throw new Error(`Error: ${error.response.data.error.message || 'Estructura de respuesta errónea'}`);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Error desconocido al obtener certificaciones');
+      }
+    }
   },
   
   /**
@@ -142,5 +217,37 @@ export const certificationService = {
       rejectionReason,
     });
     return response.data;
+  },
+  
+  /**
+   * Get a single certification by ID
+   */
+  async getCertificationById(certificationId: string): Promise<IUserCertification> {
+    try {
+      // Validate MongoDB ObjectID format to prevent unnecessary API calls
+      const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+      if (!objectIdRegex.test(certificationId)) {
+        throw new Error('Invalid certification ID format');
+      }
+      
+      console.log(`Fetching certification with ID: ${certificationId}`);
+      const response = await api.get(`/certifications/${certificationId}`);
+      
+      if (response.data && response.data.success) {
+        return response.data.data;
+      }
+      
+      throw new Error(response.data?.error?.message || 'Error fetching certification');
+    } catch (error: any) {
+      console.error('Error in getCertificationById:', error);
+      
+      if (error.response?.data?.error) {
+        throw new Error(`Error: ${error.response.data.error.message || 'No se pudo obtener el certificado'}`);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Error desconocido al obtener el certificado');
+      }
+    }
   },
 }; 
