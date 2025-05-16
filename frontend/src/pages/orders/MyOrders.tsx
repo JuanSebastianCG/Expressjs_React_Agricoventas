@@ -189,15 +189,21 @@ const MyOrders: React.FC = () => {
   const [selectedOrderToCancel, setSelectedOrderToCancel] = useState<IOrder | null>(null);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState<string>("");
+  const [cancelReasonError, setCancelReasonError] = useState<string | null>(null);
 
   const openCancelModal = (order: IOrder) => {
     setSelectedOrderToCancel(order);
+    setCancelReason("");
+    setCancelReasonError(null);
     setIsCancelModalOpen(true);
   };
 
   const closeCancelModal = () => {
     if (!isCancelling) {
       setSelectedOrderToCancel(null);
+      setCancelReason("");
+      setCancelReasonError(null);
       setIsCancelModalOpen(false);
     }
   };
@@ -205,11 +211,16 @@ const MyOrders: React.FC = () => {
   const handleCancelOrder = async () => {
     if (!selectedOrderToCancel) return;
 
+    // Validate the cancel reason
+    if (!cancelReason.trim()) {
+      setCancelReasonError("Por favor, ingresa un motivo para la cancelación");
+      return;
+    }
+
     setIsCancelling(true);
     try {
       const response = await api.post(`/orders/${selectedOrderToCancel.id}/cancel`, {
-        // You can add a cancelReason if your backend expects it
-        // cancelReason: "Cancelled by user", 
+        cancelReason: cancelReason.trim()
       });
 
       if (response.data.success) {
@@ -415,11 +426,31 @@ const MyOrders: React.FC = () => {
             </>
           )}
         >
-          <p className="text-gray-700">
+          <p className="text-gray-700 mb-4">
             ¿Estás seguro de que deseas cancelar el pedido #{selectedOrderToCancel.orderNumber}?
             Esta acción no se puede deshacer.
           </p>
-          {/* Podrías añadir un campo para el motivo de cancelación aquí si es necesario */}
+          
+          <div className="mt-4">
+            <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-700 mb-1">
+              Motivo de la cancelación <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              id="cancelReason"
+              rows={3}
+              className={`w-full px-3 py-2 border rounded-md ${cancelReasonError ? 'border-red-500' : 'border-gray-300'} focus:outline-none focus:ring-1 focus:ring-green-1`}
+              placeholder="Por favor, explica por qué deseas cancelar este pedido"
+              value={cancelReason}
+              onChange={(e) => {
+                setCancelReason(e.target.value);
+                if (e.target.value.trim()) setCancelReasonError(null);
+              }}
+              disabled={isCancelling}
+            />
+            {cancelReasonError && (
+              <p className="mt-1 text-sm text-red-600">{cancelReasonError}</p>
+            )}
+          </div>
         </Modal>
       )}
       <ToastContainer position="bottom-right" autoClose={3000} />

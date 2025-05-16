@@ -103,6 +103,7 @@ const AppRoutes: React.FC = () => (
       <Route path="/pedido-confirmado/:orderId" element={<OrderConfirmation />} />
       <Route path="/mis-pedidos" element={<MyOrders />} />
       <Route path="/pedido/:orderId" element={<OrderDetails />} />
+      <Route path="/pedidos/:orderId" element={<OrderDetails />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/perfil" element={<Perfil />} />
       <Route path="/perfil/:userId" element={<Perfil />} />
