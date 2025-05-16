@@ -47,23 +47,16 @@ const UploadCertificate: React.FC = () => {
         const statusResponse = await certificationService.verifyUserCertifications(user.id);
         console.log("Received statusResponse:", statusResponse); // Log the raw response
 
-        // Safely access the counts (Try accessing nested .data)
-        const counts = statusResponse.data?.certificationsCount; // Check if it's nested
-        console.log("Extracted counts object (from .data):", counts); // Log the extracted counts
+        // Access the counts directly from the response
+        const counts = statusResponse.certificationsCount;
+        console.log("Extracted counts object:", counts); 
 
         if (counts && typeof counts.verified === 'number' && typeof counts.total === 'number') {
           setStatus(counts);
           console.log("Certification status state updated:", counts);
         } else {
-          // Fallback if not found in .data either
-          const directCounts = statusResponse?.certificationsCount;
-          if (directCounts && typeof directCounts.verified === 'number' && typeof directCounts.total === 'number') {
-            setStatus(directCounts);
-            console.log("Certification status state updated (direct access):", directCounts);
-          } else {
-            console.warn("CertificationsCount is missing or invalid in the response:", statusResponse);
-            setStatus({ verified: 0, total: 4 }); // Fallback to default
-          }
+          console.warn("CertificationsCount is missing or invalid in the response:", statusResponse);
+          setStatus({ verified: 0, total: 4 }); // Fallback to default
         }
       } catch (err) {
         setError('No se pudieron cargar tus certificaciones');
@@ -193,23 +186,16 @@ const UploadCertificate: React.FC = () => {
       const updatedStatusResponse = await certificationService.verifyUserCertifications(user!.id);
       console.log("Received updatedStatusResponse:", updatedStatusResponse);
 
-      // Safely access the counts (Try accessing nested .data)
-      const updatedCounts = updatedStatusResponse.data?.certificationsCount; // Check if nested
-      console.log("Extracted updated counts (from .data):", updatedCounts);
+      // Access counts directly from the response
+      const updatedCounts = updatedStatusResponse.certificationsCount;
+      console.log("Extracted updated counts:", updatedCounts);
 
       if (updatedCounts && typeof updatedCounts.verified === 'number' && typeof updatedCounts.total === 'number') {
         setStatus(updatedCounts);
         console.log("Certification status state updated after upload:", updatedCounts);
       } else {
-         // Fallback if not found in .data either
-         const directUpdatedCounts = updatedStatusResponse?.certificationsCount;
-         if (directUpdatedCounts && typeof directUpdatedCounts.verified === 'number' && typeof directUpdatedCounts.total === 'number') {
-            setStatus(directUpdatedCounts);
-            console.log("Certification status state updated after upload (direct access):", directUpdatedCounts);
-         } else {
-           console.warn("UpdatedCertificationsCount is missing or invalid:", updatedStatusResponse);
-           // Consider keeping the previous state or resetting? For now, just log.
-         }
+        console.warn("UpdatedCertificationsCount is missing or invalid:", updatedStatusResponse);
+        // Keep the previous state
       }
       
       // Show success message

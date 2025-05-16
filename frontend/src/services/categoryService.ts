@@ -4,7 +4,26 @@ import { ICategory, ICreateCategoryDto, IUpdateCategoryDto, CategoryQueryDto } f
 export const categoryService = {
   getCategories: async (params?: CategoryQueryDto): Promise<{ categories: ICategory[], total: number }> => {
     const response = await api.get('/categories', { params });
-    return response.data; // Changed from response.data.data since we want { categories: [], total: 0 }
+    
+    // Extract categories from the response.data.data structure
+    if (response.data && response.data.success && response.data.data) {
+      // If data has categories and total properties, return them directly
+      if (response.data.data.categories && typeof response.data.data.total === 'number') {
+        return response.data.data;
+      }
+      
+      // If data is an array, assume it's the categories list
+      if (Array.isArray(response.data.data)) {
+        return { 
+          categories: response.data.data,
+          total: response.data.data.length 
+        };
+      }
+    }
+    
+    // Fallback to empty array if structure doesn't match
+    console.warn('Unexpected API response structure in categoryService.getCategories:', response.data);
+    return { categories: [], total: 0 };
   },
 
   getCategoryById: async (id: string): Promise<ICategory> => {

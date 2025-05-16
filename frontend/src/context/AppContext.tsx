@@ -11,6 +11,7 @@ interface AppContextState {
   login: (token: string, userData: UserData) => void;
   logout: () => void;
   updateUser: (userData: UserData) => void;
+  isLoading: boolean;
 }
 
 // Token storage key
@@ -55,30 +56,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   // Verificar si hay una sesión guardada antes de definir el estado inicial
   const savedSession = checkForSavedSession();
   
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!savedSession.token);
-  const [user, setUser] = useState<UserData | null>(savedSession.user);
-  const [isLoading, setIsLoading] = useState(true);
+  const [state, setState] = useState<AppContextState>({
+    theme: 'light',
+    toggleTheme: () => {},
+    isAuthenticated: !!savedSession.token,
+    user: savedSession.user,
+    login: () => {},
+    logout: () => {},
+    updateUser: () => {},
+    isLoading: true
+  });
   
   // Inicialización adicional y escucha de cambios en localStorage
   useEffect(() => {
-
     const initializeUser = async () => {
       try {
         if (savedSession.token) {
           // Obtener datos actualizados del usuario desde el backend
           const currentUser = await userService.getCurrentUser();
-          setUser(currentUser);
-          setIsAuthenticated(true);
+          setState(prev => ({
+            ...prev,
+            isAuthenticated: true,
+            user: currentUser,
+            isLoading: false
+          }));
         }
       } catch (error) {
         // Si hay error, limpiar la sesión
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
-        setIsAuthenticated(false);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
+        setState(prev => ({
+          ...prev,
+          isAuthenticated: false,
+          user: null,
+          isLoading: false
+        }));
       }
     };
 
@@ -89,11 +101,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       if (event.key === TOKEN_KEY || event.key === USER_KEY) {
         const session = checkForSavedSession();
         if (session.token) {
-          setIsAuthenticated(true);
-          setUser(session.user);
+          setState(prev => ({
+            ...prev,
+            isAuthenticated: true,
+            user: session.user,
+            isLoading: false
+          }));
         } else {
-          setIsAuthenticated(false);
-          setUser(null);
+          setState(prev => ({
+            ...prev,
+            isAuthenticated: false,
+            user: null,
+            isLoading: false
+          }));
         }
       }
     };
@@ -108,7 +128,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, []);
   
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    setState(prev => ({ ...prev, theme: prev.theme === 'light' ? 'dark' : 'light' }));
   };
   
   const login = (token: string, userData: UserData) => {
@@ -127,8 +147,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       localStorage.setItem(USER_KEY, JSON.stringify(userData));
       
       // Actualizar estado
-      setIsAuthenticated(true);
-      setUser(userData);
+      setState(prev => ({
+        ...prev,
+        isAuthenticated: true,
+        user: userData,
+        isLoading: false
+      }));
       
     } catch (error) {
       console.error("Error en la función login:", error);
@@ -143,29 +167,34 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     localStorage.removeItem('cart'); // Clear cart data when logging out
     
     // Actualizar estado
-    setIsAuthenticated(false);
-    setUser(null);
+    setState(prev => ({
+      ...prev,
+      isAuthenticated: false,
+      user: null,
+      isLoading: false
+    }));
   };
 
   const updateUser = (userData: UserData) => {
     // Actualizar en localStorage y en el estado
     localStorage.setItem(USER_KEY, JSON.stringify(userData));
-    setUser(userData);
+    setState(prev => ({ ...prev, user: userData }));
   };
   
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = {
-    theme,
+    theme: state.theme,
     toggleTheme,
-    isAuthenticated,
-    user,
+    isAuthenticated: state.isAuthenticated,
+    user: state.user,
     login,
     logout,
-    updateUser
+    updateUser,
+    isLoading: state.isLoading
   };
   
   // Mostrar loading mientras se inicializa el estado de autenticación
-  if (isLoading) {
+  if (state.isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-1"></div>

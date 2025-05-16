@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import Card from '../../components/ui/Card';
 import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
 import UserProfile from '../../components/common/UserProfile';
 import { IOrder, OrderStatus, IOrderItem } from '../../interfaces/order';
+import Modal from '../../components/ui/Modal';
+import StyledButton from '../../components/ui/StyledButton';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Mock data for testing when API doesn't return data
 const MOCK_ORDERS: IOrder[] = [
@@ -77,7 +81,7 @@ const MyOrders: React.FC = () => {
   }, [isAuthenticated, navigate]);
 
   // Fetch user's orders
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -121,14 +125,14 @@ const MyOrders: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, ordersPerPage, user?.id]);
 
   // Load orders on mount
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       fetchOrders();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, fetchOrders]);
 
   // Get status badge class
   const getStatusBadgeClass = (status: OrderStatus) => {
@@ -180,6 +184,59 @@ const MyOrders: React.FC = () => {
   const retryFetch = () => {
     setError(null);
     fetchOrders();
+  };
+
+  const [selectedOrderToCancel, setSelectedOrderToCancel] = useState<IOrder | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const openCancelModal = (order: IOrder) => {
+    setSelectedOrderToCancel(order);
+    setIsCancelModalOpen(true);
+  };
+
+  const closeCancelModal = () => {
+    if (!isCancelling) {
+      setSelectedOrderToCancel(null);
+      setIsCancelModalOpen(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrderToCancel) return;
+
+    setIsCancelling(true);
+    try {
+      const response = await api.post(`/orders/${selectedOrderToCancel.id}/cancel`, {
+        // You can add a cancelReason if your backend expects it
+        // cancelReason: "Cancelled by user", 
+      });
+
+      if (response.data.success) {
+        toast.success('Pedido cancelado exitosamente.');
+        // Update the order status locally or refetch orders
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === selectedOrderToCancel.id 
+              ? { ...order, status: 'CANCELLED' } 
+              : order
+          )
+        );
+        closeCancelModal();
+      } else {
+        throw new Error(response.data.error?.message || 'Error al cancelar el pedido.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Ocurrió un error desconocido al cancelar.');
+      console.error("Error cancelling order:", err);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const canCancelOrder = (status: string) => {
+    const cancellableStatuses = ['PENDING', 'PROCESSING'];
+    return cancellableStatuses.includes(status?.toUpperCase());
   };
 
   return (
@@ -274,9 +331,9 @@ const MyOrders: React.FC = () => {
                           Ver detalles
                         </button>
                         
-                        {order.status === 'PENDING' && (
+                        {canCancelOrder(order.status) && (
                           <button
-                            onClick={() => console.log(`Cancel order ${order.id}`)}
+                            onClick={() => openCancelModal(order)}
                             className="bg-red-50 hover:bg-red-100 text-red-600 py-2 px-4 text-sm rounded transition-colors"
                           >
                             Cancelar pedido
@@ -340,6 +397,32 @@ const MyOrders: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Modal de Confirmación de Cancelación */}
+      {selectedOrderToCancel && (
+        <Modal
+          isOpen={isCancelModalOpen}
+          onClose={closeCancelModal}
+          title="Confirmar Cancelación de Pedido"
+          footer={ (
+            <>
+              <StyledButton variant="outline" onClick={closeCancelModal} disabled={isCancelling} className="mr-2">
+                Volver
+              </StyledButton>
+              <StyledButton variant="danger" onClick={handleCancelOrder} isLoading={isCancelling} disabled={isCancelling}>
+                {isCancelling ? 'Cancelando...' : 'Sí, Cancelar Pedido'}
+              </StyledButton>
+            </>
+          )}
+        >
+          <p className="text-gray-700">
+            ¿Estás seguro de que deseas cancelar el pedido #{selectedOrderToCancel.orderNumber}?
+            Esta acción no se puede deshacer.
+          </p>
+          {/* Podrías añadir un campo para el motivo de cancelación aquí si es necesario */}
+        </Modal>
+      )}
+      <ToastContainer position="bottom-right" autoClose={3000} />
     </>
   );
 };

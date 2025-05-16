@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import Card from '../../components/ui/Card';
 import StyledButton from '../../components/ui/StyledButton';
 import PageContainer from '../../components/layout/PageContainer';
 import Header from '../../components/layout/Header';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAppContext();
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // Verificar si el usuario es admin
   useEffect(() => {
@@ -22,6 +22,14 @@ const AdminDashboard: React.FC = () => {
       navigate('/dashboard');
     }
   }, [user, isAuthenticated, navigate]);
+
+  // Set the active tab based on current path
+  useEffect(() => {
+    const path = location.pathname.split('/').pop() || '';
+    if (['dashboard', 'users', 'certifications', 'products', 'orders', 'categories'].includes(path)) {
+      setActiveTab(path);
+    }
+  }, [location.pathname]);
 
   // Manejar cambio de pestaña
   const handleTabChange = (tab: string) => {
@@ -56,9 +64,19 @@ const AdminDashboard: React.FC = () => {
 
           <div className="container mx-auto px-4 py-4">
             <div className="mb-6">
-              <div className="flex border-b border-gray-0-5">
+              <div className="flex overflow-x-auto border-b border-gray-0-5">
                 <button
-                  className={`px-6 py-3 text-sm font-medium ${
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
+                    activeTab === 'dashboard' 
+                      ? 'border-b-2 border-green-1 text-green-1'
+                      : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleTabChange('dashboard')}
+                >
+                  Dashboard
+                </button>
+                <button
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
                     activeTab === 'users' 
                       ? 'border-b-2 border-green-1 text-green-1'
                       : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'
@@ -68,7 +86,7 @@ const AdminDashboard: React.FC = () => {
                   Usuarios
                 </button>
                 <button
-                  className={`px-6 py-3 text-sm font-medium ${
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
                     activeTab === 'certifications' 
                       ? 'border-b-2 border-green-1 text-green-1'
                       : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'
@@ -78,7 +96,7 @@ const AdminDashboard: React.FC = () => {
                   Certificaciones
                 </button>
                 <button
-                  className={`px-6 py-3 text-sm font-medium ${
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
                     activeTab === 'products' 
                       ? 'border-b-2 border-green-1 text-green-1'
                       : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'
@@ -88,7 +106,7 @@ const AdminDashboard: React.FC = () => {
                   Productos
                 </button>
                 <button
-                  className={`px-6 py-3 text-sm font-medium ${
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
                     activeTab === 'orders' 
                       ? 'border-b-2 border-green-1 text-green-1'
                       : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'
@@ -98,7 +116,7 @@ const AdminDashboard: React.FC = () => {
                   Pedidos
                 </button>
                 <button
-                  className={`px-6 py-3 text-sm font-medium ${
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
                     activeTab === 'categories' 
                       ? 'border-b-2 border-green-1 text-green-1'
                       : 'text-gray-600 hover:text-gray-800 hover:border-gray-300'

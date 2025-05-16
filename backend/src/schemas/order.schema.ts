@@ -34,6 +34,14 @@ export const updateOrderSchema = z.object({
   notes: z.string().optional(),
 });
 
+// Schema specifically for updating just the status of an order
+export const updateOrderStatusSchema = z.object({
+  status: z.enum(ORDER_STATUSES, { 
+    required_error: "Order status is required", 
+    invalid_type_error: "Order status must be one of: PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED" 
+  })
+});
+
 // Schema for order query parameters
 export const orderQuerySchema = z.object({
   buyerUserId: z.string().optional(),
@@ -56,6 +64,7 @@ export const cancelOrderSchema = z.object({
 // Types derived from schemas
 export type CreateOrderDto = z.infer<typeof createOrderSchema>;
 export type UpdateOrderDto = z.infer<typeof updateOrderSchema>;
+export type UpdateOrderStatusDto = z.infer<typeof updateOrderStatusSchema>;
 export type OrderQueryParams = z.infer<typeof orderQuerySchema>;
 export type CancelOrderDto = z.infer<typeof cancelOrderSchema>;
 

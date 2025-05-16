@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAppContext } from '../../context/AppContext';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -10,6 +11,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose 
 }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const { user } = useAppContext();
   
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
@@ -21,14 +23,28 @@ const Sidebar: React.FC<SidebarProps> = ({
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
   `;
   
-  const navItems = [
-    { name: 'Dashboard', icon: '📊', href: '/dashboard' },
-    { name: 'Mercado', icon: '🏪', href: '/mercado-general' },
-    { name: 'Mis Productos', icon: '📦', href: '/mis-productos' },
-    { name: 'Mis Pedidos', icon: '🚚', href: '/mis-pedidos' },
-    { name: 'Insights', icon: '📈', href: '/insights' },
-    { name: 'Configuración', icon: '⚙️', href: '/configuracion' },
-  ];
+  // Filter nav items based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      { name: 'Dashboard', icon: '📊', href: '/dashboard' },
+      { name: 'Mercado', icon: '🏪', href: '/mercado-general' },
+    ];
+    
+    // Only add Mis Productos for SELLER and ADMIN
+    if (user?.userType === 'SELLER' || user?.userType === 'ADMIN') {
+      baseItems.push({ name: 'Mis Productos', icon: '📦', href: '/mis-productos' });
+    }
+    
+    // Add remaining items
+    return [
+      ...baseItems,
+      { name: 'Mis Pedidos', icon: '🚚', href: '/mis-pedidos' },
+      { name: 'Insights', icon: '📈', href: '/insights' },
+      { name: 'Configuración', icon: '⚙️', href: '/configuracion' },
+    ];
+  };
+  
+  const navItems = getNavItems();
   
   return (
     <aside className={sidebarClasses}>

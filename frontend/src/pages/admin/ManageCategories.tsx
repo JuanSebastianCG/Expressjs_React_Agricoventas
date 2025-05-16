@@ -21,29 +21,33 @@ const ManageCategories: React.FC = () => {
   const fetchCategories = useCallback(async (includeChildren = true) => {
     setIsLoading(true);
     try {
-      const topLevelApiResponse = await categoryService.getCategories({ includeChildren: true, includeParent: true });
-
-      let mainCategories: ICategory[] = [];
-      if (topLevelApiResponse && Array.isArray(topLevelApiResponse.categories)) {
-        mainCategories = topLevelApiResponse.categories;
-      } else {
-        console.error("[ManageCategories] Failed to extract categories from topLevelApiResponse or structure was unexpected.", topLevelApiResponse);
-      }
-      setCategories(mainCategories);
-
-      const allCategoriesApiResponse = await categoryService.getCategories({ includeChildren: false });
+      // Get categories with their children for main display
+      const topLevelResponse = await categoryService.getCategories({ includeChildren: true, includeParent: true });
       
-      let formDropdownCategories: ICategory[] = [];
-       if (allCategoriesApiResponse && Array.isArray(allCategoriesApiResponse.categories)) {
-        formDropdownCategories = allCategoriesApiResponse.categories;
+      if (topLevelResponse && Array.isArray(topLevelResponse.categories)) {
+        console.log("[ManageCategories] Successfully loaded categories:", topLevelResponse.categories.length);
+        setCategories(topLevelResponse.categories);
       } else {
-        console.error("[ManageCategories] Failed to extract categories for form dropdown from allCategoriesApiResponse or structure was unexpected.", allCategoriesApiResponse);
+        console.error("[ManageCategories] Failed to extract categories from response. Response structure:", topLevelResponse);
+        setCategories([]);
       }
-      setAllCategoriesForForm(formDropdownCategories);
+
+      // Get all categories (without children) for the dropdown in the form
+      const allCategoriesResponse = await categoryService.getCategories({ includeChildren: false });
+      
+      if (allCategoriesResponse && Array.isArray(allCategoriesResponse.categories)) {
+        console.log("[ManageCategories] Successfully loaded categories for form:", allCategoriesResponse.categories.length);
+        setAllCategoriesForForm(allCategoriesResponse.categories);
+      } else {
+        console.error("[ManageCategories] Failed to extract categories for form dropdown. Response structure:", allCategoriesResponse);
+        setAllCategoriesForForm([]);
+      }
 
     } catch (error: any) {
       toast.error(`Error al cargar categorías: ${error.message || 'Error desconocido'}`);
       console.error("[ManageCategories] Error in fetchCategories function:", error);
+      setCategories([]);
+      setAllCategoriesForForm([]);
     }
     setIsLoading(false);
   }, []);

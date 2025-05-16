@@ -2,7 +2,7 @@ import { Router } from "express";
 import { OrderController } from "../controllers/order.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validation.middleware";
-import { createOrderSchema, updateOrderSchema, cancelOrderSchema } from "../schemas/order.schema";
+import { createOrderSchema, updateOrderSchema, cancelOrderSchema, updateOrderStatusSchema } from "../schemas/order.schema";
 
 const router = Router();
 const orderController = new OrderController();
@@ -178,6 +178,39 @@ router.put(
   authorize(["ADMIN"]),
   validateRequest(updateOrderSchema),
   (req, res) => orderController.updateOrder(req, res)
+);
+
+/**
+ * @swagger
+ * /orders/{orderId}/status:
+ *   put:
+ *     summary: Update only the status of an order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateOrderStatusDto'
+ *     responses:
+ *       200:
+ *         description: Order status updated successfully
+ */
+router.put(
+  "/:orderId/status",
+  authenticate,
+  authorize(["ADMIN"]),
+  validateRequest(updateOrderStatusSchema),
+  (req, res) => orderController.updateOrderStatus(req, res)
 );
 
 /**

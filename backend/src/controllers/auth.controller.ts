@@ -49,6 +49,18 @@ export class AuthController {
         return;
       }
 
+      // Check if phone number is provided and already exists
+      if (userData.phoneNumber) {
+        const existingPhoneNumber = await prisma.user.findUnique({
+          where: { phoneNumber: userData.phoneNumber }
+        });
+        
+        if (existingPhoneNumber) {
+          sendErrorResponse(res, "Phone number already exists", HttpStatusCode.BAD_REQUEST);
+          return;
+        }
+      }
+
       // Hash password
       const hashedPassword = await bcrypt.hash(userData.password, 10);
 
@@ -95,6 +107,30 @@ export class AuthController {
         HttpStatusCode.CREATED
       );
     } catch (error: any) {
+      console.error("Registration error:", error);
+
+      // Handle Prisma unique constraint errors
+      if (error.code === 'P2002') {
+        const fieldName = error.meta?.target?.[0] || '';
+        if (fieldName === 'phone_number' || fieldName === 'phoneNumber') {
+          sendErrorResponse(res, "Phone number already exists", HttpStatusCode.BAD_REQUEST);
+          return;
+        } else if (fieldName === 'email') {
+          sendErrorResponse(res, "Email already exists", HttpStatusCode.BAD_REQUEST);
+          return;
+        } else if (fieldName === 'username') {
+          sendErrorResponse(res, "Username already exists", HttpStatusCode.BAD_REQUEST);
+          return;
+        }
+      }
+
+      // If other Prisma error
+      if (error.name === 'PrismaClientKnownRequestError') {
+        sendErrorResponse(res, `Registration error: ${error.message}`, HttpStatusCode.BAD_REQUEST);
+        return;
+      }
+
+      // For other errors
       sendErrorResponse(res, error.message, HttpStatusCode.BAD_REQUEST);
     }
   }

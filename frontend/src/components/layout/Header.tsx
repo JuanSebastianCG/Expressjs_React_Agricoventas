@@ -103,12 +103,12 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
               <Link to="/mercado-general" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
                 Mercado General
               </Link>
-              <a 
-                href="/mis-productos"
+              <Link 
+                to="/mis-productos"
                 className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors"
               >
                 Mis Productos
-              </a>
+              </Link>
               <Link to="/mis-pedidos" className="text-gray-1 font-medium mx-4 hover:text-green-1 transition-colors">
                 Mis Pedidos
               </Link>
@@ -175,12 +175,20 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                     >
                       Mi Perfil
                     </Link>
-                    {user?.userType === 'ADMIN' && (
+                      <>
+                        <Link 
+                          to="/dashboard" 
+                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
+                        >
+                          Panel de Control
+                        </Link>
+                      </>
+                    {user?.userType === 'SELLER' && (
                       <Link 
-                        to="/dashboard" 
+                        to="/certificados" 
                         className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-green-600"
                       >
-                        Administrar
+                        Mis Certificados
                       </Link>
                     )}
                     <div className="border-t border-gray-200 my-1"></div>
@@ -272,13 +280,13 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
             </Link>
             {isAuthenticated ? (
               <>
-                <a 
-                  href="/mis-productos"
+                <Link 
+                  to="/mis-productos"
                   className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Mis Productos
-                </a>
+                </Link>
                 <Link 
                   to="/mis-pedidos" 
                   className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
@@ -293,6 +301,33 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                 >
                   Mi Perfil
                 </Link>
+                {user?.userType === 'ADMIN' && (
+                  <>
+                    <Link 
+                      to="/dashboard" 
+                      className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Panel de Control
+                    </Link>
+                    <Link 
+                      to="/admin/dashboard" 
+                      className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50 flex items-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="text-green-1 mr-2">👑</span> Administración
+                    </Link>
+                  </>
+                )}
+                {user?.userType === 'SELLER' && (
+                  <Link 
+                    to="/certificados" 
+                    className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Mis Certificados
+                  </Link>
+                )}
                 <div className="border-t border-gray-200 pt-2">
                   <button
                     onClick={handleLogout}

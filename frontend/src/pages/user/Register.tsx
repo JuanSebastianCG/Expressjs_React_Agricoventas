@@ -47,20 +47,27 @@ const Register: React.FC = () => {
       "Password must contain at least one lowercase letter": "La contraseña debe contener al menos una letra minúscula",
       "Password must contain at least one number": "La contraseña debe contener al menos un número",
       "Password must contain at least one special character": "La contraseña debe contener al menos un carácter especial",
+      "Password must be at least 8 characters": "La contraseña debe tener al menos 8 caracteres",
       "Username is already taken": "El nombre de usuario ya está en uso",
+      "Username already exists": "El nombre de usuario ya está en uso",
       "Email is already registered": "El correo electrónico ya está registrado",
+      "Email already exists": "El correo electrónico ya está registrado",
       "Username must be at least 3 characters long": "El nombre de usuario debe tener al menos 3 caracteres",
       "Username can only contain letters, numbers and underscores": "El nombre de usuario solo puede contener letras, números y guiones bajos",
       "Email is not valid": "El correo electrónico no es válido",
-      "Password must be at least 6 characters long": "La contraseña debe tener al menos 6 caracteres",
       "Phone number is required": "El número de teléfono es requerido",
       "Phone number must be 10 digits": "El número de teléfono debe tener 10 dígitos",
       "First name is required": "El nombre es requerido",
       "Last name is required": "El apellido es requerido",
       "Address is required": "La dirección es requerida",
       "City is required": "La ciudad es requerida",
-      "Department is required": "El departamento es requerido"
+      "Department is required": "El departamento es requerido",
+      "Unique constraint failed on the constraint: `users_phone_number_key`": "Este número de teléfono ya está registrado. Por favor utilice otro número."
     };
+
+    if (message.includes("users_phone_number_key")) {
+      return "Este número de teléfono ya está registrado. Por favor utilice otro número.";
+    }
 
     return errorMessages[message] || message;
   };
@@ -105,8 +112,21 @@ const Register: React.FC = () => {
     // Password validation
     if (!values.password) {
       errors.password = 'La contraseña es requerida';
-    } else if (values.password.length < 6) {
-      errors.password = 'La contraseña debe tener al menos 6 caracteres';
+    } else if (values.password.length < 8) {
+      errors.password = 'La contraseña debe tener al menos 8 caracteres';
+    } else {
+      // Check for uppercase
+      if (!/[A-Z]/.test(values.password)) {
+        errors.password = 'La contraseña debe contener al menos una letra mayúscula';
+      }
+      // Check for lowercase
+      else if (!/[a-z]/.test(values.password)) {
+        errors.password = 'La contraseña debe contener al menos una letra minúscula';
+      }
+      // Check for number
+      else if (!/[0-9]/.test(values.password)) {
+        errors.password = 'La contraseña debe contener al menos un número';
+      }
     }
     
     // Confirm password validation
@@ -173,9 +193,22 @@ const Register: React.FC = () => {
     } catch (error: any) {
       console.error('Registration error:', error);
       
+      // Check for specific constraint error on phone number
+      if (error.response?.data?.error?.message && 
+          error.response.data.error.message.includes('users_phone_number_key')) {
+        setServerError('Este número de teléfono ya está registrado. Por favor utilice otro número.');
+        return;
+      }
+      
       // Handle different error types
       if (error && error.status === 409) {
         setServerError('El nombre de usuario o correo electrónico ya está registrado.');
+      } else if (error.response?.data?.error?.details && Array.isArray(error.response.data.error.details)) {
+        // Extract validation errors from response
+        const validationErrors = error.response.data.error.details.map((detail: any) => 
+          `${translateErrorMessage(detail.message || detail.path || "")}`
+        );
+        setServerError(validationErrors.join('. '));
       } else if (error && error.error && error.error.details && Array.isArray(error.error.details)) {
         // Extract validation errors from the server and translate them
         const validationErrors = error.error.details.map((detail: any) => 
@@ -196,6 +229,9 @@ const Register: React.FC = () => {
       } else if (error && error.error && error.error.message) {
         // Handle structured error message
         setServerError(translateErrorMessage(error.error.message));
+      } else if (error.response?.data?.error?.message) {
+        // Direct error message from response
+        setServerError(translateErrorMessage(error.response.data.error.message));
       } else if (error && error.message) {
         setServerError(translateErrorMessage(error.message));
       } else {

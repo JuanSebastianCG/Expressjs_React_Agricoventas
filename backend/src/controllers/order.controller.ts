@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { CreateOrderDto, UpdateOrderDto, CancelOrderDto } from "../schemas/order.schema";
+import { CreateOrderDto, UpdateOrderDto, CancelOrderDto, UpdateOrderStatusDto } from "../schemas/order.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
 
@@ -393,6 +393,89 @@ export class OrderController {
         }
       });
 
+      // Map order to response object
+      const orderResponse = this.mapToOrderResponse(updatedOrder);
+      sendSuccessResponse(res, orderResponse);
+    } catch (error: any) {
+      sendErrorResponse(res, error.message, HttpStatusCode.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Update only the status of an order
+   * @param req Express request
+   * @param res Express response
+   */
+  async updateOrderStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const orderId = req.params.orderId;
+      const { status } = req.body as UpdateOrderStatusDto;
+      
+      // Check if order exists
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  sellerId: true
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      if (!existingOrder) {
+        sendNotFoundResponse(res, "Order not found");
+        return;
+      }
+      
+      // Only allow admin to update status (security check already in route middleware)
+      // For more granular permissions, you could check if user is the seller of any item
+      
+      // Update order status
+      const updatedOrder = await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status,
+          updatedAt: new Date()
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                  sellerId: true
+                }
+              }
+            }
+          },
+          buyer: {
+            select: {
+              id: true,
+              username: true,
+              email: true
+            }
+          }
+        }
+      });
+      
+      // Create notification for buyer
+      await prisma.userNotification.create({
+        data: {
+          recipientUserId: updatedOrder.buyerUserId,
+          type: "ORDER_STATUS",
+          title: `Estado de tu pedido actualizado: ${status}`,
+          message: `Tu pedido #${orderId.substring(0,8)} ha cambiado de estado a ${status}.`,
+          relatedEntityType: "order",
+          relatedEntityId: orderId
+        }
+      });
+      
       // Map order to response object
       const orderResponse = this.mapToOrderResponse(updatedOrder);
       sendSuccessResponse(res, orderResponse);
