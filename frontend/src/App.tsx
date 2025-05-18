@@ -1,6 +1,6 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, Suspense, lazy, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, Link } from 'react-router-dom';
-import { useAppContext, AppProvider } from './context/AppContext';
+import { useAppContext } from './context/AppContext';
 import Login from './pages/user/Login';
 import Register from './pages/user/Register';
 import Home from './pages/Home';
@@ -211,6 +211,51 @@ const AppRoutes: React.FC = () => (
   </Routes>
 );
 
+// Simple Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Application error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+          <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Algo salió mal</h2>
+            <p className="text-gray-700 mb-4">
+              Ha ocurrido un error al cargar la aplicación. Por favor, intenta alguna de estas soluciones:
+            </p>
+            <ul className="list-disc pl-5 mb-6 text-gray-600">
+              <li className="mb-2">Desactiva las extensiones del navegador</li>
+              <li className="mb-2">Abre la aplicación en una ventana de incógnito</li>
+              <li className="mb-2">Limpia el caché del navegador</li>
+              <li>Recarga la página</li>
+            </ul>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-green-1 text-white py-2 px-4 rounded-md hover:bg-green-0-9 transition-colors w-full"
+            >
+              Recargar Página
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const App: React.FC = () => {
   const { isAuthenticated } = useAppContext();
 
@@ -255,7 +300,7 @@ const App: React.FC = () => {
   }, [isAuthenticated]);
 
   return (
-    <AppProvider>
+    <ErrorBoundary>
       <CartProvider>
         <Router>
           <Suspense fallback={
@@ -268,7 +313,7 @@ const App: React.FC = () => {
           </Suspense>
         </Router>
       </CartProvider>
-    </AppProvider>
+    </ErrorBoundary>
   );
 };
 

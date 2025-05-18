@@ -53,26 +53,22 @@ const checkForSavedSession = (): { token: string | null, user: UserData | null }
 };
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  // Verificar si hay una sesión guardada antes de definir el estado inicial
-  const savedSession = checkForSavedSession();
-  
   const [state, setState] = useState<AppContextState>({
     theme: 'light',
     toggleTheme: () => {},
-    isAuthenticated: !!savedSession.token,
-    user: savedSession.user,
+    isAuthenticated: false, // Initialize as false, let useEffect determine based on token
+    user: null,
     login: () => {},
     logout: () => {},
     updateUser: () => {},
     isLoading: true
   });
   
-  // Inicialización adicional y escucha de cambios en localStorage
   useEffect(() => {
     const initializeUser = async () => {
+      const savedSession = checkForSavedSession(); // Check session inside useEffect
       try {
         if (savedSession.token) {
-          // Obtener datos actualizados del usuario desde el backend
           const currentUser = await userService.getCurrentUser();
           setState(prev => ({
             ...prev,
@@ -80,9 +76,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             user: currentUser,
             isLoading: false
           }));
+        } else {
+          // No token, so not authenticated, and loading is complete
+          setState(prev => ({
+            ...prev,
+            isAuthenticated: false,
+            user: null,
+            isLoading: false
+          }));
         }
       } catch (error) {
-        // Si hay error, limpiar la sesión
+        console.error('Error initializing user session:', error);
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         setState(prev => ({
@@ -96,77 +100,52 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     initializeUser();
     
-    // Escuchar cambios en localStorage (por si se cierra sesión en otra pestaña)
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === TOKEN_KEY || event.key === USER_KEY) {
         const session = checkForSavedSession();
-        if (session.token) {
-          setState(prev => ({
-            ...prev,
-            isAuthenticated: true,
-            user: session.user,
-            isLoading: false
-          }));
-        } else {
-          setState(prev => ({
-            ...prev,
-            isAuthenticated: false,
-            user: null,
-            isLoading: false
-          }));
-        }
+        setState(prev => ({
+          ...prev,
+          isAuthenticated: !!session.token,
+          user: session.user,
+          isLoading: false // Assuming storage change means loading is done for this context
+        }));
       }
     };
 
-    // Añadir event listener para storage
     window.addEventListener('storage', handleStorageChange);
 
-    // Limpiar event listener al desmontar
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
   
   const toggleTheme = () => {
     setState(prev => ({ ...prev, theme: prev.theme === 'light' ? 'dark' : 'light' }));
   };
   
   const login = (token: string, userData: UserData) => {
-    
-    // Verificación estricta de userData
     if (!userData) {
       console.error("Error: userData es undefined en la función login");
       return;
     }
-    
     try {
-      // Evitar el acceso a propiedades de userData para prevenir errores
-      
-      // Guardar en localStorage
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(userData));
-      
-      // Actualizar estado
       setState(prev => ({
         ...prev,
         isAuthenticated: true,
         user: userData,
         isLoading: false
       }));
-      
     } catch (error) {
       console.error("Error en la función login:", error);
     }
   };
   
   const logout = () => {
-    
-    // Limpiar localStorage
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    localStorage.removeItem('cart'); // Clear cart data when logging out
-    
-    // Actualizar estado
+    localStorage.removeItem('cart');
     setState(prev => ({
       ...prev,
       isAuthenticated: false,
@@ -176,12 +155,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const updateUser = (userData: UserData) => {
-    // Actualizar en localStorage y en el estado
     localStorage.setItem(USER_KEY, JSON.stringify(userData));
     setState(prev => ({ ...prev, user: userData }));
   };
   
-  // Memoize the context value to prevent unnecessary re-renders
   const contextValue = {
     theme: state.theme,
     toggleTheme,
@@ -193,7 +170,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     isLoading: state.isLoading
   };
   
-  // Mostrar loading mientras se inicializa el estado de autenticación
   if (state.isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
