@@ -34,6 +34,7 @@ export const updateProductSchema = productSchema.partial().extend({
     altText: z.string().optional().nullable(), 
     isPrimary: z.boolean().optional() 
   })).optional(),
+  deleteExistingImages: z.boolean().optional(),
 });
 
 // Schema for product query parameters

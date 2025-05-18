@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import IconNoBackground from '../../assets/IconNoBackground.png';
 import { navigateToProducts } from '../../App';
-import CartIcon from '../cart/CartIcon';
+import NotificationBell from '../common/NotificationBell';
 
 interface HeaderProps {
   title?: string;
@@ -119,6 +119,9 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
 
             {/* User profile dropdown - Desktop */}
             <div className="hidden md:flex items-center space-x-4" ref={userMenuRef}>
+              {/* Notification Bell */}
+              <NotificationBell className="mr-2" />
+              
               <div className="relative">
                 <button
                   onClick={toggleUserMenu}
@@ -201,9 +204,6 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                   </div>
                 )}
               </div>
-              <div className="ml-auto">
-                <CartIcon className="text-gray-700" />
-              </div>
             </div>
           </>
         ) : (
@@ -240,18 +240,17 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
                   </svg>
                 </button>
               </div>
-              <div className="ml-auto">
-                <CartIcon className="text-gray-700" />
-              </div>
             </div>
           </>
         )}
 
-        {/* Mobile Menu Button and Cart Icon */}
-        <div className="md:hidden flex items-center space-x-4">
-          <CartIcon className="text-gray-700" />
-        <button
-          onClick={toggleMobileMenu}
+        {/* Mobile Menu Button */}
+        <div className="md:hidden flex items-center space-x-3">
+          {/* Mobile Notification Bell */}
+          {isAuthenticated && <NotificationBell />}
+          
+          <button
+            onClick={toggleMobileMenu}
             className="text-gray-1 hover:text-green-1 focus:outline-none"
           >
             {mobileMenuOpen ? (
@@ -260,98 +259,64 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
               </svg>
             ) : (
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             )}
-        </button>
+          </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white p-4 mt-2 shadow-md rounded-b-lg">
-          <div className="flex flex-col space-y-3">
-            <Link 
-              to="/mercado-general" 
-              className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Mercado General
-            </Link>
+        <div className="absolute top-full left-0 right-0 bg-white shadow-md z-20 md:hidden">
+          <div className="px-4 py-3">
             {isAuthenticated ? (
               <>
-                <Link 
-                  to="/mis-productos"
-                  className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
+                <Link to="/mercado-general" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                  Mercado General
+                </Link>
+                <Link to="/mis-productos" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
                   Mis Productos
                 </Link>
-                <Link 
-                  to="/mis-pedidos" 
-                  className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
+                <Link to="/mis-pedidos" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
                   Mis Pedidos
                 </Link>
-                <Link 
-                  to="/perfil" 
-                  className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
+                <Link to="/dashboard" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                  Dashboard
+                </Link>
+                <Link to="/perfil" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
                   Mi Perfil
                 </Link>
-                {user?.userType === 'ADMIN' && (
-                  <>
-                    <Link 
-                      to="/dashboard" 
-                      className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Panel de Control
-                    </Link>
-                    <Link 
-                      to="/admin/dashboard" 
-                      className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50 flex items-center"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="text-green-1 mr-2">👑</span> Administración
-                    </Link>
-                  </>
-                )}
                 {user?.userType === 'SELLER' && (
-                  <Link 
-                    to="/certificados" 
-                    className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link to="/certificados" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
                     Mis Certificados
                   </Link>
                 )}
-                <div className="border-t border-gray-200 pt-2">
-                  <button
-                    onClick={handleLogout}
-                    className="text-red-600 font-medium hover:text-red-700 py-2 px-4 rounded hover:bg-gray-50 w-full text-left"
-                  >
-                    Cerrar Sesión
-                  </button>
-                </div>
+                {user?.userType === 'ADMIN' && (
+                  <Link to="/admin" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                    Administración
+                  </Link>
+                )}
+                <button 
+                  onClick={handleLogout}
+                  className="block w-full text-left py-2 mt-2 border-t border-gray-100 text-red-600 font-medium hover:text-red-700 transition-colors"
+                >
+                  Cerrar Sesión
+                </button>
               </>
             ) : (
               <>
-                <Link 
-                  to="/login" 
-                  className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                        Iniciar Sesión
-                      </Link>
-                <Link 
-                  to="/register" 
-                  className="text-gray-1 font-medium hover:text-green-1 py-2 px-4 rounded hover:bg-gray-50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Registrarse
+                <Link to="/mercado-general" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                  Mercado General
+                </Link>
+                <Link to="/insights" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                  Insights
+                </Link>
+                <Link to="/register" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                  Regístrate
+                </Link>
+                <Link to="/login" className="block py-2 text-gray-1 font-medium hover:text-green-1 transition-colors">
+                  Iniciar Sesión
                 </Link>
               </>
             )}

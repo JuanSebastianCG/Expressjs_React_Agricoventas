@@ -63,8 +63,41 @@
   }
 }
 
+/* Animaciones para el icono de notificación */
+@keyframes wiggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
 
+@keyframes ping {
+  75%, 100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
 
+.animate-wiggle {
+  animation: wiggle 0.8s ease-in-out;
+}
+
+.animate-bell {
+  position: relative;
+}
+
+.animate-bell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 0 rgba(4, 107, 77, 0.7);
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) 1;
+}
 
 /* Estilos personalizados para botones */
 .btn-green {

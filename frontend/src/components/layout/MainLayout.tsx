@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
+import FloatingCart from '../cart/FloatingCart';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -57,6 +58,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           {children}
         </main>
       </div>
+      
+      {/* Elementos flotantes */}
+      <FloatingCart />
       
       <Footer />
     </div>

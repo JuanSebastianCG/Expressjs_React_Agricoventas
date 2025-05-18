@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { hasRequiredCertifications, getCertificationsCount, REQUIRED_CERTIFICATIONS } from '../utils/certificateValidator';
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from '../utils/responseHandler';
 import HttpStatusCode from '../utils/HttpStatusCode';
+import { NotificationService } from '../utils/notification.service';
 import fs from 'fs'; // Import fs for file operations
 import path from 'path'; // Import path for path operations
 
@@ -82,6 +83,31 @@ export class CertificationController {
             rejectionReason: null
           }
         });
+
+        // Create notification for the user that the certification was updated
+        try {
+          await NotificationService.createNotification({
+            recipientUserId: userId,
+            type: 'CERTIFICATION_UPDATED',
+            title: 'Certificación Actualizada',
+            message: `Tu certificación "${certificationName}" ha sido actualizada y está pendiente de revisión.`,
+            relatedEntityType: 'CERTIFICATION',
+            relatedEntityId: updatedCert.id
+          });
+          
+          // Also notify admins about the updated certification
+          await NotificationService.notifyAdminsAboutCertification(
+            updatedCert.id,
+            userId,
+            certificationName
+          );
+          
+          console.log(`[CertificationController.uploadCertification] Notification sent for certification update: ${updatedCert.id}`);
+        } catch (notificationError) {
+          console.error('[CertificationController.uploadCertification] Error creating notification for update:', notificationError);
+          // Continue even if notification fails
+        }
+
         sendSuccessResponse(res, updatedCert, HttpStatusCode.OK);
         return;
       }
@@ -99,6 +125,30 @@ export class CertificationController {
           status: 'PENDING'
         }
       });
+
+      // Create notification for the user that the certification was uploaded
+      try {
+        await NotificationService.createNotification({
+          recipientUserId: userId,
+          type: 'CERTIFICATION_UPLOADED',
+          title: 'Certificación Enviada',
+          message: `Tu certificación "${certificationName}" ha sido enviada y está pendiente de revisión.`,
+          relatedEntityType: 'CERTIFICATION',
+          relatedEntityId: certification.id
+        });
+        
+        // Also notify admins about the new certification
+        await NotificationService.notifyAdminsAboutCertification(
+          certification.id,
+          userId,
+          certificationName
+        );
+        
+        console.log(`[CertificationController.uploadCertification] Notification sent for new certification: ${certification.id}`);
+      } catch (notificationError) {
+        console.error('[CertificationController.uploadCertification] Error creating notification for upload:', notificationError);
+        // Continue even if notification fails
+      }
 
       sendSuccessResponse(res, certification, HttpStatusCode.CREATED);
     } catch (error: any) {
@@ -320,6 +370,16 @@ export class CertificationController {
         return;
       }
 
+      // Get certification information before updating
+      const certification = await this.db.userCertification.findUnique({
+        where: { id: certificationId }
+      });
+
+      if (!certification) {
+        sendNotFoundResponse(res, 'Certification not found');
+        return;
+      }
+
       const updatedCertification = await this.db.userCertification.update({
         where: {
           id: certificationId
@@ -330,6 +390,20 @@ export class CertificationController {
           verifierAdminId: adminId
         }
       });
+
+      // Send notification to the user
+      try {
+        await NotificationService.notifyCertificationStatusChange(
+          certification.userId,
+          certificationId,
+          'VERIFIED',
+          certification.certificationName
+        );
+        console.log(`[CertificationController.approveCertification] Notification sent for certification approval: ${certificationId}`);
+      } catch (notificationError) {
+        console.error('[CertificationController.approveCertification] Error creating notification:', notificationError);
+        // Continue with certification approval even if notification fails
+      }
 
       sendSuccessResponse(res, updatedCertification);
     } catch (error: any) {
@@ -353,6 +427,16 @@ export class CertificationController {
         return;
       }
 
+      // Get certification information before updating
+      const certification = await this.db.userCertification.findUnique({
+        where: { id: certificationId }
+      });
+
+      if (!certification) {
+        sendNotFoundResponse(res, 'Certification not found');
+        return;
+      }
+
       const updatedCertification = await this.db.userCertification.update({
         where: {
           id: certificationId
@@ -363,6 +447,20 @@ export class CertificationController {
           verifierAdminId: adminId
         }
       });
+
+      // Send notification to the user
+      try {
+        await NotificationService.notifyCertificationStatusChange(
+          certification.userId,
+          certificationId,
+          'REJECTED',
+          certification.certificationName
+        );
+        console.log(`[CertificationController.rejectCertification] Notification sent for certification rejection: ${certificationId}`);
+      } catch (notificationError) {
+        console.error('[CertificationController.rejectCertification] Error creating notification:', notificationError);
+        // Continue with certification rejection even if notification fails
+      }
 
       sendSuccessResponse(res, updatedCertification);
     } catch (error: any) {

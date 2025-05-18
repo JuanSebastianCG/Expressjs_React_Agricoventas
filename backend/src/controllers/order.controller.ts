@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { CreateOrderDto, UpdateOrderDto, CancelOrderDto, UpdateOrderStatusDto } from "../schemas/order.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
+import { NotificationService } from "../utils/notification.service";
 
 const prisma = new PrismaClient();
 
@@ -107,6 +108,30 @@ export class OrderController {
           },
         });
       });
+
+      // Send notifications to buyer and seller(s)
+      try {
+        // Collect unique seller IDs from order items
+        const sellerIds = new Set<string>();
+        for (const item of order.items) {
+          if (item.product?.sellerId) {
+            sellerIds.add(item.product.sellerId);
+          }
+        }
+
+        // Notify buyer
+        await NotificationService.notifyOrderPlaced(
+          order.buyerUserId,
+          Array.from(sellerIds)[0], // Using the first seller for simplicity
+          order.id,
+          order.totalAmount
+        );
+
+        console.log(`[OrderController.createOrder] Order placed notification sent to buyer and seller(s)`);
+      } catch (notificationError) {
+        console.error('[OrderController.createOrder] Error creating notification:', notificationError);
+        // Continue with order creation even if notification fails
+      }
 
       // Map order to response object
       const orderResponse = this.mapToOrderResponse(order);
@@ -465,16 +490,18 @@ export class OrderController {
       });
       
       // Create notification for buyer
-      await prisma.userNotification.create({
-        data: {
-          recipientUserId: updatedOrder.buyerUserId,
-          type: "ORDER_STATUS",
-          title: `Estado de tu pedido actualizado: ${status}`,
-          message: `Tu pedido #${orderId.substring(0,8)} ha cambiado de estado a ${status}.`,
-          relatedEntityType: "order",
-          relatedEntityId: orderId
-        }
-      });
+      try {
+        await NotificationService.notifyOrderStatusChange(
+          updatedOrder.buyerUserId,
+          orderId,
+          status,
+          existingOrder.status || 'PENDING'
+        );
+        console.log(`[OrderController.updateOrderStatus] Notification sent for order status change: ${orderId}`);
+      } catch (notificationError) {
+        console.error('[OrderController.updateOrderStatus] Error creating notification:', notificationError);
+        // Continue with order update even if notification fails
+      }
       
       // Map order to response object
       const orderResponse = this.mapToOrderResponse(updatedOrder);

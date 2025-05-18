@@ -4,6 +4,7 @@ import { CreateProductDto, UpdateProductDto, ProductQueryParams, ProductResponse
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
 import { hasRequiredCertifications, getCertificationsCount } from "../utils/certificateValidator";
+import { NotificationService } from "../utils/notification.service";
 import path from "path";
 import fs from "fs";
 
@@ -190,6 +191,20 @@ export class ProductController {
       }
 
       const productResponse = this.mapToProductResponse(productForResponse);
+      
+      // Create notification
+      try {
+        await NotificationService.notifyProductCreated(
+          productData.sellerId, 
+          newProduct.id, 
+          productData.name
+        );
+        console.log(`[ProductController.createProduct] Notification sent for product creation: ${newProduct.id}`);
+      } catch (notificationError) {
+        console.error('[ProductController.createProduct] Error creating notification:', notificationError);
+        // Continue with product creation even if notification fails
+      }
+      
       sendSuccessResponse(res, productResponse, HttpStatusCode.CREATED);
     } catch (error: any) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -380,199 +395,191 @@ export class ProductController {
    */
   async updateProduct(req: Request, res: Response): Promise<void> {
     try {
-      const productId = req.params.productId;
+      const { id } = req.params;
       const updateData: UpdateProductDto = req.body;
-      const { existingImages } = req.body; // Array of URLs of existing images to keep
 
-      const product = await this.db.product.findUnique({
-        where: { id: productId },
-        include: { images: true }, // Include existing images
+      // First, fetch the product to check owner and get current values
+      const existingProduct = await this.db.product.findUnique({
+        where: { id },
+        include: {
+          seller: true,
+          images: true
+        }
       });
-      
-      if (!product) {
-        sendNotFoundResponse(res, "Product not found");
+
+      if (!existingProduct) {
+        sendNotFoundResponse(res, 'Product not found');
         return;
       }
 
-      if (req.user?.userType !== "ADMIN" && product.sellerId !== req.user?.userId) {
-        sendErrorResponse(res, "You can only update your own products", HttpStatusCode.FORBIDDEN);
+      // Check if user can update this product (must be seller or admin)
+      if (!req.user || (req.user.userType !== "ADMIN" && req.user.userId !== existingProduct.sellerId)) {
+        sendErrorResponse(res, "You do not have permission to update this product", HttpStatusCode.FORBIDDEN);
         return;
       }
 
-      const updatePayload: Prisma.ProductUpdateInput = {};
-      if (updateData.name !== undefined) updatePayload.name = updateData.name;
-      if (updateData.description !== undefined) updatePayload.description = updateData.description;
-      if (updateData.basePrice !== undefined) updatePayload.basePrice = updateData.basePrice;
-      if (updateData.stockQuantity !== undefined) updatePayload.stockQuantity = updateData.stockQuantity;
-      if (updateData.unitMeasure !== undefined) updatePayload.unitMeasure = updateData.unitMeasure;
-      if (updateData.categoryId !== undefined) {
-        updatePayload.category = { connect: { id: updateData.categoryId } };
-      }
-      if (updateData.originLocationId !== undefined) {
-        updatePayload.originLocation = { connect: { id: updateData.originLocationId } };
-      }
-      if (updateData.isFeatured !== undefined) updatePayload.isFeatured = updateData.isFeatured;
-      if (updateData.isActive !== undefined) updatePayload.isActive = updateData.isActive;
+      // Prepare the data for update
+      const dataToUpdate: any = {
+        ...(updateData.name !== undefined && { name: updateData.name }),
+        ...(updateData.description !== undefined && { description: updateData.description }),
+        ...(updateData.basePrice !== undefined && { basePrice: updateData.basePrice }),
+        ...(updateData.stockQuantity !== undefined && { stockQuantity: updateData.stockQuantity }),
+        ...(updateData.unitMeasure !== undefined && { unitMeasure: updateData.unitMeasure }),
+        ...(updateData.isFeatured !== undefined && { isFeatured: updateData.isFeatured }),
+        ...(updateData.isActive !== undefined && { isActive: updateData.isActive }),
+        ...(updateData.categoryId !== undefined && { 
+          category: updateData.categoryId ? { connect: { id: updateData.categoryId } } : { disconnect: true }
+        }),
+        ...(updateData.originLocationId !== undefined && { 
+          originLocation: updateData.originLocationId ? 
+            { connect: { id: updateData.originLocationId } } : 
+            { disconnect: true }
+        }),
+        updatedAt: new Date()
+      };
 
-      // Image update logic
-      const imagesToDeleteDb: string[] = []; // IDs of ProductImage records to delete
-      const filesToDeleteFs: string[] = [];  // File paths to delete from filesystem
-
-      if (product.images) {
-        product.images.forEach(existingImg => {
-          if (!existingImages || !existingImages.includes(existingImg.imageUrl)) {
-            imagesToDeleteDb.push(existingImg.id);
-            // Extract filename from URL for deletion. Assumes URL structure like http://host/uploads/products/filename.ext
-            try {
-              const urlParts = existingImg.imageUrl.split('/');
-              const filename = urlParts[urlParts.length - 1];
-              if (filename) {
-                filesToDeleteFs.push(path.join(__dirname, '../../../uploads/products', decodeURIComponent(filename)));
-              }
-            } catch (e) {
-              console.error('Error parsing filename from image URL for deletion:', existingImg.imageUrl, e);
-            }
-          }
-        });
-      }
-      
-      const newImageRecordsData: Prisma.ProductImageCreateManyInput[] = [];
-      let currentDisplayOrder = product.images ? product.images.filter(img => existingImages && existingImages.includes(img.imageUrl)).length : 0;
-
-      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-        // Create directory if it doesn't exist
-        const uploadDir = path.join(__dirname, '../../../uploads/products');
-        if (!fs.existsSync(uploadDir)) {
-          try {
-            fs.mkdirSync(uploadDir, { recursive: true });
-            console.log(`[ProductController.updateProduct] Created uploads directory: ${uploadDir}`);
-          } catch (dirErr) {
-            console.error(`[ProductController.updateProduct] Failed to create directory: ${uploadDir}`, dirErr);
-          }
+      // Check if stock quantity is being updated to a low level
+      const LOW_STOCK_THRESHOLD = 10;
+      if (updateData.stockQuantity !== undefined && 
+          updateData.stockQuantity <= LOW_STOCK_THRESHOLD && 
+          (existingProduct.stockQuantity === undefined || existingProduct.stockQuantity > LOW_STOCK_THRESHOLD)) {
+        // Send low stock notification
+        try {
+          await NotificationService.notifyLowStock(
+            existingProduct.sellerId,
+            existingProduct.id,
+            existingProduct.name,
+            updateData.stockQuantity
+          );
+          console.log(`[ProductController.updateProduct] Low stock notification sent for product: ${existingProduct.id}`);
+        } catch (notificationError) {
+          console.error('[ProductController.updateProduct] Error sending low stock notification:', notificationError);
+          // Continue with product update even if notification fails
         }
-        
-        // Get request protocol and host for URL generation
-        const protocol = req.protocol;
-        const host = req.get('host') || 'localhost:3001';
-        
-        (req.files as Express.Multer.File[]).forEach((file) => {
-          // Create URL using request protocol and host
-          const fileUrl = `${protocol}://${host}/uploads/products/${file.filename}`;
-          
-          console.log(`[ProductController.updateProduct] Creating image record for ${file.filename}`);
-          console.log(`[ProductController.updateProduct] Generated URL: ${fileUrl}`);
-          console.log(`[ProductController.updateProduct] File details:`, {
-            fieldname: file.fieldname,
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-            path: file.path,
-            filename: file.filename
-          });
-          
-          // Check if file physically exists
-          const filePath = path.join(uploadDir, file.filename);
-          const fileExists = fs.existsSync(filePath);
-          console.log(`[ProductController.updateProduct] File exists at ${filePath}: ${fileExists}`);
-          
-          newImageRecordsData.push({
-            productId: productId,
-            imageUrl: fileUrl,
-            altText: updateData.name || product.name,
-            isPrimary: false, // Will handle primary image logic later
-            displayOrder: currentDisplayOrder++,
-          });
-        });
       }
 
-      // Transaction to update product, delete old images, create new images
-      await this.db.$transaction(async (prismaTx) => {
-        if (imagesToDeleteDb.length > 0) {
-          await prismaTx.productImage.deleteMany({
-            where: { id: { in: imagesToDeleteDb } },
-          });
-        }
-
-        if (newImageRecordsData.length > 0) {
-          try {
-            await prismaTx.productImage.createMany({
-              data: newImageRecordsData,
-            });
-            console.log('[ProductController.updateProduct] Successfully created new productImage records in transaction.');
-          } catch (dbError) {
-            console.error('[ProductController.updateProduct] Error creating new productImage records in transaction:', dbError);
-            throw dbError;
-          }
-        }
-        
-        // Update the product itself
-        const updatedProductMain = await prismaTx.product.update({
-          where: { id: productId },
-          data: updatePayload,
-        });
-
-        // Set primary image: if no existing images are primary, or no images left, make the first one primary.
-        const remainingImages = await prismaTx.productImage.findMany({
-          where: { productId: productId },
-          orderBy: { displayOrder: 'asc' },
-        });
-
-        let hasPrimary = remainingImages.some(img => img.isPrimary);
-        if (!hasPrimary && remainingImages.length > 0) {
-          await prismaTx.productImage.update({
-            where: { id: remainingImages[0].id },
-            data: { isPrimary: true },
-          });
-          // Ensure other images are not primary
-          if (remainingImages.length > 1) {
-            await prismaTx.productImage.updateMany({
-                where: { productId: productId, id: { not: remainingImages[0].id } },
-                data: { isPrimary: false }
-            });
-          }
-        } else if (hasPrimary && remainingImages.filter(img => img.isPrimary).length > 1) {
-          // If somehow multiple primaries, keep only the first one by displayOrder
-           const firstPrimary = remainingImages.filter(img => img.isPrimary).sort((a,b) => a.displayOrder - b.displayOrder)[0];
-           await prismaTx.productImage.updateMany({
-             where: { productId: productId, id: {not: firstPrimary.id} },
-             data: {isPrimary: false}
-           })
-        } else if (remainingImages.length === 0 && product.images.length > 0 && newImageRecordsData.length === 0 && imagesToDeleteDb.length > 0){
-             // All images were deleted, nothing to set as primary
-        }
-
-        // Delete files from filesystem after DB transaction succeeds
-        filesToDeleteFs.forEach(filePath => {
-          fs.unlink(filePath, err => {
-            if (err) console.error(`Failed to delete image file ${filePath}:`, err);
-            else console.log(`Successfully deleted image file ${filePath}`);
-          });
-        });
-        return updatedProductMain; // Or the full product with relations if needed for response mapping
-      });
-
-      // Refetch product with all relations for the response
-      const productForResponse = await this.db.product.findUnique({
-        where: { id: productId },
+      // Perform the update
+      const updatedProduct = await this.db.product.update({
+        where: { id },
+        data: dataToUpdate,
         include: {
           category: true,
-          seller: { select: { id: true, username: true, firstName: true, lastName: true } },
+          seller: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
           originLocation: true,
-          images: { orderBy: { displayOrder: 'asc' } },
-        } as any,
+          images: true,
+        }
       });
-
-      if (!productForResponse) {
-        sendErrorResponse(res, 'Failed to retrieve product after update', HttpStatusCode.INTERNAL_SERVER_ERROR);
-        return;
+      
+      // Handle image updates if images were uploaded
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        console.log(`[ProductController.updateProduct] Processing ${req.files.length} new images`);
+        
+        // If deleteImages flag is set, delete existing images
+        if (updateData.deleteExistingImages) {
+          console.log(`[ProductController.updateProduct] Deleting existing images for product ${id}`);
+          
+          try {
+            // Get existing images
+            const existingImages = await this.db.productImage.findMany({
+              where: { productId: id }
+            });
+            
+            // Delete image files from storage
+            for (const image of existingImages) {
+              try {
+                const imagePath = image.imageUrl.split('/').pop();
+                if (imagePath) {
+                  const fullPath = path.join(__dirname, '../../../uploads/products', imagePath);
+                  if (fs.existsSync(fullPath)) {
+                    fs.unlinkSync(fullPath);
+                    console.log(`[ProductController.updateProduct] Deleted image file: ${fullPath}`);
+                  }
+                }
+              } catch (fileErr) {
+                console.error(`[ProductController.updateProduct] Error deleting image file:`, fileErr);
+                // Continue even if file deletion fails
+              }
+            }
+            
+            // Delete image records from database
+            await this.db.productImage.deleteMany({
+              where: { productId: id }
+            });
+            
+            console.log(`[ProductController.updateProduct] Successfully deleted existing images`);
+          } catch (deleteErr) {
+            console.error(`[ProductController.updateProduct] Error deleting existing images:`, deleteErr);
+            // Continue with product update even if image deletion fails
+          }
+        }
+        
+        // Process new images
+        try {
+          const uploadDir = path.join(__dirname, '../../../uploads/products');
+          const imageRecordsData = (req.files as Express.Multer.File[]).map((file, index) => {
+            const protocol = req.protocol;
+            const host = req.get('host') || 'localhost:3001';
+            const fileUrl = `${protocol}://${host}/uploads/products/${file.filename}`;
+            
+            return {
+              productId: id,
+              imageUrl: fileUrl,
+              altText: updatedProduct.name,
+              isPrimary: updateData.deleteExistingImages ? index === 0 : false,
+              displayOrder: index,
+            };
+          });
+          
+          // Use a transaction to ensure all images are created or none
+          await this.db.$transaction(async (tx) => {
+            for (const imageRecord of imageRecordsData) {
+              await tx.productImage.create({
+                data: imageRecord
+              });
+            }
+          });
+          
+          console.log(`[ProductController.updateProduct] Successfully added ${imageRecordsData.length} new images`);
+        } catch (imgError) {
+          console.error('[ProductController.updateProduct] Error processing images:', imgError);
+          // Continue with product update even if image processing fails
+        }
       }
       
-      const productResponseData = this.mapToProductResponse(productForResponse);
-      sendSuccessResponse(res, productResponseData);
-    } catch (error: any) {
-      const productIdForError = req.params.productId;
-      console.error(`Error updating product ${productIdForError}:`, error);
-      // Check for specific Prisma errors if necessary, e.g., P2025 for record not found during update
+      // Refetch product with updated images
+      const finalProduct = await this.db.product.findUnique({
+        where: { id },
+        include: {
+          category: true,
+          seller: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          originLocation: true,
+          images: true,
+        }
+      });
+      
+      if (!finalProduct) {
+        sendErrorResponse(res, 'Failed to retrieve updated product', HttpStatusCode.INTERNAL_SERVER_ERROR);
+        return;
+      }
+
+      const productResponse = this.mapToProductResponse(finalProduct);
+      sendSuccessResponse(res, productResponse);
+    } catch (error) {
+      console.error("Error updating product:", error);
       sendErrorResponse(res, 'Failed to update product', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }

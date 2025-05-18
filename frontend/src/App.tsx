@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, lazy, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, Link } from 'react-router-dom';
-import { useAppContext } from './context/AppContext';
+import { useAppContext, AppProvider } from './context/AppContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Login from './pages/user/Login';
 import Register from './pages/user/Register';
 import Home from './pages/Home';
@@ -302,16 +303,18 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <CartProvider>
-        <Router>
-          <Suspense fallback={
-            <div className="flex justify-center items-center h-screen">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-1"></div>
-              <p className="ml-4 text-xl text-gray-700">Agricoventas Cargando...</p>
-            </div>
-          }>
-            <AppRoutes />
-          </Suspense>
-        </Router>
+        <NotificationProvider>
+          <Router>
+            <Suspense fallback={
+              <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-1"></div>
+                <p className="ml-4 text-xl text-gray-700">Agricoventas Cargando...</p>
+              </div>
+            }>
+              <AppRoutes />
+            </Suspense>
+          </Router>
+        </NotificationProvider>
       </CartProvider>
     </ErrorBoundary>
   );

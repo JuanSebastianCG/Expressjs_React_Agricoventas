@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { CreateReviewDto, UpdateReviewDto, ReviewQueryParams } from "../schemas/review.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
 import HttpStatusCode from "../utils/HttpStatusCode";
+import { NotificationService } from "../utils/notification.service";
 
 const prisma = new PrismaClient();
 
@@ -73,6 +74,20 @@ export class ReviewController {
           }
         }
       });
+
+      // Send notification to the product seller
+      try {
+        await NotificationService.notifyProductReview(
+          product.sellerId,
+          product.id,
+          product.name,
+          reviewData.rating
+        );
+        console.log(`[ReviewController.createReview] Notification sent for new review on product: ${product.id}`);
+      } catch (notificationError) {
+        console.error('[ReviewController.createReview] Error creating notification:', notificationError);
+        // Continue even if notification fails
+      }
 
       sendSuccessResponse(res, newReview, HttpStatusCode.CREATED);
     } catch (error: any) {
