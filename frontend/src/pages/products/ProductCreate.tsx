@@ -9,7 +9,7 @@ import StyledBorder from '../../components/ui/StyledBorder';
 import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
 import { certificationService } from '../../services/certificationService';
-import { categoryService } from '../../services/categoryService';
+import categoryService from '../../services/categoryService';
 import { ICategory } from '../../interfaces/category';
 import Header from '../../components/layout/Header';
 import UserProfile from '../../components/common/UserProfile';

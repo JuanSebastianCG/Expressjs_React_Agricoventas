@@ -29,6 +29,7 @@ import ManageProducts from './pages/admin/ManageProducts';
 
 // Lazy loaded pages
 const ManageOrders = lazy(() => import('./pages/admin/ManageOrders'));
+const Insights = lazy(() => import('./pages/Insights'));
 
 // Componente para rutas protegidas
 interface ProtectedRouteProps {
@@ -115,6 +116,11 @@ const AppRoutes: React.FC = () => (
     <Route element={<ProtectedRoute allowedRoles={['SELLER', 'ADMIN']} />}>
       <Route path="/crear-producto" element={<ProductCreate />} />
       <Route path="/editar-producto/:productId" element={<ProductCreate />} />
+      <Route path="/insights" element={
+        <Suspense fallback={<SuspenseLoader />}>
+          <Insights />
+        </Suspense>
+      } />
     </Route>
 
     {/* Authenticated Routes for all users */}

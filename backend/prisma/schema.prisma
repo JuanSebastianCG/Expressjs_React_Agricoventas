@@ -32,6 +32,7 @@ model User {
   receivedNotifications UserNotification[] @relation("RecipientUser")
   certificationsSubmitted UserCertification[] @relation("CertificationSubmitter")
   certificationsVerified UserCertification[] @relation("CertificationVerifier")
+  productHistoryChanges ProductHistory[]
 
   @@map("users")
 }
@@ -100,6 +101,7 @@ model Product {
   cartItems          CartItem[]
   reviews            Review[]
   notifications      ProductNotification[]
+  history            ProductHistory[]
 
   @@map("products")
 }
@@ -291,4 +293,26 @@ model BlacklistedToken {
   createdAt          DateTime             @default(now()) @map("created_at")
 
   @@map("blacklisted_tokens")
+}
+
+// --- Product History Model ---
+model ProductHistory {
+  id                 String               @id @default(auto()) @map("_id") @db.ObjectId
+  productId          String               @db.ObjectId @map("product_id")
+  userId             String               @db.ObjectId @map("user_id")
+  changeType         String               @map("change_type") // "CREATE", "UPDATE", "DELETE"
+  changeField        String?              @map("change_field") // Nombre del campo modificado, null si es creación o eliminación
+  oldValue           String?              @map("old_value")
+  newValue           String?              @map("new_value")
+  timestamp          DateTime             @default(now())
+  additionalInfo     Json?                @map("additional_info")
+  
+  // Relations
+  product            Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("product_history")
 }

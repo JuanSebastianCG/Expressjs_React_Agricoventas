@@ -14,7 +14,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "create-admin": "ts-node src/scripts/createAdminUser.ts"
+    "create-admin": "ts-node src/scripts/createAdminUser.ts",
+    "create-categories": "ts-node src/scripts/createCategories.ts"
   },
   "keywords": [],
   "author": "",
