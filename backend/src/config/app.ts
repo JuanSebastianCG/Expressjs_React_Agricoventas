@@ -57,4 +57,5 @@ export const ROUTES_CONFIG = {
   weather: '/api/weather',
   market: '/api/market',
   docs: '/api-docs',
+  priceHistory: '/api/price-history',
 };

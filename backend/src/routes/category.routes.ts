@@ -232,7 +232,7 @@ router.get(
  *         description: Server error
  */
 router.get(
-  "/categories",
+  "/",
   CategoryMiddleware.validateCategoryQuery,
   cache(30), // Cache for 30 seconds
   (req, res, next) => {
@@ -253,7 +253,7 @@ router.get(
  *         description: Server error
  */
 router.get(
-  "/categories/tree",
+  "/tree",
   cache(60), // Cache for 60 seconds
   (req, res, next) => {
     categoryController.getCategoryTree(req, res, next).catch(next)
@@ -280,7 +280,7 @@ router.get(
  *         description: Server error
  */
 router.get(
-  "/categories/:category_id/children",
+  "/:category_id/children",
   CategoryMiddleware.validateCategoryId,
   cache(60), // Cache for 60 seconds
   (req, res, next) => {
@@ -308,7 +308,7 @@ router.get(
  *         description: Server error
  */
 router.get(
-  "/categories/:category_id/ancestors",
+  "/:category_id/ancestors",
   CategoryMiddleware.validateCategoryId,
   cache(60), // Cache for 60 seconds
   (req, res, next) => {
@@ -363,7 +363,7 @@ router.get(
  *         description: Server error
  */
 router.put(
-  "/categories/:category_id",
+  "/:category_id",
   authenticate,
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateCategoryId,
@@ -401,7 +401,7 @@ router.put(
  *         description: Server error
  */
 router.delete(
-  "/categories/:category_id",
+  "/:category_id",
   authenticate,
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateCategoryId,
@@ -456,7 +456,7 @@ router.delete(
  *         description: Server error
  */
 router.patch(
-  "/categories/bulk-update",
+  "/bulk-update",
   authenticate,
   CategoryMiddleware.isAdmin,
   CategoryMiddleware.validateBulkUpdate,

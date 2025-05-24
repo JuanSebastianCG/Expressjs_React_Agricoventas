@@ -20,9 +20,18 @@ export class CategoryService {
    */
   async create(data: CreateCategoryDto) {
     try {
+      if (!data.slug || typeof data.slug !== 'string' || data.slug.trim() === '') {
+        throw new ApiError(HttpStatusCode.BAD_REQUEST, "Slug is required and must be a non-empty string");
+      }
+      const exists = await prisma.category.findUnique({ where: { slug: data.slug } });
+      if (exists) {
+        throw new ApiError(HttpStatusCode.BAD_REQUEST, "Slug must be unique");
+      }
       // Handle hierarchical structure
       let level = 1
       let path: string[] = []
+
+      
 
       if (data.parentId) {
         // Find parent category to get its level and path

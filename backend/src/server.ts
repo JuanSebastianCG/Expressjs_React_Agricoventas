@@ -22,6 +22,7 @@ import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
 import orderRoutes from './routes/order.routes';
 import categoryRoutes from './routes/category.routes';
+import pricehistoryRoutes from './routes/priceHistory.routes';
 
 /**
  * Middleware para manejar errores específicos de CORS
@@ -96,6 +97,7 @@ export function createApp(): Express {
   app.use(ROUTES_CONFIG.products, productRoutes);
   app.use(ROUTES_CONFIG.orders, orderRoutes); 
   app.use(ROUTES_CONFIG.categories, categoryRoutes);
+  app.use(ROUTES_CONFIG.priceHistory, pricehistoryRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {

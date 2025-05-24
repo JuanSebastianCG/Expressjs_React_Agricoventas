@@ -21,7 +21,7 @@ model User {
 }
 
 model Product {
-  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
   name                   String
   description            String?
   price                  Float
@@ -41,6 +41,9 @@ model Product {
   isActive               Boolean  @default(true)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+
+  // Relations
+  priceHistory           PriceHistory[]
 
   @@map("products")
   @@index([category])
@@ -65,12 +68,10 @@ model Category {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children    Category[] @relation("CategoryToCategory")
-  products    Product[]
 
   @@map("categories")
-  @@index([slug])
   @@index([parentId])
   @@index([isActive])
 }
@@ -109,7 +110,6 @@ model Order {
 
   @@map("orders")
   @@index([customerId])
-  // Eliminado el índice duplicado: @@index([orderNumber])
   @@index([status])
   @@index([createdAt])
 }
@@ -152,7 +152,6 @@ model Invoice {
   @@map("invoices")
   @@index([orderId])
   @@index([customerId])
-  // Eliminado el índice duplicado: @@index([invoiceNumber])
 }
 
 model Shipment {
@@ -173,6 +172,39 @@ model Shipment {
   @@map("shipments")
   @@index([orderId])
   @@index([trackingNumber])
+}
+
+model PriceHistory {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  product_id          String    @db.ObjectId
+  price               Float
+  market_name         String
+  location            String
+  quality_grade       String?   // Premium, Standard, Second, Processing
+  unit                String
+  quantity_available  Int?
+  notes               String?
+  source              String    @default("Manual Entry")
+  recorded_by         String
+  recorded_at         DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  product             Product   @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("price_history")
+  @@index([product_id])
+  @@index([recorded_at])
+  @@index([market_name])
+  @@index([location])
+}
+
+model BlacklistedToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 type Address {
@@ -238,13 +270,6 @@ enum ShipmentStatus {
   DELIVERED
   FAILED
   RETURNED
-}
-
-model BlacklistedToken {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
 }
 
 enum Role {
