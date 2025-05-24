@@ -10,6 +10,7 @@ import { useAppContext } from '../../context/AppContext';
 import ReviewList, { ReviewItem } from '../../components/reviews/ReviewList';
 import ReviewForm from '../../components/reviews/ReviewForm';
 import ReviewStats from '../../components/reviews/ReviewStats';
+import ProductHistoryList from '../../components/products/ProductHistoryList';
 import { useCart } from '../../context/CartContext';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -70,6 +71,9 @@ const ProductDetail: React.FC = () => {
   const [ratingDistribution, setRatingDistribution] = useState<{ [key: number]: number }>({
     5: 0, 4: 0, 3: 0, 2: 0, 1: 0
   });
+
+  // Integrar un estado para controlar la visualización del historial
+  const [showHistory, setShowHistory] = useState(false);
 
   // Calculate rating distribution from reviews
   const calculateRatingDistribution = (reviewsList: ReviewItem[]) => {
@@ -269,306 +273,273 @@ const ProductDetail: React.FC = () => {
     'Vendedor';
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="container mx-auto px-4 py-8">
-        <button onClick={() => navigate(-1)} className="mb-6 text-green-1 hover:text-green-0-9 font-medium flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Volver
-        </button>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column - Product Image and Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Product Image Gallery */}
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-              <div className="relative h-[400px] bg-gray-100">
-                {product.images && product.images.length > 0 ? (
-                  <>
-                    <img 
-                      src={product.images[currentImageIndex]?.imageUrl} 
-                      alt={product.name} 
-                      className="w-full h-full object-contain"
-                    />
-                    
-                    {product.images.length > 1 && (
-                      <>
-                        <button 
-                          onClick={prevImage}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white bg-opacity-75 hover:bg-opacity-100 shadow-md text-gray-700"
-                          aria-label="Previous image"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <button 
-                          onClick={nextImage}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white bg-opacity-75 hover:bg-opacity-100 shadow-md text-gray-700"
-                          aria-label="Next image"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                        
-                        {/* Thumbnail indicators */}
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
-                          {product.images.map((_, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => setCurrentImageIndex(idx)}
-                              className={`w-3 h-3 rounded-full ${
-                                idx === currentImageIndex ? 'bg-green-1' : 'bg-gray-300'
-                              }`}
-                              aria-label={`Go to image ${idx + 1}`}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <p className="text-gray-500">Imagen no disponible</p>
-                  </div>
-                )}
+      <ToastContainer position="top-right" autoClose={3000} />
+      <main className="flex-grow container mx-auto px-4 py-8">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-1"></div>
+            <p className="ml-4 text-lg text-gray-600">Cargando producto...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border-l-4 border-red-1 p-4 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-9v4a1 1 0 11-2 0v-4a1 1 0 112 0zm0-4a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" />
+                </svg>
               </div>
-            </div>
-
-            {/* Product Details Tabs */}
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-              <div className="border-b">
-                <div className="flex">
-                  <button
-                    className={`py-4 px-6 font-medium ${
-                      activeTab === 'descripcion'
-                        ? 'text-green-1 border-b-2 border-green-1'
-                        : 'text-gray-600 hover:text-green-1'
-                    }`}
-                    onClick={() => setActiveTab('descripcion')}
-                  >
-                    Descripción
-                  </button>
-                  <button
-                    className={`py-4 px-6 font-medium ${
-                      activeTab === 'historial'
-                        ? 'text-green-1 border-b-2 border-green-1'
-                        : 'text-gray-600 hover:text-green-1'
-                    }`}
-                    onClick={() => setActiveTab('historial')}
-                  >
-                    Historial
-                  </button>
-                  <button
-                    className={`py-4 px-6 font-medium ${
-                      activeTab === 'resenas'
-                        ? 'text-green-1 border-b-2 border-green-1'
-                        : 'text-gray-600 hover:text-green-1'
-                    }`}
-                    onClick={() => setActiveTab('resenas')}
-                  >
-                    Reseñas ({product.reviewCount || 0})
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                {activeTab === 'descripcion' && (
-                  <div className="text-gray-700 whitespace-pre-wrap">
-                    <p>{product.description || 'No hay descripción disponible para este producto.'}</p>
-                  </div>
-                )}
-
-                {activeTab === 'historial' && (
-                  <div className="text-gray-700">
-                    <p>Historial de precio y disponibilidad no disponible en este momento.</p>
-                  </div>
-                )}
-
-                {activeTab === 'resenas' && (
-                  <div className="text-gray-700">
-                    {/* Reviews section */}
-                    <ReviewStats 
-                      averageRating={product.averageRating || 0}
-                      totalReviews={product.reviewCount || 0}
-                      ratingDistribution={ratingDistribution}
-                    />
-                    
-                    {/* Review form for authenticated users */}
-                    {isAuthenticated && user ? (
-                      <ReviewForm 
-                        productId={product.id || ''} 
-                        userId={user.id || ''}
-                        onReviewSubmitted={handleReviewSubmitted}
-                      />
-                    ) : (
-                      <div className="bg-yellow-50 p-4 rounded-lg mb-6 text-center border border-yellow-200">
-                        <p className="text-yellow-1 font-medium mb-2">
-                          Inicia sesión para dejar tu reseña
-                        </p>
-                        <button
-                          onClick={() => navigate('/login', { state: { from: `/product/${product.id}` } })}
-                          className="text-green-1 font-medium hover:underline"
-                        >
-                          Iniciar sesión
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* Review list */}
-                    <h3 className="text-lg font-semibold mb-4">
-                      {reviews.length > 0 ? 'Opiniones de clientes' : 'Aún no hay opiniones'}
-                    </h3>
-                    <ReviewList reviews={reviews} isLoading={reviewsLoading} />
-                  </div>
-                )}
+              <div className="ml-3">
+                <p className="text-sm text-red-1">
+                  {error}
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Right column - Product info, seller, actions, market insights */}
-          <div className="space-y-6">
-            {/* Product Info Card */}
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-              <div className="p-6">
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">{product.name}</h1>
-                
-                {product.averageRating && (
-                  <div className="mb-3">
-                    <StarRating rating={product.averageRating} reviewCount={product.reviewCount} />
+        ) : product ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Product images */}
+            <div className="relative">
+              <div className="bg-white rounded-lg overflow-hidden shadow-md aspect-square">
+                {product.images && product.images.length > 0 ? (
+                  <img
+                    src={product.images[currentImageIndex]?.imageUrl || ''}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <p className="text-gray-500">No hay imagen disponible</p>
                   </div>
                 )}
                 
-                <div className="text-3xl font-bold text-green-1 mb-4">
-                  {typeof product.price === 'number' 
-                    ? product.price.toLocaleString('es-CO', { 
-                        style: 'currency', 
-                        currency: 'COP', 
-                        minimumFractionDigits: 0 
-                      }) 
-                    : 'Precio no disponible'}
-                  <span className="text-lg text-gray-600 font-medium">/{product.unitMeasure}</span>
+                {product.images && product.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md focus:outline-none hover:bg-gray-100"
+                    >
+                      <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md focus:outline-none hover:bg-gray-100"
+                    >
+                      <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {/* Thumbnail navigation */}
+              {product.images && product.images.length > 1 && (
+                <div className="mt-4 flex space-x-2 overflow-x-auto">
+                  {product.images.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`w-16 h-16 rounded-md overflow-hidden border-2 ${
+                        index === currentImageIndex ? 'border-green-1' : 'border-transparent'
+                      }`}
+                    >
+                      <img
+                        src={image.imageUrl}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
                 </div>
-
-                <div className="flex items-center mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              )}
+            </div>
+            
+            {/* Product info */}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">{product.name}</h1>
+              
+              <div className="flex items-center mb-4">
+                <StarRating 
+                  rating={product.averageRating || 0} 
+                  reviewCount={product.reviewCount || reviews.length} 
+                />
+              </div>
+              
+              <div className="mb-4">
+                <span className="text-3xl font-bold text-green-1">
+                  {typeof product.price === 'number' 
+                    ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(product.price)
+                    : 'Precio no disponible'
+                  }
+                </span>
+                <span className="text-sm text-gray-600 ml-2">por {product.unitMeasure || 'unidad'}</span>
+              </div>
+              
+              <div className="mb-6">
+                <div className="flex items-center mb-2">
+                  <svg className="h-5 w-5 text-green-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span className="text-gray-700">
+                    Stock: <span className="font-medium">{product.stockQuantity || 0} {product.unitMeasure || 'unidades'}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center mb-2">
+                  <svg className="h-5 w-5 text-green-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <span className="text-gray-700">
-                    {product.region || 
-                     (product.originLocation ? 
-                      `${product.originLocation.city}, ${product.originLocation.department}` : 
-                      'No especificado')}
+                    Origen: <span className="font-medium">{product.originLocation?.city || 'No especificado'}</span>
                   </span>
                 </div>
-
-                {/* Stock availability with clear messaging */}
-                <div className="flex items-center mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-green-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
-                  {(
-                    // Check for stock using several possible fields and formats
-                    (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) || 
-                    (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
-                    (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
-                    (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
-                  ) ? (
-                    <span className="text-gray-700">
-                      Disponible: {product.availableQuantity || product.stockQuantity} {product.unitMeasure}
+                  <span className="text-gray-700">
+                    Vendedor: <span className="font-medium">
+                      {product.seller 
+                        ? `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() || ((product.seller as any)?.username || 'Vendedor anónimo')
+                        : 'Vendedor anónimo'
+                      }
                     </span>
-                  ) : (
-                    <span className="text-red-500 font-medium">Sin stock disponible</span>
-                  )}
+                  </span>
                 </div>
-
-                {/* Seller info with badge */}
-                <div className="flex items-center justify-between border-t border-b py-4 my-4">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-3 overflow-hidden">
-                        <span className="text-lg font-semibold text-white">{sellerFullName.charAt(0)}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">{sellerFullName}</p>
-                      <div className="flex items-center">
-                        <span className="text-xs bg-green-0-5 text-green-1 px-2 py-0.5 rounded-full mr-2">Verificado</span>
-                       {/*  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Certificación De producto</span> */}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action buttons with disabled state when no stock */}
-                <div className="space-y-3">
-                  <button 
-                    onClick={handleAddToCart}
-                    disabled={!(
-                      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
-                      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
-                      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
-                      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
-                    )}
-                    className={`w-full py-3 px-4 ${
-                      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
-                      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
-                      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
-                      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
-                        ? 'bg-yellow-1 hover:bg-yellow-1-5 text-gray-800' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    } font-medium rounded-md flex items-center justify-center`}
+              </div>
+              
+              <div className="mb-6">
+                <StyledButton 
+                  onClick={handleAddToCart}
+                  disabled={!product.stockQuantity || product.stockQuantity <= 0}
+                  className="w-full md:w-auto"
+                >
+                  {product.stockQuantity && product.stockQuantity > 0 
+                    ? 'Agregar al carrito' 
+                    : 'Sin stock disponible'
+                  }
+                </StyledButton>
+              </div>
+              
+              {/* Tabs for description, history, and reviews */}
+              <div className="border-b border-gray-200 mb-4">
+                <div className="flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('descripcion')}
+                    className={`py-2 relative ${
+                      activeTab === 'descripcion'
+                        ? 'text-green-1 font-medium'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    {(
-                      (typeof product.availableQuantity === 'number' && product.availableQuantity > 0) ||
-                      (typeof product.stockQuantity === 'number' && product.stockQuantity > 0) ||
-                      (product.availableQuantity && parseInt(String(product.availableQuantity)) > 0) ||
-                      (product.stockQuantity && parseInt(String(product.stockQuantity)) > 0)
-                    ) ? 'Añadir al carrito' : 'Sin stock disponible'}
+                    Descripción
+                    {activeTab === 'descripcion' && (
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-1"></span>
+                    )}
+                  </button>
+                  
+                  {/* Botón para ver historial - solo para vendedores y admins */}
+                  {(user?.userType === 'SELLER' || user?.userType === 'ADMIN') && (
+                    <button
+                      onClick={() => setActiveTab('historial')}
+                      className={`py-2 relative ${
+                        activeTab === 'historial'
+                          ? 'text-green-1 font-medium'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Historial
+                      {activeTab === 'historial' && (
+                        <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-1"></span>
+                      )}
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => setActiveTab('resenas')}
+                    className={`py-2 relative ${
+                      activeTab === 'resenas'
+                        ? 'text-green-1 font-medium'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Reseñas ({reviews.length})
+                    {activeTab === 'resenas' && (
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-1"></span>
+                    )}
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Market Insights */}
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Insights de mercado</h2>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-green-0-4 rounded-md">
-                    <span className="text-gray-700">Tendencia de precio</span>
-                    <span className="font-bold text-green-1">+3.2% this week</span>
+              
+              {/* Tab content */}
+              <div>
+                {activeTab === 'descripcion' && (
+                  <div className="prose max-w-none">
+                    <p className="text-gray-700 whitespace-pre-line">{product.description || 'No hay descripción disponible.'}</p>
                   </div>
-                  
-                  <div className="p-3 bg-yellow-100 rounded-md">
-                    <div className="flex items-start">
-                      <span className="text-yellow-1 mr-2">🌦️</span>
-                      <p className="text-sm text-gray-700">
-                        <span className="font-medium">Alerta de clima:</span> La siguiente semana se esperan lluvias moderadas
-                      </p>
+                )}
+                
+                {activeTab === 'historial' && (user?.userType === 'SELLER' || user?.userType === 'ADMIN') && (
+                  <div>
+                    <ProductHistoryList productId={product.id || ''} />
+                  </div>
+                )}
+                
+                {activeTab === 'resenas' && (
+                  <div>
+                    <ReviewStats 
+                      averageRating={product.averageRating || 0} 
+                      totalReviews={reviews.length} 
+                      ratingDistribution={ratingDistribution}
+                    />
+                    
+                    {isAuthenticated ? (
+                      <div className="mt-6">
+                        <ReviewForm 
+                          productId={product.id || ''} 
+                          onReviewSubmitted={handleReviewSubmitted} 
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-gray-700">
+                          Inicia sesión para dejar una reseña sobre este producto.
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">Reseñas de clientes</h3>
+                      {reviewsLoading ? (
+                        <div className="flex justify-center items-center h-32">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-1"></div>
+                          <p className="ml-3 text-gray-600">Cargando reseñas...</p>
+                        </div>
+                      ) : reviews.length > 0 ? (
+                        <ReviewList reviews={reviews} />
+                      ) : (
+                        <p className="text-gray-500">Aún no hay reseñas para este producto.</p>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="p-3 bg-blue-100 rounded-md">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Tips de comprador:</span> El mejor momento para comprar granos de café es durante la temporada de cosecha (octubre-diciembre), cuando los precios suelen ser más bajos.
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-600">No se encontró el producto solicitado.</p>
+          </div>
+        )}
+      </main>
       <Footer />
-      <ToastContainer position="bottom-right" autoClose={3000} hideProgressBar={false} />
-    </>
+    </div>
   );
 };
 

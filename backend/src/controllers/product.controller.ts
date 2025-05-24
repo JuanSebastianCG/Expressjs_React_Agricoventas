@@ -5,6 +5,7 @@ import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "..
 import HttpStatusCode from "../utils/HttpStatusCode";
 import { hasRequiredCertifications, getCertificationsCount } from "../utils/certificateValidator";
 import { NotificationService } from "../utils/notification.service";
+import { ProductHistoryController, ChangeType } from "./productHistory.controller";
 import path from "path";
 import fs from "fs";
 
@@ -79,6 +80,29 @@ export class ProductController {
           ...(productData.originLocationId && { originLocation: { connect: { id: productData.originLocationId } } }),
         } as any,
       });
+
+      // Registrar la creación en el historial
+      try {
+        await ProductHistoryController.recordChange({
+          productId: newProduct.id,
+          userId: req.user!.userId,
+          changeType: ChangeType.CREATE,
+          additionalInfo: {
+            productData: {
+              name: productData.name,
+              description: productData.description,
+              basePrice: productData.basePrice,
+              stockQuantity: productData.stockQuantity,
+              unitMeasure: productData.unitMeasure || "kg",
+              categoryId: productData.categoryId,
+              originLocationId: productData.originLocationId
+            }
+          }
+        });
+      } catch (historyError) {
+        console.error('[ProductController.createProduct] Error recording history:', historyError);
+        // No detenemos la creación del producto si falla el registro de historial
+      }
 
       // Process and link uploaded images
       console.log('[ProductController.createProduct] Files in request:', req.files);
@@ -395,12 +419,12 @@ export class ProductController {
    */
   async updateProduct(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const { productId } = req.params;
       const updateData: UpdateProductDto = req.body;
 
       // First, fetch the product to check owner and get current values
       const existingProduct = await this.db.product.findUnique({
-        where: { id },
+        where: { id: productId },
         include: {
           seller: true,
           images: true
@@ -415,6 +439,20 @@ export class ProductController {
       // Check if user can update this product (must be seller or admin)
       if (!req.user || (req.user.userType !== "ADMIN" && req.user.userId !== existingProduct.sellerId)) {
         sendErrorResponse(res, "You do not have permission to update this product", HttpStatusCode.FORBIDDEN);
+        return;
+      }
+
+      // Get original product for comparison
+      const originalProduct = await this.db.product.findUnique({
+        where: { id: productId },
+        include: {
+          category: true,
+          originLocation: true
+        }
+      });
+
+      if (!originalProduct) {
+        sendNotFoundResponse(res, "Product not found");
         return;
       }
 
@@ -458,9 +496,9 @@ export class ProductController {
         }
       }
 
-      // Perform the update
+      // Update the product
       const updatedProduct = await this.db.product.update({
-        where: { id },
+        where: { id: productId },
         data: dataToUpdate,
         include: {
           category: true,
@@ -477,18 +515,80 @@ export class ProductController {
         }
       });
       
+      // Registrar los cambios en el historial
+      try {
+        // Procesamiento de los cambios detectados
+        const changesDetected = [];
+        
+        // Comparar propiedades simples
+        const fieldComparisons = [
+          { field: 'name', oldValue: originalProduct.name, newValue: updatedProduct.name },
+          { field: 'description', oldValue: originalProduct.description, newValue: updatedProduct.description },
+          { field: 'basePrice', oldValue: originalProduct.basePrice, newValue: updatedProduct.basePrice },
+          { field: 'stockQuantity', oldValue: originalProduct.stockQuantity, newValue: updatedProduct.stockQuantity },
+          { field: 'unitMeasure', oldValue: originalProduct.unitMeasure, newValue: updatedProduct.unitMeasure },
+          { field: 'isFeatured', oldValue: originalProduct.isFeatured, newValue: updatedProduct.isFeatured },
+          { field: 'isActive', oldValue: originalProduct.isActive, newValue: updatedProduct.isActive },
+        ];
+        
+        // Registrar cada cambio individualmente
+        for (const comparison of fieldComparisons) {
+          if (comparison.oldValue !== comparison.newValue && updateData[comparison.field] !== undefined) {
+            changesDetected.push(comparison);
+            await ProductHistoryController.recordChange({
+              productId: productId,
+              userId: req.user!.userId,
+              changeType: ChangeType.UPDATE,
+              changeField: comparison.field,
+              oldValue: String(comparison.oldValue),
+              newValue: String(comparison.newValue)
+            });
+          }
+        }
+        
+        // Comparar relaciones
+        if (updateData.categoryId !== undefined && originalProduct.categoryId !== updateData.categoryId) {
+          await ProductHistoryController.recordChange({
+            productId: productId,
+            userId: req.user!.userId,
+            changeType: ChangeType.UPDATE,
+            changeField: 'categoryId',
+            oldValue: originalProduct.categoryId || 'none',
+            newValue: updateData.categoryId || 'none'
+          });
+          changesDetected.push({ field: 'categoryId', oldValue: originalProduct.categoryId, newValue: updateData.categoryId });
+        }
+        
+        if (updateData.originLocationId !== undefined && originalProduct.originLocationId !== updateData.originLocationId) {
+          await ProductHistoryController.recordChange({
+            productId: productId,
+            userId: req.user!.userId,
+            changeType: ChangeType.UPDATE,
+            changeField: 'originLocationId',
+            oldValue: originalProduct.originLocationId || 'none',
+            newValue: updateData.originLocationId || 'none'
+          });
+          changesDetected.push({ field: 'originLocationId', oldValue: originalProduct.originLocationId, newValue: updateData.originLocationId });
+        }
+        
+        console.log(`[ProductController.updateProduct] Recorded ${changesDetected.length} changes in history`);
+      } catch (historyError) {
+        console.error('[ProductController.updateProduct] Error recording history:', historyError);
+        // No detenemos la actualización del producto si falla el registro de historial
+      }
+
       // Handle image updates if images were uploaded
       if (req.files && Array.isArray(req.files) && req.files.length > 0) {
         console.log(`[ProductController.updateProduct] Processing ${req.files.length} new images`);
         
         // If deleteImages flag is set, delete existing images
         if (updateData.deleteExistingImages) {
-          console.log(`[ProductController.updateProduct] Deleting existing images for product ${id}`);
+          console.log(`[ProductController.updateProduct] Deleting existing images for product ${productId}`);
           
           try {
             // Get existing images
             const existingImages = await this.db.productImage.findMany({
-              where: { productId: id }
+              where: { productId: productId }
             });
             
             // Delete image files from storage
@@ -510,7 +610,7 @@ export class ProductController {
             
             // Delete image records from database
             await this.db.productImage.deleteMany({
-              where: { productId: id }
+              where: { productId: productId }
             });
             
             console.log(`[ProductController.updateProduct] Successfully deleted existing images`);
@@ -529,7 +629,7 @@ export class ProductController {
             const fileUrl = `${protocol}://${host}/uploads/products/${file.filename}`;
             
             return {
-              productId: id,
+              productId: productId,
               imageUrl: fileUrl,
               altText: updatedProduct.name,
               isPrimary: updateData.deleteExistingImages ? index === 0 : false,
@@ -555,7 +655,7 @@ export class ProductController {
       
       // Refetch product with updated images
       const finalProduct = await this.db.product.findUnique({
-        where: { id },
+        where: { id: productId },
         include: {
           category: true,
           seller: {
@@ -609,11 +709,44 @@ export class ProductController {
         return;
       }
 
-      // Soft delete product
-      await this.db.product.update({
+      // Get product to delete for recording history
+      const productToDelete = await this.db.product.findUnique({
         where: { id: productId },
-        data: { isActive: false },
+        include: {
+          images: true
+        }
       });
+
+      if (!productToDelete) {
+        sendNotFoundResponse(res, "Product not found");
+        return;
+      }
+
+      // Delete the product
+      await this.db.product.delete({
+        where: { id: productId },
+      });
+
+      // Registrar la eliminación en el historial
+      try {
+        await ProductHistoryController.recordChange({
+          productId,
+          userId: req.user!.userId,
+          changeType: ChangeType.DELETE,
+          additionalInfo: {
+            deletedProduct: {
+              name: productToDelete.name,
+              description: productToDelete.description,
+              basePrice: productToDelete.basePrice,
+              stockQuantity: productToDelete.stockQuantity,
+              unitMeasure: productToDelete.unitMeasure
+            }
+          }
+        });
+      } catch (historyError) {
+        console.error('[ProductController.deleteProduct] Error recording history:', historyError);
+        // No revertimos la eliminación si falla el registro de historial
+      }
 
       sendSuccessResponse(res, { message: "Product deleted successfully" }, HttpStatusCode.OK);
     } catch (error: any) {

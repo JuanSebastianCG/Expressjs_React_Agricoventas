@@ -162,13 +162,22 @@ const Dashboard: React.FC = () => {
                 <h2 className="text-xl font-semibold text-green-1">Gestión de Productos</h2>
                 <p className="text-gray-700">Administra, añade y actualiza tus productos agrícolas</p>
               </div>
-              <Link 
-                to="/mis-productos"
-                className="bg-green-1 hover:bg-green-0-9 text-white py-3 px-6 rounded-md font-medium text-lg transition-colors shadow-md flex items-center"
-              >
-                Ver Mis Productos
-                <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link 
+                  to="/mis-productos"
+                  className="bg-green-1 hover:bg-green-0-9 text-white py-3 px-6 rounded-md font-medium text-lg transition-colors shadow-md flex items-center"
+                >
+                  Ver Mis Productos
+                  <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                </Link>
+                <Link 
+                  to="/insights"
+                  className="bg-yellow-1 hover:bg-yellow-1-5 text-white py-3 px-6 rounded-md font-medium text-lg transition-colors shadow-md flex items-center"
+                >
+                  Ver Insights
+                  <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -260,6 +269,14 @@ const Dashboard: React.FC = () => {
                   <Link to="/certificados" className="p-4 border border-gray-200 rounded-lg flex flex-col items-center hover:bg-gray-50 transition-colors">
                     <svg className="h-6 w-6 text-teal-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                     <span className="text-sm font-medium text-gray-700 text-center">Mis Certificaciones</span>
+                  </Link>
+                )}
+                {(user?.userType === 'SELLER' || user?.userType === 'ADMIN') && (
+                  <Link to="/insights" className="p-4 border border-gray-200 rounded-lg flex flex-col items-center hover:bg-gray-50 transition-colors">
+                    <svg className="h-6 w-6 text-yellow-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-700 text-center">Insights de Productos</span>
                   </Link>
                 )}
               </div>

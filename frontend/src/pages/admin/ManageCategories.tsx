@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ICategory, ICreateCategoryDto, IUpdateCategoryDto } from '../../interfaces/category';
-import { categoryService } from '../../services/categoryService';
+import categoryService from '../../services/categoryService';
 import CategoryForm from '../../components/admin/CategoryForm';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/StyledButton';

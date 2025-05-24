@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ProductController } from "../controllers/product.controller";
+import { ProductHistoryController } from "../controllers/productHistory.controller";
 import { authenticate, authorize } from "../middleware/auth.middleware";
 import { validateRequest, validateQuery, validateParams } from "../middleware/validation.middleware";
 import { createProductSchema, updateProductSchema, productQuerySchema } from "../schemas/product.schema";
@@ -295,6 +296,102 @@ router.get(
   '/:productId/images',
   validateParams(z.object({ productId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Product ID') })),
   (req, res) => productController.getProductImagesByProductId(req, res)
+);
+
+// Product History routes
+/**
+ * @swagger
+ * /products/{productId}/history:
+ *   get:
+ *     summary: Get product change history
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Product ID
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: Product history
+ */
+router.get(
+  '/:productId/history',
+  authenticate,
+  authorize(['SELLER', 'ADMIN']),
+  ProductHistoryController.getProductHistory
+);
+
+/**
+ * @swagger
+ * /products/insights/changes:
+ *   get:
+ *     summary: Get product change metrics for insights
+ *     tags: [Products, Insights]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date for filtering (YYYY-MM-DD)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date for filtering (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Product change metrics
+ */
+router.get(
+  '/insights/changes',
+  authenticate,
+  authorize(['ADMIN']),
+  ProductHistoryController.getProductChangeMetrics
+);
+
+/**
+ * @swagger
+ * /products/insights/price-trends:
+ *   get:
+ *     summary: Get product price trends for market analysis
+ *     tags: [Products, Insights]
+ *     parameters:
+ *       - in: query
+ *         name: timespan
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Number of days to analyze
+ *       - in: query
+ *         name: categoryId
+ *         schema:
+ *           type: string
+ *         description: Optional category ID to filter products
+ *     responses:
+ *       200:
+ *         description: Product price trends data
+ */
+router.get(
+  '/insights/price-trends',
+  ProductHistoryController.getProductPriceTrends
 );
 
 export default router; 
