@@ -335,7 +335,7 @@ const Register: React.FC = () => {
             <div className="text-center py-6">
               <Notification 
                 type="success" 
-                message="¡Su cuenta ha sido creada exitosamente! Ya puede iniciar sesión con sus credenciales."
+                message="¡Su cuenta ha sido creada exitosamente!"
               />
               <div className="mb-4 p-4 bg-green-0-5 rounded-full inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -346,11 +346,11 @@ const Register: React.FC = () => {
               <p className="text-gray-1 mb-6">Su cuenta ha sido creada exitosamente.</p>
               <AuthButton 
                 icon={loginIcon}
-                onClick={() => window.location.href = '/login'}
+                onClick={() => window.location.href = '/vip-plan'}
                 fullWidth={false}
                 className="mx-auto bg-green-1 text-white hover:bg-green-0-9 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
               >
-                Iniciar Sesión
+                Continuar
               </AuthButton>
             </div>
           ) : (
