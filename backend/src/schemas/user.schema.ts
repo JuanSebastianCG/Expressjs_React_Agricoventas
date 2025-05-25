@@ -15,6 +15,7 @@ export const userSchema = z.object({
   phoneNumber: z.string().optional(),
   userType: z.enum(["SELLER", "BUYER", "ADMIN"]).default("BUYER"),
   primaryLocationId: z.string().optional(),
+  subscriptionType: z.enum(["NORMAL", "PREMIUM"]).default("NORMAL"),
 });
 
 // Schema for creating a user
@@ -59,6 +60,7 @@ export interface UserResponse {
   phoneNumber?: string;
   userType: string;
   primaryLocationId?: string;
+  subscriptionType: string;
   isActive: boolean;
   createdAt: Date;
 } 

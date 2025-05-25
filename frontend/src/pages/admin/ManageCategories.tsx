@@ -6,7 +6,7 @@ import categoryService from '../../services/categoryService';
 import CategoryForm from '../../components/admin/CategoryForm';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/StyledButton';
-import { FiEdit, FiTrash2, FiPlusCircle, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiPlusCircle, FiChevronDown, FiChevronRight, FiDatabase, FiFolder, FiFolderPlus, FiFile } from 'react-icons/fi';
 
 const ManageCategories: React.FC = () => {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -21,35 +21,125 @@ const ManageCategories: React.FC = () => {
   const fetchCategories = useCallback(async (includeChildren = true) => {
     setIsLoading(true);
     try {
-      // Get categories with their children for main display
-      const topLevelResponse = await categoryService.getCategories({ includeChildren: true, includeParent: true });
+      console.log("[ManageCategories] Fetching categories...");
       
-      if (topLevelResponse && Array.isArray(topLevelResponse.categories)) {
-        console.log("[ManageCategories] Successfully loaded categories:", topLevelResponse.categories.length);
-        setCategories(topLevelResponse.categories);
+      // Try different approaches to get categories
+      let categoriesData: ICategory[] = [];
+      let errorMessage = '';
+      
+      // Approach 1: Get categories with their children for main display
+      try {
+        console.log("[ManageCategories] Approach 1: Using getCategories with includeChildren and includeParent");
+        const topLevelResponse = await categoryService.getCategories({ 
+          includeChildren: true, 
+          includeParent: true 
+        });
+        
+        console.log("[ManageCategories] Top level categories response:", topLevelResponse);
+        
+        if (topLevelResponse && topLevelResponse.categories && topLevelResponse.categories.length > 0) {
+          console.log("[ManageCategories] Successfully loaded categories:", topLevelResponse.categories.length);
+          categoriesData = topLevelResponse.categories;
+        } else {
+          errorMessage = "No categories found with includeChildren and includeParent params";
+        }
+      } catch (error1: any) {
+        console.error("[ManageCategories] Error in approach 1:", error1);
+        errorMessage = error1.message || "Error in approach 1";
+      }
+      
+      // Approach 2: If approach 1 failed, try getAllCategories
+      if (categoriesData.length === 0) {
+        try {
+          console.log("[ManageCategories] Approach 2: Using getAllCategories");
+          const allCategories = await categoryService.getAllCategories();
+          console.log("[ManageCategories] getAllCategories response:", allCategories);
+          
+          if (allCategories && allCategories.length > 0) {
+            console.log("[ManageCategories] Successfully loaded categories from getAllCategories:", allCategories.length);
+            categoriesData = allCategories;
+          } else {
+            errorMessage += " | No categories found from getAllCategories";
+          }
+        } catch (error2: any) {
+          console.error("[ManageCategories] Error in approach 2:", error2);
+          errorMessage += " | " + (error2.message || "Error in approach 2");
+        }
+      }
+      
+      // Approach 3: Direct API call with minimal params
+      if (categoriesData.length === 0) {
+        try {
+          console.log("[ManageCategories] Approach 3: Direct API call");
+          const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api'}/categories`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          });
+          const data = await response.json();
+          
+          console.log("[ManageCategories] Direct API response:", data);
+          
+          if (data.success && data.data && data.data.categories && data.data.categories.length > 0) {
+            console.log("[ManageCategories] Successfully loaded categories from direct API:", data.data.categories.length);
+            categoriesData = data.data.categories;
+          } else {
+            errorMessage += " | No categories found from direct API call";
+          }
+        } catch (error3: any) {
+          console.error("[ManageCategories] Error in approach 3:", error3);
+          errorMessage += " | " + (error3.message || "Error in approach 3");
+        }
+      }
+      
+      // Set categories data if any of the approaches worked
+      if (categoriesData.length > 0) {
+        setCategories(categoriesData);
       } else {
-        console.error("[ManageCategories] Failed to extract categories from response. Response structure:", topLevelResponse);
+        console.warn("[ManageCategories] All approaches failed to load categories:", errorMessage);
         setCategories([]);
+        toast.info("No hay categorías para mostrar. Puedes crear una nueva categoría.");
       }
 
       // Get all categories (without children) for the dropdown in the form
-      const allCategoriesResponse = await categoryService.getCategories({ includeChildren: false });
-      
-      if (allCategoriesResponse && Array.isArray(allCategoriesResponse.categories)) {
-        console.log("[ManageCategories] Successfully loaded categories for form:", allCategoriesResponse.categories.length);
-        setAllCategoriesForForm(allCategoriesResponse.categories);
-      } else {
-        console.error("[ManageCategories] Failed to extract categories for form dropdown. Response structure:", allCategoriesResponse);
-        setAllCategoriesForForm([]);
+      try {
+        const allCategoriesResponse = await categoryService.getCategories({ 
+          includeChildren: false 
+        });
+        
+        console.log("[ManageCategories] All categories for form response:", allCategoriesResponse);
+        
+        if (allCategoriesResponse && allCategoriesResponse.categories && allCategoriesResponse.categories.length > 0) {
+          console.log("[ManageCategories] Successfully loaded categories for form:", allCategoriesResponse.categories.length);
+          setAllCategoriesForForm(allCategoriesResponse.categories);
+        } else {
+          console.warn("[ManageCategories] No categories found for form dropdown");
+          // Use the categories we already have for the form if they exist
+          if (categoriesData.length > 0) {
+            setAllCategoriesForForm(categoriesData);
+          } else {
+            setAllCategoriesForForm([]);
+          }
+        }
+      } catch (formError: any) {
+        console.error("[ManageCategories] Error fetching categories for form:", formError);
+        // Use the categories we already have for the form if they exist
+        if (categoriesData.length > 0) {
+          setAllCategoriesForForm(categoriesData);
+        } else {
+          setAllCategoriesForForm([]);
+        }
       }
 
     } catch (error: any) {
-      toast.error(`Error al cargar categorías: ${error.message || 'Error desconocido'}`);
+      const errorMsg = error.message || 'Error desconocido';
+      toast.error(`Error al cargar categorías: ${errorMsg}`);
       console.error("[ManageCategories] Error in fetchCategories function:", error);
       setCategories([]);
       setAllCategoriesForForm([]);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -121,15 +211,40 @@ const ManageCategories: React.FC = () => {
       <tr className={`${level > 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors`}>
         <td style={{ paddingLeft: `${level * 20 + 16}px` }} className="py-3 px-4 border-b border-gray-200 text-sm">
           <div className="flex items-center">
-            {category.children && category.children.length > 0 && (
-              <button onClick={() => toggleExpand(category.id)} className="mr-2 text-gray-500 hover:text-gray-700">
-                {expandedCategories[category.id] ? <FiChevronDown /> : <FiChevronRight />}
+            {category.children && category.children.length > 0 ? (
+              <button 
+                onClick={() => toggleExpand(category.id)} 
+                className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                aria-label={expandedCategories[category.id] ? "Collapse category" : "Expand category"}
+              >
+                {expandedCategories[category.id] ? (
+                  <FiChevronDown className="text-blue-500" />
+                ) : (
+                  <FiChevronRight className="text-blue-500" />
+                )}
               </button>
+            ) : (
+              <span className="mr-2 w-5 h-5 flex items-center justify-center">
+                {level === 0 ? (
+                  <FiFolder className="text-yellow-500" />
+                ) : (
+                  <FiFile className="text-gray-400" />
+                )}
+              </span>
             )}
-            <span className="font-medium text-gray-700">{category.name}</span>
+            <span className={`font-medium ${level === 0 ? 'text-gray-800 text-base' : 'text-gray-700'}`}>
+              {category.name}
+            </span>
+            {level === 0 && category.children && category.children.length > 0 && (
+              <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                {category.children.length} subcategorías
+              </span>
+            )}
           </div>
         </td>
-        <td className="py-3 px-4 border-b border-gray-200 text-sm text-gray-600 truncate max-w-xs">{category.description || '-'}</td>
+        <td className="py-3 px-4 border-b border-gray-200 text-sm text-gray-600 truncate max-w-xs">
+          {category.description || '-'}
+        </td>
         <td className="py-3 px-4 border-b border-gray-200 text-sm">
           <div className="flex items-center space-x-2">
             <Button variant="text" size="sm" onClick={() => handleOpenModal(category)} aria-label="Editar">
@@ -145,6 +260,34 @@ const ManageCategories: React.FC = () => {
     </React.Fragment>
   );
 
+  const createInitialCategories = async () => {
+    setIsLoading(true);
+    try {
+      // Define initial categories
+      const initialCategories = [
+        { name: 'Frutas', description: 'Todo tipo de frutas frescas' },
+        { name: 'Verduras', description: 'Vegetales y verduras frescas' },
+        { name: 'Granos', description: 'Granos y cereales' },
+        { name: 'Lácteos', description: 'Productos lácteos' },
+        { name: 'Carnes', description: 'Carnes y productos cárnicos' }
+      ];
+      
+      // Create each category
+      for (const category of initialCategories) {
+        await categoryService.createCategory(category);
+      }
+      
+      toast.success('Categorías iniciales creadas con éxito');
+      fetchCategories(); // Reload categories
+    } catch (error: any) {
+      const errorMsg = error.message || 'Error desconocido';
+      toast.error(`Error al crear categorías iniciales: ${errorMsg}`);
+      console.error("[ManageCategories] Error creating initial categories:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading && !categories.length) {
     return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-1"></div></div>;
   }
@@ -157,7 +300,7 @@ const ManageCategories: React.FC = () => {
           variant="primary" 
           color="primary" 
           onClick={() => handleOpenModal()} 
-          leftIcon={<FiPlusCircle className="w-5 h-5"/>}
+          leftIcon={<FiFolderPlus className="w-5 h-5"/>}
         >
           Nueva Categoría
         </Button>
@@ -165,12 +308,38 @@ const ManageCategories: React.FC = () => {
 
       {categories.length === 0 && !isLoading ? (
         <div className="text-center py-10 bg-white rounded-lg shadow">
-          <FiPlusCircle className="mx-auto text-gray-400 w-12 h-12 mb-4" />
+          <FiFolderPlus className="mx-auto text-gray-400 w-12 h-12 mb-4" />
           <p className="text-gray-600 text-lg">No hay categorías registradas.</p>
-          <p className="text-sm text-gray-500 mt-1">Crea la primera categoría para organizar tus productos.</p>
+          <p className="text-sm text-gray-500 mt-1 mb-6">Crea la primera categoría para organizar tus productos.</p>
+          
+          <div className="flex justify-center space-x-4">
+            <Button 
+              variant="primary" 
+              onClick={() => handleOpenModal()} 
+              leftIcon={<FiFolderPlus className="w-5 h-5"/>}
+            >
+              Nueva Categoría
+            </Button>
+            
+            <Button 
+              variant="secondary" 
+              onClick={createInitialCategories} 
+              leftIcon={<FiDatabase className="w-5 h-5"/>}
+              isLoading={isLoading}
+            >
+              Crear Categorías Iniciales
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center">
+            <FiFolder className="text-yellow-500 mr-2" />
+            <span className="font-medium text-gray-700">Estructura de Categorías</span>
+            <span className="ml-auto text-sm text-gray-500">
+              {categories.length} categorías principales
+            </span>
+          </div>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -180,7 +349,10 @@ const ManageCategories: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {categories.map(category => renderCategoryRow(category))}
+              {/* Only render top-level categories first */}
+              {categories
+                .filter(category => !category.parentId)
+                .map(category => renderCategoryRow(category))}
             </tbody>
           </table>
         </div>

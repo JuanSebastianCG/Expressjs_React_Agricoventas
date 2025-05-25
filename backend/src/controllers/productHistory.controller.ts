@@ -301,28 +301,28 @@ export class ProductHistoryController {
    */
   static async getProductPriceTrends(req: Request, res: Response) {
     try {
-      const { timespan = '30', categoryId } = req.query;
+      const timespan = parseInt(req.query.timespan as string) || 30;
+      const categoryId = req.query.categoryId as string;
       
-      const timespanNum = parseInt(timespan as string, 10) || 30;
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - timespanNum);
+      // Fecha límite para la consulta
+      const limitDate = new Date();
+      limitDate.setDate(limitDate.getDate() - timespan);
       
-      // Construir la consulta base
-      const whereClause: any = {
-        changeType: 'UPDATE',
+      // Construir la consulta
+      const query: any = {
+        changeType: ChangeType.UPDATE,
         changeField: 'basePrice',
-        timestamp: {
-          gte: startDate,
-          lte: endDate
-        }
+        timestamp: { gte: limitDate }
       };
       
-      // Obtener los productos con cambios de precio en el período
-      const productPriceChanges = await prisma.productHistory.findMany({
-        where: whereClause,
-        orderBy: { timestamp: 'desc' },
-        include: {
+      // Obtener productos con historial de cambios de precio
+      const productsWithPriceChanges = await prisma.productHistory.findMany({
+        where: query,
+        select: {
+          productId: true,
+          oldValue: true,
+          newValue: true,
+          timestamp: true,
           product: {
             select: {
               id: true,
@@ -338,146 +338,88 @@ export class ProductHistoryController {
               }
             }
           }
+        },
+        orderBy: {
+          timestamp: 'desc'
         }
       });
       
-      // Agrupar por producto para calcular las tendencias
-      const productMap = new Map();
+      // Filtrar por categoría si se especifica
+      let filteredProducts = productsWithPriceChanges;
+      if (categoryId) {
+        filteredProducts = productsWithPriceChanges.filter(p => p.product.categoryId === categoryId);
+      }
       
-      productPriceChanges.forEach(change => {
-        if (!change.product) return;
+      // Agrupar por producto para calcular tendencias
+      const productTrends: Record<string, {
+        id: string;
+        name: string;
+        currentPrice: number;
+        oldPrice: number;
+        unit: string;
+        weeklyTrend: number;
+        category: string;
+        categoryId: string;
+      }> = {};
+      
+      // Primero agrupar por producto
+      filteredProducts.forEach(record => {
+        if (!record.product) return;
         
-        // Si se especificó categoryId y no coincide, omitir
-        if (categoryId && change.product.categoryId !== categoryId) return;
-        
-        const productId = change.productId;
-        
-        if (!productMap.has(productId)) {
-          // Primera vez que vemos este producto
-          productMap.set(productId, {
+        const productId = record.productId;
+        if (!productTrends[productId]) {
+          productTrends[productId] = {
             id: productId,
-            name: change.product.name,
-            currentPrice: change.product.basePrice,
-            oldestPrice: parseFloat(change.oldValue || '0'),
-            priceChanges: [
-              {
-                date: change.timestamp,
-                price: parseFloat(change.newValue || '0')
-              }
-            ],
-            unitMeasure: change.product.unitMeasure,
-            category: change.product.category?.name || 'Sin categoría',
-            categoryId: change.product.categoryId || ''
-          });
-        } else {
-          // Actualizar producto existente
-          const product = productMap.get(productId);
-          
-          // Añadir cambio de precio a la lista
-          product.priceChanges.push({
-            date: change.timestamp,
-            price: parseFloat(change.newValue || '0')
-          });
-          
-          // Actualizar precio más antiguo si esta fecha es anterior
-          if (change.timestamp < product.oldestDate) {
-            product.oldestPrice = parseFloat(change.oldValue || '0');
-            product.oldestDate = change.timestamp;
-          }
+            name: record.product.name,
+            currentPrice: record.product.basePrice,
+            oldPrice: parseFloat(record.oldValue || '0'),
+            unit: record.product.unitMeasure,
+            weeklyTrend: 0,
+            category: record.product.category?.name || 'Sin categoría',
+            categoryId: record.product.categoryId || ''
+          };
         }
       });
       
       // Calcular tendencias
-      const trends = Array.from(productMap.values()).map(product => {
-        // Ordenar cambios por fecha
-        product.priceChanges.sort((a, b) => a.date.getTime() - b.date.getTime());
+      Object.values(productTrends).forEach(product => {
+        // Encontrar el registro más antiguo dentro del período para comparar
+        const oldestRecord = filteredProducts
+          .filter(r => r.productId === product.id)
+          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())[0];
         
-        // Calcular cambio porcentual
-        const oldPrice = product.oldestPrice || product.priceChanges[0]?.price || 0;
-        const currentPrice = product.currentPrice;
-        const percentChange = oldPrice > 0 ? ((currentPrice - oldPrice) / oldPrice) * 100 : 0;
-        
-        return {
-          id: product.id,
-          name: product.name,
-          currentPrice: currentPrice,
-          weeklyTrend: parseFloat(percentChange.toFixed(2)),
-          unit: product.unitMeasure,
-          category: product.category,
-          categoryId: product.categoryId,
-          priceHistory: product.priceChanges
-        };
+        if (oldestRecord && oldestRecord.oldValue) {
+          const oldPrice = parseFloat(oldestRecord.oldValue);
+          product.oldPrice = oldPrice;
+          
+          // Calcular tendencia porcentual
+          const priceDiff = product.currentPrice - oldPrice;
+          product.weeklyTrend = oldPrice > 0 ? (priceDiff / oldPrice) * 100 : 0;
+        }
       });
       
-      // Para completar los datos, agregar productos populares que no han tenido cambios recientes
-      if (trends.length < 5) {
-        const existingIds = new Set(trends.map(t => t.id));
-        const additionalProductsFilter: any = { isActive: true };
-        
-        if (categoryId) {
-          additionalProductsFilter.categoryId = categoryId;
-        }
-        
-        const additionalProducts = await prisma.product.findMany({
-          where: {
-            ...additionalProductsFilter,
-            id: { notIn: Array.from(existingIds) }
-          },
-          orderBy: { basePrice: 'desc' },
-          take: 5 - trends.length,
-          select: {
-            id: true,
-            name: true,
-            basePrice: true,
-            unitMeasure: true,
-            categoryId: true,
-            category: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        });
-        
-        // Añadir productos sin cambios recientes con tendencia neutra
-        additionalProducts.forEach(product => {
-          trends.push({
-            id: product.id,
-            name: product.name,
-            currentPrice: product.basePrice,
-            weeklyTrend: 0, // Sin cambios
-            unit: product.unitMeasure,
-            category: product.category?.name || 'Sin categoría',
-            categoryId: product.categoryId || '',
-            priceHistory: [] // Sin historial de cambios
-          });
-        });
-      }
+      // Convertir a array para respuesta
+      const trendsList = Object.values(productTrends);
+      
+      // Ordenar por mayor cambio de precio (absoluto)
+      trendsList.sort((a, b) => Math.abs(b.weeklyTrend) - Math.abs(a.weeklyTrend));
+      
+      // Limitar a 10 productos con mayores cambios
+      const limitedTrends = trendsList.slice(0, 10);
       
       res.status(200).json({
         success: true,
-        data: trends
+        data: limitedTrends
       });
     } catch (error) {
-      if (error instanceof ApiError) {
-        res.status(error.statusCode).json({
-          success: false,
-          error: {
-            code: error.statusCode,
-            message: error.message
-          }
-        });
-      } else {
-        logger.error('Error al obtener tendencias de precios:', error);
-        res.status(500).json({
-          success: false,
-          error: {
-            code: 500,
-            message: 'Error interno del servidor al obtener tendencias de precios'
-          }
-        });
-      }
+      console.error('Error fetching product price trends:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 500,
+          message: 'Failed to fetch product price trends'
+        }
+      });
     }
   }
 }

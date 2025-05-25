@@ -150,6 +150,7 @@ export class UserController {
           profileImage: true,
           phoneNumber: true,
           primaryLocationId: true,
+          subscriptionType: true,
           createdAt: true
         }
       });
@@ -326,6 +327,7 @@ export class UserController {
           profileImage: true,
           phoneNumber: true,
           primaryLocationId: true,
+          subscriptionType: true,
           createdAt: true
         }
       });
@@ -376,6 +378,7 @@ export class UserController {
       phoneNumber: user.phoneNumber || undefined,
       userType: user.userType,
       primaryLocationId: user.primaryLocationId || undefined,
+      subscriptionType: user.subscriptionType || 'NORMAL',
       isActive: user.isActive,
       createdAt: user.createdAt,
       profileImage: user.profileImage 
@@ -418,6 +421,7 @@ export class UserController {
           profileImage: true,
           phoneNumber: true,
           primaryLocationId: true,
+          subscriptionType: true,
           createdAt: true
         }
       });
@@ -468,6 +472,7 @@ export class UserController {
           profileImage: true,
           phoneNumber: true,
           primaryLocationId: true,
+          subscriptionType: true,
           createdAt: true
         }
       });
@@ -533,6 +538,7 @@ export class UserController {
           isActive: true,
           profileImage: true,
           phoneNumber: true,
+          subscriptionType: true,
           createdAt: true
         },
         orderBy: {

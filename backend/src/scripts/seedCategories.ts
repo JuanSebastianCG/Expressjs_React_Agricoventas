@@ -136,9 +136,26 @@ async function main() {
   try {
     console.log('🌱 Iniciando seeder de categorías...');
     
-    // Eliminar categorías existentes primero (para pruebas)
+    // Eliminar categorías existentes de manera segura
     console.log('🗑️ Eliminando categorías existentes...');
-    await prisma.category.deleteMany({});
+    
+    try {
+      // Método simple: intentar primero actualizar parentId a null
+      console.log('Actualizando referencias de parentId a null...');
+      await prisma.category.updateMany({
+        data: {
+          parentId: null
+        }
+      });
+      
+      // Luego eliminar todas las categorías
+      console.log('Eliminando todas las categorías...');
+      await prisma.category.deleteMany({});
+      console.log('Categorías eliminadas correctamente.');
+    } catch (error) {
+      console.log('No se pudieron eliminar categorías existentes. Continuando con la creación...');
+      console.error('Error detallado:', error);
+    }
     
     console.log('📝 Creando nuevas categorías...');
     

@@ -154,7 +154,7 @@ class ProductHistoryService {
    * Proporciona datos de ejemplo de tendencias de precios en caso de error
    * @returns Datos de ejemplo de tendencias de precios
    */
-  private getFallbackPriceTrends(): ProductPriceTrend[] {
+  getFallbackPriceTrends(): ProductPriceTrend[] {
     return [
       {
         id: '1',

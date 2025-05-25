@@ -5,6 +5,7 @@ import Card from '../components/ui/Card';
 import MainLayout from '../components/layout/MainLayout';
 import { navigateToProducts } from '../App';
 import api from '../services/api';
+import { FaCrown } from 'react-icons/fa';
 
 interface DashboardStats {
   productCount: number;
@@ -139,7 +140,16 @@ const Dashboard: React.FC = () => {
   return (
     <MainLayout>
       <div className="container mx-auto py-6 px-4">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Panel de Control</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Panel de Control</h1>
+          <Link 
+            to="/subscription" 
+            className="flex items-center px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors"
+          >
+            <FaCrown className="mr-2" />
+            {user?.subscriptionType === 'PREMIUM' ? 'Gestionar Suscripción' : 'Actualizar a Premium'}
+          </Link>
+        </div>
         
         {productsError && (
           <div className="mb-6 bg-red-100 border-l-4 border-red-1 text-red-1 p-4 rounded-md">

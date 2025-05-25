@@ -42,6 +42,7 @@ export interface UserData {
   profileImage?: string;
   phoneNumber?: string;
   primaryLocationId?: string;
+  subscriptionType?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -113,6 +114,7 @@ const authService = {
         profileImage: user.profileImage,
         phoneNumber: user.phoneNumber,
         primaryLocationId: user.primaryLocationId,
+        subscriptionType: user.subscriptionType,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       };

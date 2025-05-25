@@ -21,11 +21,14 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(TOKEN_KEY);
     
+    console.log(`[API] Making ${config.method?.toUpperCase()} request to ${config.url}`, 
+      config.params ? `with params: ${JSON.stringify(config.params)}` : '');
+    
     if (token && config.headers) {
       // Ensure the token is properly formatted and trimmed
       const cleanToken = token.trim();
       if (!cleanToken) {
-        console.error('Invalid token format: empty after trimming');
+        console.error('[API] Invalid token format: empty after trimming');
         return config;
       }
       config.headers.Authorization = `Bearer ${cleanToken}`;
@@ -33,7 +36,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('API Request Error:', error);
+    console.error('[API] Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -41,9 +44,21 @@ api.interceptors.request.use(
 // Response interceptor for API calls
 api.interceptors.response.use(
   (response) => {
+    console.log(`[API] Response from ${response.config.url}:`, 
+      response.status, response.data ? 
+        (response.data.success ? 'success' : 'failure') : 'no data');
     return response;
   },
   async (error: AxiosError) => {
+    if (error.response) {
+      console.error(`[API] Response error from ${error.config?.url}:`, 
+        error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error('[API] No response received:', error.request);
+    } else {
+      console.error('[API] Error setting up request:', error.message);
+    }
+    
     const originalRequest = error.config;
     
     // Handle 401 Unauthorized responses
@@ -64,7 +79,7 @@ api.interceptors.response.use(
     
     // Handle 403 Forbidden responses
     if (error.response?.status === 403) {
-      console.error('Permission denied:', error.response.data);
+      console.error('[API] Permission denied:', error.response.data);
       // Redirect to dashboard
       window.location.href = '/dashboard';
     }

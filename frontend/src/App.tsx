@@ -11,6 +11,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import Marketplace from './pages/Marketplace';
 import ProductCreate from './pages/products/ProductCreate';
+import ProductEdit from './pages/products/ProductEdit';
 import MyProducts from './pages/products/MyProducts';
 import MyOrders from './pages/orders/MyOrders';
 import OrderDetails from './pages/orders/OrderDetails';
@@ -26,6 +27,8 @@ import { CartProvider } from './context/CartContext';
 import EditProfile from './pages/user/EditProfile';
 import SellerCertifications from './pages/user/SellerCertifications';
 import ManageProducts from './pages/admin/ManageProducts';
+import SubscriptionManagement from './pages/user/SubscriptionManagement';
+import TermsAndConditions from './pages/user/TermsAndConditions';
 
 // Lazy loaded pages
 const ManageOrders = lazy(() => import('./pages/admin/ManageOrders'));
@@ -97,7 +100,9 @@ const AppRoutes: React.FC = () => (
     <Route path="/marketplace" element={<Marketplace />} />
     <Route path="/mercado-general" element={<Navigate to="/marketplace" replace />} />
     <Route path="/product/:productId" element={<ProductDetail />} />
+    <Route path="/productos/:productId" element={<ProductDetail />} />
     <Route path="/carrito" element={<CartPage />} />
+    <Route path="/terminos-y-condiciones" element={<TermsAndConditions />} />
 
     {/* Authenticated Routes (all roles) */}
     <Route element={<ProtectedRoute />}>
@@ -110,12 +115,14 @@ const AppRoutes: React.FC = () => (
       <Route path="/perfil" element={<Perfil />} />
       <Route path="/perfil/:userId" element={<Perfil />} />
       <Route path="/perfil/editar" element={<EditProfile />} />
+      <Route path="/subscription" element={<SubscriptionManagement />} />
     </Route>
 
     {/* Seller Routes */}
     <Route element={<ProtectedRoute allowedRoles={['SELLER', 'ADMIN']} />}>
       <Route path="/crear-producto" element={<ProductCreate />} />
-      <Route path="/editar-producto/:productId" element={<ProductCreate />} />
+      <Route path="/crear-producto/:productId" element={<ProductCreate />} />
+      <Route path="/editar-producto/:productId" element={<ProductEdit />} />
       <Route path="/insights" element={
         <Suspense fallback={<SuspenseLoader />}>
           <Insights />

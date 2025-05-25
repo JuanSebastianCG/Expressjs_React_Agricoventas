@@ -165,6 +165,7 @@ const ProductCreate: React.FC = () => {
           }
           const certificationStatus = await certificationService.verifyUserCertifications(user.id);
           if (!certificationStatus.hasAllCertifications) {
+            setSubmitError('Para crear productos necesitas tener los 4 certificados colombianos verificados');
             navigate('/certificados');
           }
         } catch (err) {
@@ -184,34 +185,35 @@ const ProductCreate: React.FC = () => {
       setIsLoadingCategories(true);
       setCategoriesList([]);
       try {
-        const rawResponse = await categoryService.getCategories({
-          includeChildren: true,
-          includeParent: true
-        });
-        const response: any = rawResponse;
-        let extractedCategories: ICategory[] = [];
-        if (response && response.success && response.data) {
-          if (Array.isArray(response.data.categories)) {
-            extractedCategories = response.data.categories;
-          } 
-          else if (Array.isArray(response.data)) {
-            extractedCategories = response.data;
-          } 
-          else if (typeof response.data === 'object' && response.data !== null) {
-            console.error("[ProductCreate] Could not find categories array within response.data. Structure of response.data:", response.data);
-          } else {
-            console.error("[ProductCreate] response.data was present but not in a recognized array format. Content:", response.data);
-          }
+        const response = await categoryService.getAllCategories();
+        console.log("[ProductCreate] Categories fetched:", response);
+        
+        // Si ya tenemos un array de categorías, usémoslo directamente
+        if (Array.isArray(response)) {
+          setCategoriesList(response);
         } else {
-          console.error("[ProductCreate] Main response object for categories is not in expected {success: true, data: ...} format, or success/data is missing/false:", response);
+          console.error("[ProductCreate] getAllCategories did not return an array as expected:", response);
+          setCategoriesList([]);
         }
-        if (extractedCategories.length === 0 && response && response.success) {
-            console.warn("[ProductCreate] Successfully fetched categories response, but no categories were extracted. Check structure of 'response.data'. Response was:", response);
-        }
-        setCategoriesList(extractedCategories);
       } catch (error) {
         console.error("[ProductCreate] Error fetching categories:", error);
         setCategoriesList([]);
+        
+        // Intento de recuperación: obtener categorías con getCategories en lugar de getAllCategories
+        try {
+          console.log("[ProductCreate] Attempting recovery with getCategories");
+          const recoveryResponse = await categoryService.getCategories({
+            includeChildren: true,
+            includeParent: true
+          });
+          
+          if (recoveryResponse && Array.isArray(recoveryResponse.categories)) {
+            console.log("[ProductCreate] Recovery successful, got categories:", recoveryResponse.categories.length);
+            setCategoriesList(recoveryResponse.categories);
+          }
+        } catch (recoveryError) {
+          console.error("[ProductCreate] Recovery attempt also failed:", recoveryError);
+        }
       } finally {
         setIsLoadingCategories(false);
       }
@@ -299,11 +301,39 @@ const ProductCreate: React.FC = () => {
       const response = await api.get(`/products/${productIdToLoad}`);
       if (response.data.success) {
         const product = response.data.data;
+        console.log("[ProductCreate] Product data loaded:", product);
+        
         const productCategoryId = product.categoryId || '';
         let parentIdToSet = '';
+        
+        // Buscar si esta categoría existe en nuestro listado
+        console.log("[ProductCreate] Searching for category in list:", categoriesList.length, "categories");
         const productCategory = categoriesList.find(c => c.id === productCategoryId);
-        if (productCategory && productCategory.parentId) {
-          parentIdToSet = productCategory.parentId;
+        
+        if (productCategory) {
+          console.log("[ProductCreate] Found product category:", productCategory);
+          // Si la categoría tiene un padre, esta es una subcategoría
+          if (productCategory.parentId) {
+            parentIdToSet = productCategory.parentId;
+            console.log("[ProductCreate] Setting parent category ID:", parentIdToSet);
+          } else {
+            // Si no tiene padre, es una categoría principal
+            parentIdToSet = productCategory.id;
+            console.log("[ProductCreate] Category is a parent category itself");
+          }
+        } else {
+          // Si no encontramos la categoría, es posible que necesitemos buscar en subcategorías
+          console.log("[ProductCreate] Category not found in top-level list, searching in subcategories");
+          for (const parentCategory of categoriesList) {
+            if (parentCategory.children && Array.isArray(parentCategory.children)) {
+              const subcategory = parentCategory.children.find(sub => sub.id === productCategoryId);
+              if (subcategory) {
+                console.log("[ProductCreate] Found category as a subcategory of:", parentCategory.name);
+                parentIdToSet = parentCategory.id;
+                break;
+              }
+            }
+          }
         }
 
         setFormData({
@@ -317,10 +347,11 @@ const ProductCreate: React.FC = () => {
           isFeatured: product.isFeatured || false
         });
         
+        // Establecer categoría principal antes de la subcategoría
         if (parentIdToSet) {
+          console.log("[ProductCreate] Setting selected parent category:", parentIdToSet);
           setSelectedParentCategoryId(parentIdToSet);
-        } else if (productCategoryId && !productCategory?.parentId) {
-          setSelectedParentCategoryId(productCategoryId);
+          // No establecemos aquí categoryId porque ya lo hicimos en setFormData
         }
 
         if (product.images && Array.isArray(product.images)) {
@@ -455,21 +486,24 @@ const ProductCreate: React.FC = () => {
     e.preventDefault();
     if (!validateForm()) return;
     
+    // Verificar certificados antes de crear/editar producto
     if (user?.userType !== 'ADMIN' && isAuthenticated && user?.id) {
       try {
+        setIsSubmitting(true);
         const certificationStatus = await certificationService.verifyUserCertifications(user.id);
         if (!certificationStatus.hasAllCertifications) {
           setSubmitError('Para crear productos necesitas tener los 4 certificados colombianos verificados');
+          setIsSubmitting(false);
           navigate('/certificados');
           return;
         }
       } catch (err) {
         setSubmitError('Error al verificar tus certificados. Por favor, intenta nuevamente.');
+        setIsSubmitting(false);
         return;
       }
     }
     
-    setIsSubmitting(true);
     setSubmitError(null);
     let finalOriginLocationId = formData.originLocationId;
 

@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { FaCrown } from 'react-icons/fa';
+import userService from '../../services/userService';
 
 const EditProfile: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAppContext();
+  const { user, isAuthenticated, updateUser } = useAppContext();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -38,18 +43,60 @@ const EditProfile: React.FC = () => {
     }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Placeholder for API call - would update user profile
-    console.log('Profile update form submitted with:', formData);
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     
-    // Navigate back to profile page after "submission"
-    navigate('/perfil');
+    try {
+      const updatedUser = await userService.updateCurrentUser(formData);
+      updateUser(updatedUser);
+      setSuccess('Perfil actualizado correctamente');
+    } catch (err) {
+      setError('Error al actualizar el perfil');
+      console.error('Error updating profile:', err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const isPremium = user?.subscriptionType === 'PREMIUM';
   
   return (
     <div className="container mx-auto p-4 max-w-md">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Editar Perfil</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
+          {success}
+        </div>
+      )}
+
+      {/* Subscription Card */}
+      <div className="mb-6 p-4 border rounded-lg shadow-sm bg-white">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold">Estado de Suscripción</h2>
+          {isPremium && <FaCrown className="text-yellow-500 text-xl" />}
+        </div>
+        <p className="mb-3">
+          {isPremium 
+            ? 'Tu cuenta tiene acceso Premium' 
+            : 'Tu cuenta tiene acceso Normal'}
+        </p>
+        <Link 
+          to="/subscription"
+          className="inline-block text-green-500 hover:text-green-700 font-medium"
+        >
+          {isPremium ? 'Administrar suscripción' : 'Actualizar a Premium'}
+        </Link>
+      </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -112,9 +159,10 @@ const EditProfile: React.FC = () => {
           </button>
           <button
             type="submit"
+            disabled={loading}
             className="px-4 py-2 bg-green-1 hover:bg-green-0-9 text-white rounded-md"
           >
-            Guardar Cambios
+            {loading ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
       </form>

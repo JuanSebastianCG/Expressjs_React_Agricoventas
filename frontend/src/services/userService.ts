@@ -16,6 +16,7 @@ export interface User {
   profileImage?: string;
   phoneNumber?: string;
   primaryLocationId?: string;
+  subscriptionType: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +30,7 @@ export interface UserUpdateData {
   isActive?: boolean;
   profileImage?: string;
   phoneNumber?: string;
+  subscriptionType?: 'NORMAL' | 'PREMIUM';
 }
 
 // Función para manejar errores de API
@@ -130,7 +132,7 @@ const userService = {
   async updateCurrentUser(userData: UserUpdateData): Promise<User> {
     try {
       const response = await api.put(`${API_URL}/me`, userData);
-      return response.data.data.user;
+      return response.data.data;
     } catch (error) {
       console.error('userService - Error al actualizar perfil de usuario actual:', error);
       const axiosError = error as AxiosError;

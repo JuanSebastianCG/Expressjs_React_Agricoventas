@@ -39,7 +39,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleCardClick = () => {
     console.log("Card clicked! Product ID:", product.id);
-    onViewDetails(product.id || '');
+    if (product.id) {
+      onViewDetails(product.id);
+    } else {
+      console.error("Cannot navigate - product ID is missing");
+    }
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -126,7 +130,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {typeof product.price === 'number' 
             ? product.price.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }) 
             : 'Precio no disponible'}
-          {product.unitMeasure && typeof product.price === 'number' ? `/${product.unitMeasure}` : ''}
+          {product.unitMeasure && typeof product.price === 'number' ? (
+            <span className="text-sm ml-1">{`/${product.unitMeasure}`}</span>
+          ) : ''}
         </p>
         <p className="text-sm text-gray-600 mb-1">
           Región: <span className="font-medium text-gray-700">{product.region || 'N/A'}</span>

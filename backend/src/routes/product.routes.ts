@@ -394,4 +394,10 @@ router.get(
   ProductHistoryController.getProductPriceTrends
 );
 
+// Get product price trends
+router.get(
+  '/price-trends',
+  (req, res) => ProductHistoryController.getProductPriceTrends(req, res)
+);
+
 export default router; 

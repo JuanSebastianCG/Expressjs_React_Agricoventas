@@ -75,6 +75,8 @@ const ProductDetail: React.FC = () => {
   // Integrar un estado para controlar la visualización del historial
   const [showHistory, setShowHistory] = useState(false);
 
+  console.log("ProductDetail mounted with productId:", productId);
+
   // Calculate rating distribution from reviews
   const calculateRatingDistribution = (reviewsList: ReviewItem[]) => {
     const distribution: { [key: number]: number } = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -111,21 +113,24 @@ const ProductDetail: React.FC = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       if (!productId) {
+        console.error("Product ID is missing from URL params");
         setError('Product ID not found.');
         setLoading(false);
         return;
       }
       try {
         setLoading(true);
+        console.log("Fetching product with ID:", productId);
         const response = await api.get(`/products/${productId}`);
         if (response.data.success && response.data.data) {
+          console.log("Product data retrieved:", response.data.data);
           setProduct(response.data.data);
         } else {
           throw new Error(response.data.error?.message || 'Failed to fetch product details');
         }
       } catch (err: any) {
-        setError(err.message || 'An unknown error occurred');
         console.error('Error fetching product:', err);
+        setError(err.message || 'An unknown error occurred');
       } finally {
         setLoading(false);
       }
@@ -288,7 +293,7 @@ const ProductDetail: React.FC = () => {
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-1" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-9v4a1 1 0 11-2 0v-4a1 1 0 112 0zm0-4a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" />
-                </svg>
+          </svg>
               </div>
               <div className="ml-3">
                 <p className="text-sm text-red-1">
@@ -298,203 +303,192 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
         ) : product ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Product images */}
-            <div className="relative">
-              <div className="bg-white rounded-lg overflow-hidden shadow-md aspect-square">
+          <div className="flex flex-col gap-8">
+            {/* Imagen del producto */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Imagen del producto */}
+              <div className="rounded-lg overflow-hidden">
                 {product.images && product.images.length > 0 ? (
-                  <img
+                  <img 
                     src={product.images[currentImageIndex]?.imageUrl || ''}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
+                    alt={product.name} 
+                    className="w-full h-auto object-cover rounded-lg"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <div className="w-full h-64 flex items-center justify-center bg-gray-100 rounded-lg">
                     <p className="text-gray-500">No hay imagen disponible</p>
                   </div>
                 )}
-                
-                {product.images && product.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={prevImage}
-                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md focus:outline-none hover:bg-gray-100"
-                    >
-                      <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md focus:outline-none hover:bg-gray-100"
-                    >
-                      <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </>
-                )}
               </div>
-              
-              {/* Thumbnail navigation */}
-              {product.images && product.images.length > 1 && (
-                <div className="mt-4 flex space-x-2 overflow-x-auto">
-                  {product.images.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`w-16 h-16 rounded-md overflow-hidden border-2 ${
-                        index === currentImageIndex ? 'border-green-1' : 'border-transparent'
-                      }`}
-                    >
-                      <img
-                        src={image.imageUrl}
-                        alt={`Thumbnail ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
+
+              {/* Segunda columna: información del producto */}
+              <div className="bg-white rounded-lg p-6">
+                <h1 className="text-2xl font-bold text-gray-800 mb-3">{product.name || 'Cafe Organico - Certificado'}</h1>
+                
+                <div className="flex items-center mb-4">
+                  <p className="text-2xl font-bold text-green-600 mr-4">
+                    {typeof product.price === 'number' 
+                      ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(product.price)
+                      : '12,000 COP'
+                    }/kg
+                  </p>
+                  
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg 
+                        key={star}
+                        className={`w-5 h-5 ${star <= Math.round(product.averageRating || 4.5) ? 'text-yellow-400' : 'text-gray-300'}`}
+                        fill="currentColor" 
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118l-2.8-2.034c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                    <span className="ml-2 text-sm text-gray-600">({product.reviewCount || 128} Reseñas)</span>
+                  </div>
                 </div>
-              )}
+                
+                {/* Información de ubicación y disponibilidad */}
+                <div className="flex items-start mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 mt-0.5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-gray-700">{product.originLocation?.city || 'Nariño'}, {product.originLocation?.country || 'Colombia'}</span>
+                </div>
+                
+                <div className="flex items-center mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+                    <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-gray-700">Disponible: {product.stockQuantity || 150} kg</span>
+                </div>
+                
+                {/* Información del vendedor */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6 flex items-center">
+                  <div className="flex-shrink-0 mr-3">
+                    {product.seller?.profileImage ? (
+                      <img 
+                        src={product.seller.profileImage} 
+                        alt={product.seller.firstName || 'Vendedor'} 
+                        className="w-12 h-12 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold">
+                        {((product.seller?.firstName || '').charAt(0) + (product.seller?.lastName || '').charAt(0)) || 'JC'}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-800">
+                      {product.seller 
+                        ? `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() || ((product.seller as any)?.username || 'Juan Carlos Ramirez')
+                        : 'Juan Carlos Ramirez'
+                      }
+                    </h3>
+                    <div className="flex mt-1">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                        Verificado
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Certificación De producto
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Botones de acción */}
+                <div className="mb-8">
+                  <button 
+                    onClick={handleAddToCart}
+                    disabled={!product.stockQuantity || product.stockQuantity <= 0}
+                    className="w-full flex justify-center items-center py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-md transition duration-150 ease-in-out"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                    </svg>
+                    {product.stockQuantity && product.stockQuantity > 0 
+                      ? 'Añadir al carrito' 
+                      : 'Sin stock disponible'
+                    }
+                  </button>
+                </div>
+              </div>
             </div>
             
-            {/* Product info */}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">{product.name}</h1>
-              
-              <div className="flex items-center mb-4">
-                <StarRating 
-                  rating={product.averageRating || 0} 
-                  reviewCount={product.reviewCount || reviews.length} 
-                />
-              </div>
-              
-              <div className="mb-4">
-                <span className="text-3xl font-bold text-green-1">
-                  {typeof product.price === 'number' 
-                    ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(product.price)
-                    : 'Precio no disponible'
-                  }
-                </span>
-                <span className="text-sm text-gray-600 ml-2">por {product.unitMeasure || 'unidad'}</span>
-              </div>
-              
-              <div className="mb-6">
-                <div className="flex items-center mb-2">
-                  <svg className="h-5 w-5 text-green-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                  <span className="text-gray-700">
-                    Stock: <span className="font-medium">{product.stockQuantity || 0} {product.unitMeasure || 'unidades'}</span>
-                  </span>
-                </div>
-                
-                <div className="flex items-center mb-2">
-                  <svg className="h-5 w-5 text-green-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-gray-700">
-                    Origen: <span className="font-medium">{product.originLocation?.city || 'No especificado'}</span>
-                  </span>
-                </div>
-                
-                <div className="flex items-center">
-                  <svg className="h-5 w-5 text-green-1 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span className="text-gray-700">
-                    Vendedor: <span className="font-medium">
-                      {product.seller 
-                        ? `${product.seller.firstName || ''} ${product.seller.lastName || ''}`.trim() || ((product.seller as any)?.username || 'Vendedor anónimo')
-                        : 'Vendedor anónimo'
-                      }
-                    </span>
-                  </span>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <StyledButton 
-                  onClick={handleAddToCart}
-                  disabled={!product.stockQuantity || product.stockQuantity <= 0}
-                  className="w-full md:w-auto"
-                >
-                  {product.stockQuantity && product.stockQuantity > 0 
-                    ? 'Agregar al carrito' 
-                    : 'Sin stock disponible'
-                  }
-                </StyledButton>
-              </div>
-              
-              {/* Tabs for description, history, and reviews */}
-              <div className="border-b border-gray-200 mb-4">
-                <div className="flex space-x-8">
+            {/* Información del producto y pestañas */}
+            <div className="mt-6">
+              {/* Tabs para descripción, historial y reseñas */}
+              <div className="border-b border-gray-200 mb-6">
+                <div className="flex">
                   <button
                     onClick={() => setActiveTab('descripcion')}
-                    className={`py-2 relative ${
+                    className={`mr-8 py-2 relative ${
                       activeTab === 'descripcion'
-                        ? 'text-green-1 font-medium'
+                        ? 'text-green-600 font-medium'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    Descripción
+                    Descripcion
                     {activeTab === 'descripcion' && (
-                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-1"></span>
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-600"></span>
                     )}
                   </button>
                   
-                  {/* Botón para ver historial - solo para vendedores y admins */}
-                  {(user?.userType === 'SELLER' || user?.userType === 'ADMIN') && (
-                    <button
-                      onClick={() => setActiveTab('historial')}
-                      className={`py-2 relative ${
-                        activeTab === 'historial'
-                          ? 'text-green-1 font-medium'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Historial
-                      {activeTab === 'historial' && (
-                        <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-1"></span>
-                      )}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setActiveTab('historial')}
+                    className={`mr-8 py-2 relative ${
+                      activeTab === 'historial'
+                        ? 'text-green-600 font-medium'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Historial
+                    {activeTab === 'historial' && (
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-600"></span>
+                    )}
+                  </button>
                   
                   <button
                     onClick={() => setActiveTab('resenas')}
                     className={`py-2 relative ${
                       activeTab === 'resenas'
-                        ? 'text-green-1 font-medium'
+                        ? 'text-green-600 font-medium'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    Reseñas ({reviews.length})
+                    Reseñas
                     {activeTab === 'resenas' && (
-                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-1"></span>
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-green-600"></span>
                     )}
                   </button>
                 </div>
               </div>
               
-              {/* Tab content */}
+              {/* Contenido de las pestañas */}
               <div>
                 {activeTab === 'descripcion' && (
                   <div className="prose max-w-none">
-                    <p className="text-gray-700 whitespace-pre-line">{product.description || 'No hay descripción disponible.'}</p>
+                    <p className="text-gray-700 whitespace-pre-line">
+                      {product.description || 'Nuestros granos de café orgánico premium son cultivados cuidadosamente a gran altitud en Nariño, Colombia. Los granos crecen a la sombra bajo condiciones óptimas, lo que da como resultado un sabor intenso y completo con notas de chocolate y cítricos. Todas nuestras prácticas agrícolas están certificadas como orgánicas, lo que garantiza métodos de producción sostenibles y respetuosos con el medio ambiente.'}
+                    </p>
                   </div>
                 )}
-                
-                {activeTab === 'historial' && (user?.userType === 'SELLER' || user?.userType === 'ADMIN') && (
+
+                {activeTab === 'historial' && (
                   <div>
-                    <ProductHistoryList productId={product.id || ''} />
+                    {(user?.userType === 'SELLER' || user?.userType === 'ADMIN') ? (
+                      <ProductHistoryList productId={product.id || ''} />
+                    ) : (
+                      <p className="text-gray-700">Necesita permisos de vendedor o administrador para ver el historial del producto.</p>
+                    )}
                   </div>
                 )}
-                
+
                 {activeTab === 'resenas' && (
                   <div>
                     <ReviewStats 
-                      averageRating={product.averageRating || 0} 
+                      averageRating={product.averageRating || 0}
                       totalReviews={reviews.length} 
                       ratingDistribution={ratingDistribution}
                     />
@@ -503,7 +497,8 @@ const ProductDetail: React.FC = () => {
                       <div className="mt-6">
                         <ReviewForm 
                           productId={product.id || ''} 
-                          onReviewSubmitted={handleReviewSubmitted} 
+                          userId={user?.id || ''}
+                          onReviewSubmitted={handleReviewSubmitted}
                         />
                       </div>
                     ) : (

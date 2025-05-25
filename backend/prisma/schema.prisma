@@ -20,6 +20,7 @@ model User {
   createdAt            DateTime            @default(now()) @map("created_at")
   isActive             Boolean             @default(true) @map("is_active")
   userType             String              @map("user_type") // "SELLER", "BUYER", "ADMIN"
+  subscriptionType     String              @default("NORMAL") @map("subscription_type") // "NORMAL", "PREMIUM"
   refreshToken         String?             @map("refresh_token")
   profileImage         String?             @map("profile_image")
   

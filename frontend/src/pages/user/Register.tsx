@@ -6,6 +6,7 @@ import useForm from '../../hooks/useForm';
 import authService, { RegisterData } from '../../services/authService';
 import Notification from '../../components/common/Notification';
 import FormError from '../../components/common/FormError';
+import TermsModal from './TermsModal';
 
 interface RegisterFormValues {
   nombre: string;
@@ -32,6 +33,7 @@ const Register: React.FC = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [isLocationExpanded, setIsLocationExpanded] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Phone icon
   const phoneIcon = (
@@ -312,8 +314,32 @@ const Register: React.FC = () => {
            !!(form.touched.department && form.errors.department);
   };
 
+  // Función para mostrar el modal de términos y condiciones
+  const openTermsModal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowTermsModal(true);
+  };
+
+  // Función para cerrar el modal de términos y condiciones
+  const closeTermsModal = () => {
+    setShowTermsModal(false);
+  };
+
+  // Función para aceptar los términos y condiciones
+  const acceptTerms = () => {
+    form.setFieldValue('acceptTerms', true);
+    setShowTermsModal(false);
+  };
+
   return (
     <MainLayout title="Registro">
+      {/* Modal de términos y condiciones */}
+      <TermsModal 
+        isOpen={showTermsModal} 
+        onClose={closeTermsModal} 
+        onAccept={acceptTerms}
+      />
+      
       <div className="flex justify-center items-center min-h-[calc(100vh-180px)] py-10 px-4">
         <div className="w-full max-w-md bg-white p-6 rounded-lg shadow-md">
           <div className="text-center mb-6">
@@ -610,7 +636,13 @@ const Register: React.FC = () => {
                 </div>
                 <div className="ml-3 text-sm">
                   <label htmlFor="acceptTerms" className="font-medium text-gray-1 cursor-pointer">
-                    Acepto los términos y condiciones
+                    Acepto los <a 
+                      href="#" 
+                      onClick={openTermsModal}
+                      className="text-green-1 hover:underline"
+                    >
+                      términos y condiciones
+                    </a>
                   </label>
                   {form.touched.acceptTerms && form.errors.acceptTerms && (
                     <FormError message={form.errors.acceptTerms} />

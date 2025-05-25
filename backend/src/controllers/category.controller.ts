@@ -99,17 +99,25 @@ export class CategoryController {
    */
   async getCategories(req: Request, res: Response): Promise<void> {
     try {
+      console.log("🔍 GET /categories request received with query:", req.query);
       const { parentId, includeChildren, includeParent, level } = req.query as unknown as CategoryQueryDto;
 
-      const where: any = {};
-      if (parentId) {
+      // Logging the request parameters
+      console.log(`Query params: parentId=${parentId}, includeChildren=${includeChildren}, includeParent=${includeParent}, level=${level}`);
+
+      // Default query - initially get all categories without filters
+      let where: any = {};
+      
+      // Only apply filters if they are explicitly provided
+      if (parentId !== undefined) {
         where.parentId = parentId;
-      } else if (level === 1 || (level === undefined && !parentId)) {
-        // Only top-level categories if level 1 or no parentId specified
+      } else if (level === 1) {
+        // Only top-level categories if level 1 is specifically requested
         where.parentId = null;
       }
-      // If level 2 is specified, we might need a more complex query or multiple queries
-      // For simplicity, level 2 without parentId might mean all second-level categories.
+      // If no filters are provided, we'll get all categories
+
+      console.log("🔍 Constructed query where clause:", where);
 
       const include: any = {};
       if (includeParent) {
@@ -118,36 +126,73 @@ export class CategoryController {
       if (includeChildren) {
         include.children = true;
       }
-       if (level === 2 && !parentId) {
-        // If we want all level 2 categories, we fetch top-level, then their children.
-        // This might be inefficient for large datasets.
-        // A more optimized approach might involve a raw query or specific Prisma features if available.
-        // For now, we fetch all and filter, or fetch top-level and include children.
-        // Let's fetch all and let client filter or refine later.
-        // Or, fetch top-level with children.
-         const topLevelCategories = await (this.db as any).category.findMany({
-            where: { parentId: null },
-            include: { children: true },
-        });
-        const secondLevelCategories = topLevelCategories.flatMap(tlc => tlc.children || []);
-        const responseCategories = secondLevelCategories.map(cat => this.mapToCategoryResponse(cat, includeParent, false)); // Children already fetched
 
+      console.log("🔍 Include options:", include);
+
+      // Special case for level 2 categories
+      if (level === 2 && !parentId) {
+        console.log("🔍 Fetching level 2 categories specifically");
+        // If we want all level 2 categories, we fetch top-level, then their children.
+        const topLevelCategories = await (this.db as any).category.findMany({
+          where: { parentId: null },
+          include: { children: true },
+        });
+        console.log(`🔍 Found ${topLevelCategories.length} top-level categories`);
+        
+        const secondLevelCategories = topLevelCategories.flatMap(tlc => tlc.children || []);
+        console.log(`🔍 Extracted ${secondLevelCategories.length} second-level categories`);
+        
+        const responseCategories = secondLevelCategories.map(cat => 
+          this.mapToCategoryResponse(cat, includeParent, false)
+        );
+
+        console.log(`🔍 Sending response with ${responseCategories.length} second-level categories`);
         sendSuccessResponse(res, { categories: responseCategories, total: secondLevelCategories.length });
         return;
-
       }
 
-
+      // Normal category query
+      console.log("🔍 Executing findMany with where:", where, "and include:", include);
       const categories = await (this.db as any).category.findMany({
         where,
         include,
         orderBy: { name: 'asc' },
       });
 
-      const responseCategories = categories.map(cat => this.mapToCategoryResponse(cat, includeParent, includeChildren));
+      console.log(`🔍 Found ${categories.length} categories from database`);
+      
+      if (categories.length === 0) {
+        console.log("⚠️ No categories found with the given filters. Trying without filters...");
+        
+        // If no categories found with filters, try getting all categories
+        const allCategories = await (this.db as any).category.findMany({
+          orderBy: { name: 'asc' },
+          include: {
+            parent: true,
+            children: true
+          }
+        });
+        
+        console.log(`🔍 Found ${allCategories.length} categories without filters`);
+        
+        if (allCategories.length > 0) {
+          const responseCategories = allCategories.map(cat => 
+            this.mapToCategoryResponse(cat, true, true)
+          );
+          console.log(`🔍 Sending response with ${responseCategories.length} categories (without filters)`);
+          sendSuccessResponse(res, { categories: responseCategories, total: allCategories.length });
+          return;
+        }
+      }
+
+      const responseCategories = categories.map(cat => 
+        this.mapToCategoryResponse(cat, includeParent, includeChildren)
+      );
+      
+      console.log(`🔍 Sending response with ${responseCategories.length} categories`);
       sendSuccessResponse(res, { categories: responseCategories, total: categories.length });
     } catch (error: any) {
-      console.error('Error fetching categories:', error);
+      console.error('❌ Error fetching categories:', error);
       sendErrorResponse(res, 'Failed to fetch categories', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }

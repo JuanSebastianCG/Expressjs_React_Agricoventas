@@ -321,6 +321,36 @@ export class ProductController {
         department,
       } = queryParams;
 
+      // Parse sortBy parameter to handle formatted sort options
+      let orderByField: string = "createdAt";
+      let orderByDirection: "asc" | "desc" = "desc";
+
+      if (sortBy) {
+        const sortByString = sortBy as string;
+        if (sortByString === "price_asc") {
+          orderByField = "basePrice";
+          orderByDirection = "asc";
+        } else if (sortByString === "price_desc") {
+          orderByField = "basePrice";
+          orderByDirection = "desc";
+        } else if (sortByString === "name_asc") {
+          orderByField = "name";
+          orderByDirection = "asc";
+        } else if (sortByString === "name_desc") {
+          orderByField = "name";
+          orderByDirection = "desc";
+        } else if (sortByString.includes("_")) {
+          // Handle any other field_direction format
+          const [field, direction] = sortByString.split("_");
+          orderByField = field === "price" ? "basePrice" : field;
+          orderByDirection = direction === "asc" ? "asc" : "desc";
+        } else {
+          // Use the sortBy directly if it's not in field_direction format
+          orderByField = sortByString;
+          orderByDirection = sortOrder === "asc" ? "asc" : "desc";
+        }
+      }
+
       const skip = (page - 1) * limit;
 
       // Build where clause for filtering
@@ -371,7 +401,7 @@ export class ProductController {
           where,
           skip,
           take: limit,
-          orderBy: { [sortBy]: sortOrder },
+          orderBy: { [orderByField]: orderByDirection },
           include: {
             category: true,
             seller: {

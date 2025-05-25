@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/ui/Card';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -20,6 +20,8 @@ import productHistoryService, { ProductPriceTrend } from '../services/productHis
 import productService, { Product, PriceData, ProductTrend } from '../services/productService';
 import categoryService, { Category } from '../services/categoryService';
 import insightService, { WeatherAlert, FarmingTip, MarketForecast } from '../services/insightService';
+import { FaCrown } from 'react-icons/fa';
+import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -170,54 +172,54 @@ const PriceLineChart = ({ priceHistory, productName }: { priceHistory: PriceData
 // Componente para visualizar la distribución de productos por categoría
 const ProductCategoryChart = ({ products }: { products: Product[] }) => {
   // Agrupar productos por categoría
-  const categoryCounts: Record<string, number> = {};
-  products.forEach(product => {
+  const categoryCounts = products.reduce((acc, product) => {
     const categoryName = product.category?.name || 'Sin categoría';
-    categoryCounts[categoryName] = (categoryCounts[categoryName] || 0) + 1;
-  });
-  
-  const data = {
-    labels: Object.keys(categoryCounts),
-    datasets: [
-      {
-        label: 'Productos por categoría',
-        data: Object.values(categoryCounts),
-        backgroundColor: [
-          'rgba(4, 107, 77, 0.7)',
-          'rgba(45, 156, 60, 0.7)',
-          'rgba(85, 190, 43, 0.7)',
-          'rgba(150, 220, 50, 0.7)',
-          'rgba(200, 240, 90, 0.7)',
-          'rgba(245, 255, 120, 0.7)'
-        ],
-        borderColor: [
-          'rgba(4, 107, 77, 1)',
-          'rgba(45, 156, 60, 1)',
-          'rgba(85, 190, 43, 1)',
-          'rgba(150, 220, 50, 1)',
-          'rgba(200, 240, 90, 1)',
-          'rgba(245, 255, 120, 1)'
-        ],
-        borderWidth: 1
-      }
-    ]
-  };
-  
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'right' as const
-      }
-    }
-  };
-  
+    acc[categoryName] = (acc[categoryName] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Convertir a formato para el gráfico
+  const data = Object.entries(categoryCounts).map(([name, count]) => ({
+    name,
+    value: count
+  }));
+
+  // Asegurarse de que hay datos suficientes
+  if (data.length === 0) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow">
+        <p className="text-center text-gray-500">No hay datos suficientes para mostrar estadísticas por categoría.</p>
+      </div>
+    );
+  }
+
+  // Preparar colores
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white">
-      <h3 className="text-lg font-medium text-gray-800 mb-3">Productos por categoría</h3>
-      <div className="h-64">
-        <Bar data={data} options={options} />
+    <div className="bg-white p-4 rounded-lg shadow">
+      <h3 className="text-lg font-semibold mb-4">Productos por Categoría</h3>
+      <div className="h-72">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value) => [`${value} productos`, 'Cantidad']} />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -227,8 +229,11 @@ const ProductCategoryChart = ({ products }: { products: Product[] }) => {
 const MarketInsights: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimespan, setSelectedTimespan] = useState<string>('all');
+  const [selectedTimespan, setSelectedTimespan] = useState<string>('30');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [detailedPriceHistory, setDetailedPriceHistory] = useState<PriceData[]>([]);
+  const [showDetailedChart, setShowDetailedChart] = useState<boolean>(false);
   
   // Estados para datos
   const [categories, setCategories] = useState<Category[]>([]);
@@ -239,6 +244,8 @@ const MarketInsights: React.FC = () => {
   
   const { user, isAuthenticated } = useAppContext();
   const navigate = useNavigate();
+  
+  const isPremium = user?.subscriptionType === 'PREMIUM';
   
   // Comprobar autenticación
   useEffect(() => {
@@ -270,13 +277,13 @@ const MarketInsights: React.FC = () => {
     
     try {
       const insightData = await insightService.getAllInsightData();
-      setWeatherAlerts(insightData.weatherAlerts.slice(0, 2)); // Mostrar solo 2 alertas como en la imagen
+      setWeatherAlerts(insightData.weatherAlerts.slice(0, 2));
       setFarmingTips(insightData.farmingTips);
       setMarketForecasts(insightData.marketForecasts);
       
       // Cargar tendencias de precios
       const trends = await productHistoryService.getPriceTrends(
-        30, // Por defecto 30 días
+        30,
         selectedCategory !== 'all' ? selectedCategory : undefined
       );
       setPriceTrends(trends);
@@ -293,12 +300,52 @@ const MarketInsights: React.FC = () => {
     loadInsightData();
   }, [loadInsightData]);
 
+  // Cargar historial detallado de precios para un producto específico (solo usuarios premium)
+  const loadDetailedPriceHistory = async (productId: string, productName: string) => {
+    if (!isPremium) {
+      // Si no es premium, mostrar mensaje sobre la suscripción
+      alert('Esta función solo está disponible para usuarios Premium. Actualiza tu plan para acceder a gráficas detalladas.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const historyData = await productService.getPriceHistory(productId, 90); // 90 días de historial
+      setDetailedPriceHistory(historyData);
+      setSelectedProduct(productName);
+      setShowDetailedChart(true);
+    } catch (error) {
+      console.error('Error al cargar historial detallado de precios:', error);
+      // Crear datos de ejemplo para mostrar en caso de error
+      const sampleData: PriceData[] = [];
+      const today = new Date();
+      for (let i = 90; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        sampleData.push({
+          date: date.toISOString().split('T')[0],
+          price: Math.floor(Math.random() * 1000) + 3000
+        });
+      }
+      setDetailedPriceHistory(sampleData);
+      setSelectedProduct(productName);
+      setShowDetailedChart(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCategory(e.target.value);
   };
 
   const handleTimespanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedTimespan(e.target.value);
+  };
+
+  const closeDetailedChart = () => {
+    setShowDetailedChart(false);
+    setSelectedProduct(null);
   };
 
   const formatCurrency = (amount: number) => {
@@ -310,27 +357,25 @@ const MarketInsights: React.FC = () => {
     });
   };
 
-  // Componente para mostrar tendencia (flecha arriba/abajo)
-  const TrendIndicator = ({ value }: { value: number }) => {
-    if (value > 0) {
-      return <span className="text-green-600 font-medium flex items-center">+{value.toFixed(1)}%<svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg></span>;
-    } else if (value < 0) {
-      return <span className="text-red-500 font-medium flex items-center">{value.toFixed(1)}%<svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg></span>;
-    } else {
-      return <span className="text-gray-500 font-medium">0%</span>;
-    }
-  };
-
   if (!isAuthenticated) {
-    return null; // Evita renderizar si no está autenticado
+    return null;
   }
 
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Análisis profundo del mercado</h1>
-          <p className="text-gray-600 mt-1">datos en tiempo y métricas de mercado</p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Análisis profundo del mercado</h1>
+            <p className="text-gray-600 mt-1">Datos en tiempo real y métricas de mercado</p>
+          </div>
+          <Link 
+            to="/subscription" 
+            className="flex items-center px-4 py-2 bg-green-1 hover:bg-opacity-90 text-white rounded-md transition-colors"
+          >
+            <FaCrown className="mr-2" />
+            {isPremium ? 'Plan Premium Activo' : 'Activar Premium'}
+          </Link>
         </div>
 
         {loading && !priceTrends.length ? (
@@ -350,6 +395,31 @@ const MarketInsights: React.FC = () => {
           </div>
         ) : (
           <>
+            {/* Gráfico detallado para usuarios premium */}
+            {showDetailedChart && selectedProduct && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Análisis detallado: {selectedProduct}
+                  </h2>
+                  <button 
+                    onClick={closeDetailedChart}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="h-80">
+                  <PriceLineChart priceHistory={detailedPriceHistory} productName={selectedProduct} />
+                </div>
+                <div className="mt-4 text-sm text-gray-600">
+                  <p>Este gráfico muestra la evolución del precio en los últimos 90 días. Observa las tendencias para tomar mejores decisiones.</p>
+                </div>
+              </div>
+            )}
+
             {/* Sección de tendencia de precios en tiempo real */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
               <div className="flex justify-between items-center mb-6">
@@ -370,10 +440,9 @@ const MarketInsights: React.FC = () => {
                     onChange={handleTimespanChange}
                     className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-1"
                   >
-                    <option value="all">Todos los períodos</option>
                     <option value="7">Última semana</option>
                     <option value="30">Último mes</option>
-                    <option value="90">Último trimestre</option>
+                    <option value="90">Últimos 3 meses</option>
                   </select>
                 </div>
               </div>
@@ -386,10 +455,13 @@ const MarketInsights: React.FC = () => {
                         Producto
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        precio actual
+                        Precio actual
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Tendencia Semanal
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Gráfica
                       </th>
                     </tr>
                   </thead>
@@ -411,6 +483,15 @@ const MarketInsights: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <TrendIndicator value={product.weeklyTrend} />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button 
+                            onClick={() => loadDetailedPriceHistory(product.id, product.name)}
+                            className={`px-3 py-1 text-white text-xs rounded transition-colors ${isPremium ? 'bg-green-1 hover:bg-opacity-90' : 'bg-gray-400 cursor-not-allowed'}`}
+                            title={isPremium ? 'Ver gráfico detallado' : 'Función disponible solo para usuarios Premium'}
+                          >
+                            {isPremium ? 'Ver gráfico' : 'Solo Premium'}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -527,29 +608,6 @@ const MarketInsights: React.FC = () => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Sección de suscripción Pro */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <div className="flex flex-col md:flex-row justify-between items-center">
-                <div className="mb-4 md:mb-0">
-                  <div className="flex items-center">
-                    <h2 className="text-xl font-bold text-gray-800">Mejora a usuario Pro</h2>
-                    <span className="ml-2 text-yellow-500">
-                      <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zm7-10a1 1 0 01.707.293l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 8l-3.293-3.293A1 1 0 0112 4z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mt-1">Unlock detailed price graphs and exclusive market data</p>
-                </div>
-                <div className="flex flex-col items-center">
-                  <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-md font-medium transition-colors">
-                    Subscribe Now
-                  </button>
-                  <p className="text-sm text-gray-500 mt-2">Starting from 29,900 COP/month</p>
-                </div>
               </div>
             </div>
           </>

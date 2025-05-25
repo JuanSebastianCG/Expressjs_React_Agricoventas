@@ -10,6 +10,8 @@ import CartIcon from '../components/cart/CartIcon';
 import { useCart } from '../context/CartContext';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { FaCrown } from 'react-icons/fa';
+import { useAppContext } from '../context/AppContext';
 
 interface Seller {
   id: string;
@@ -27,6 +29,7 @@ interface ProductWithSeller extends IProduct {
 
 const Marketplace: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAppContext();
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,10 +138,17 @@ const Marketplace: React.FC = () => {
       <div className="bg-green-1 text-white py-6">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div>
-          <h1 className="text-2xl font-bold">Bienvenido a tu mercado agrícola</h1>
-          <p className="mt-2">Compra y vende directamente con productores</p>
+            <h1 className="text-2xl font-bold">Bienvenido a tu mercado agrícola</h1>
+            <p className="mt-2">Compra y vende directamente con productores</p>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => navigate('/subscription')}
+              className="flex items-center px-4 py-2 bg-yellow-500 hover:bg-yellow-600 rounded-md text-white transition-colors"
+            >
+              <FaCrown className="mr-2" />
+              {user?.subscriptionType === 'PREMIUM' ? 'Subscripción Premium' : 'Mejorar a Premium'}
+            </button>
             <CartIcon className="text-white" />
           </div>
         </div>
