@@ -26,6 +26,7 @@ import { CartProvider } from './context/CartContext';
 import EditProfile from './pages/user/EditProfile';
 import SellerCertifications from './pages/user/SellerCertifications';
 import ManageProducts from './pages/admin/ManageProducts';
+import VipPlan from './pages/user/VipPlan';
 
 // Lazy loaded pages
 const ManageOrders = lazy(() => import('./pages/admin/ManageOrders'));
@@ -94,6 +95,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/" element={<Home />} />
     <Route path="/login" element={<Login />} />
     <Route path="/register" element={<Register />} />
+    <Route path="/vip-plan" element={<VipPlan />} />
     <Route path="/marketplace" element={<Marketplace />} />
     <Route path="/mercado-general" element={<Navigate to="/marketplace" replace />} />
     <Route path="/product/:productId" element={<ProductDetail />} />

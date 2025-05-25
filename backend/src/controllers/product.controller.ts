@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import { PrismaClient, Prisma } from "@prisma/client";
 import { CreateProductDto, UpdateProductDto, ProductQueryParams, ProductResponse } from "../schemas/product.schema";
 import { sendSuccessResponse, sendErrorResponse, sendNotFoundResponse } from "../utils/responseHandler";
@@ -226,6 +227,46 @@ export class ProductController {
         console.log(`[ProductController.createProduct] Notification sent for product creation: ${newProduct.id}`);
       } catch (notificationError) {
         console.error('[ProductController.createProduct] Error creating notification:', notificationError);
+        // Continue with product creation even if notification fails
+      }
+      
+      // Notificar a todos los usuarios sobre el nuevo producto disponible
+      try {
+        console.log('[ProductController.createProduct] Sending notifications for new product:', newProduct.id);
+        
+        const users = await this.db.user.findMany({
+          where: {
+            isActive: true,
+            userType: 'BUYER'
+          },
+          select: {
+            id: true
+          }
+        });
+
+        console.log(`[ProductController.createProduct] Found ${users.length} users to notify`);
+
+        const notificationResults = await Promise.all(
+          users.map(async user => {
+            try {
+              const result = await NotificationService.notifyAvailableProducts(user.id, [{
+                id: newProduct.id,
+                name: productData.name,
+                price: productData.basePrice,
+                unitMeasure: productData.unitMeasure
+              }]);
+              console.log(`[ProductController.createProduct] Sent notifications to user ${user.id}`);
+              return result;
+            } catch (error) {
+              console.error(`[ProductController.createProduct] Error sending notifications to user ${user.id}:`, error);
+              return null;
+            }
+          })
+        );
+
+        console.log('[ProductController.createProduct] Notification results:', notificationResults);
+      } catch (notificationError) {
+        console.error('[ProductController.createProduct] Error in notification process:', notificationError);
         // Continue with product creation even if notification fails
       }
       
@@ -678,6 +719,37 @@ export class ProductController {
 
       const productResponse = this.mapToProductResponse(finalProduct);
       sendSuccessResponse(res, productResponse);
+
+      // Si el producto se vuelve disponible (stock > 0) o el precio cambia
+      if ((updateData.stockQuantity !== undefined && updateData.stockQuantity > 0) || 
+          (updateData.basePrice !== undefined)) {
+        try {
+          const users = await this.db.user.findMany({
+            where: {
+              isActive: true,
+              userType: 'BUYER'
+            },
+            select: {
+              id: true
+            }
+          });
+
+          await Promise.all(
+            users.map(user => 
+              NotificationService.notifyAvailableProducts(user.id, [{
+                id: productId,
+                name: updatedProduct.name,
+                price: updateData.basePrice || updatedProduct.basePrice,
+                unitMeasure: updatedProduct.unitMeasure
+              }])
+            )
+          );
+          console.log(`[ProductController.updateProduct] Notifications sent for updated product: ${productId}`);
+        } catch (notificationError) {
+          console.error('[ProductController.updateProduct] Error sending available product notifications:', notificationError);
+          // Continue with product update even if notification fails
+        }
+      }
     } catch (error) {
       console.error("Error updating product:", error);
       sendErrorResponse(res, 'Failed to update product', HttpStatusCode.INTERNAL_SERVER_ERROR);
