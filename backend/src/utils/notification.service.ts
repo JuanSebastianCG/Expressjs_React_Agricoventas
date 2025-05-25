@@ -292,4 +292,53 @@ export class NotificationService {
       relatedEntityId: orderId
     });
   }
+
+  /**
+   * Notify about available products
+   */
+  static async notifyAvailableProducts(userId: string, products: Array<{
+    id: string;
+    name: string;
+    price: number;
+    unitMeasure: string;
+  }>) {
+    try {
+      // Verificar que el usuario existe
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        console.error(`User ${userId} not found`);
+        return;
+      }
+
+      // Crear notificaciones para cada producto
+      const notifications = await Promise.all(
+        products.map(async product => {
+          try {
+            const notification = await this.createNotification({
+              recipientUserId: userId,
+              type: 'AVAILABLE_PRODUCT',
+              title: 'Producto Disponible',
+              message: `El producto "${product.name}" está disponible por $${product.price.toLocaleString('es-ES')} por ${product.unitMeasure}.`,
+              relatedEntityType: 'PRODUCT',
+              relatedEntityId: product.id
+            });
+            console.log(`Created notification for product ${product.id} for user ${userId}`);
+            return notification;
+          } catch (error) {
+            console.error(`Error creating notification for product ${product.id}:`, error);
+            return null;
+          }
+        })
+      );
+
+      // Filtrar las notificaciones nulas
+      return notifications.filter(n => n !== null);
+    } catch (error) {
+      console.error('Error in notifyAvailableProducts:', error);
+      throw error;
+    }
+  }
 } 

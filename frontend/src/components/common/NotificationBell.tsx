@@ -19,7 +19,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
   // Initial fetch notifications only once when component mounts
   useEffect(() => {
     if (isAuthenticated) {
-      // Only fetch when the component mounts, further updates come from context
+      console.log('[NotificationBell] Fetching notifications...');
       fetchNotifications();
     }
   }, [isAuthenticated]);
@@ -94,6 +94,8 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
   if (!isAuthenticated) {
     return null;
   }
+
+  console.log('[NotificationBell] Rendering notifications:', notifications);
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -204,6 +206,13 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
                           <span className="bg-orange-500 p-2.5 rounded-full text-white inline-flex items-center justify-center shadow-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </span>
+                        )}
+                        {notification.type === 'AVAILABLE_PRODUCT' && (
+                          <span className="bg-green-500 p-2.5 rounded-full text-white inline-flex items-center justify-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           </span>
                         )}
