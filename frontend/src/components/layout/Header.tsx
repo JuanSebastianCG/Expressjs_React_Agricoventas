@@ -4,6 +4,7 @@ import { useAppContext } from '../../context/AppContext';
 import IconNoBackground from '../../assets/IconNoBackground.png';
 import { navigateToProducts } from '../../App';
 import NotificationBell from '../common/NotificationBell';
+import { FaSearch } from 'react-icons/fa';
 
 interface HeaderProps {
   title?: string;
@@ -13,7 +14,9 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   const { isAuthenticated, user, logout } = useAppContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
 
@@ -47,8 +50,6 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
   };
 
   // Function to navigate between pages
-  const navigate = useNavigate();
-  
   const handleNavigation = (path: string) => {
     navigate(path === 'home' ? '/' : `/${path}`);
   };
@@ -65,6 +66,16 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
     logout();
     setUserMenuOpen(false);
     navigate('/');
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/marketplace?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+    } else {
+      navigate('/marketplace');
+    }
   };
 
   // Función para obtener la URL completa de la imagen de perfil
@@ -94,6 +105,25 @@ const Header: React.FC<HeaderProps> = ({ title = 'Agricoventas' }) => {
             alt="Agricoventas Logo" 
             className="h-12"
           />
+        </div>
+
+        {/* Search bar - Desktop */}
+        <div className="hidden md:block flex-grow max-w-md mx-4">
+          <form onSubmit={handleSearch} className="relative flex">
+            <input
+              type="text"
+              placeholder="Buscar productos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full py-2 px-4 pr-10 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-green-1 bg-gray-50"
+            />
+            <button 
+              type="submit"
+              className="bg-green-1 hover:bg-green-700 text-white py-2 px-4 rounded-r-md transition-colors"
+            >
+              <FaSearch />
+            </button>
+          </form>
         </div>
 
         {isAuthenticated ? (

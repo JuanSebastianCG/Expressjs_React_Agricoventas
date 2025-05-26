@@ -354,40 +354,88 @@ export class ProductController {
       const skip = (page - 1) * limit;
 
       // Build where clause for filtering
-      const where: any = { isActive: isActive === undefined ? true : isActive };
+      let where: any = {};
+      
+      // Set the isActive filter
+      where.isActive = isActive === undefined ? true : isActive;
 
+      // Add category filter if present
       if (categoryId) {
-        where.categoryId = categoryId;
+        // Check if categoryId is a valid MongoDB ObjectId format
+        const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(categoryId);
+        
+        if (isValidObjectId) {
+          // If it's a valid ID, use it directly
+          where.categoryId = categoryId;
+        } else {
+          // If it's not a valid ID, assume it's a category name and look it up
+          try {
+            // First try to find a category with that exact name
+            const category = await this.db.category.findFirst({
+              where: { name: categoryId }
+            });
+            
+            if (category) {
+              // If found, use its ID
+              where.categoryId = category.id;
+            } else {
+              // If not found by exact name, look for a category containing the name (case insensitive)
+              const categoriesByName = await this.db.category.findMany({
+                where: { 
+                  name: { 
+                    contains: categoryId,
+                    mode: 'insensitive'
+                  } 
+                }
+              });
+              
+              if (categoriesByName.length > 0) {
+                // If categories found, filter products by any of these category IDs
+                where.OR = categoriesByName.map(cat => ({ categoryId: cat.id }));
+              } else {
+                // If still no categories found, return empty result set by using non-existent ID
+                where.categoryId = 'no-matching-category';
+              }
+            }
+          } catch (error) {
+            console.error("Error looking up category by name:", error);
+            // In case of error, use a non-existent ID to return empty result
+            where.categoryId = 'no-matching-category';
+          }
+        }
       }
 
+      // Add seller filter if present
       if (sellerId) {
         where.sellerId = sellerId;
       }
 
+      // Add price filters if present
       if (minPrice !== undefined || maxPrice !== undefined) {
         where.basePrice = {};
         if (minPrice !== undefined) where.basePrice.gte = minPrice;
         if (maxPrice !== undefined) where.basePrice.lte = maxPrice;
       }
 
+      // Add featured filter if present
       if (isFeatured !== undefined) {
         where.isFeatured = isFeatured;
       }
 
+      // Add location filters if present
       if (originLocationId) {
         where.originLocationId = originLocationId;
-      } else {
-        if (city || department) {
-          where.originLocation = {};
-          if (city) {
-            where.originLocation.city = { contains: city, mode: "insensitive" };
-          }
-          if (department) {
-            where.originLocation.department = { contains: department, mode: "insensitive" };
-          }
+      } else if (city || department) {
+        where.originLocation = {};
+        if (city) {
+          where.originLocation.city = { contains: city, mode: "insensitive" };
+        }
+        if (department) {
+          where.originLocation.department = { contains: department, mode: "insensitive" };
         }
       }
 
+      // Add search filter if present
       if (search) {
         where.OR = [
           { name: { contains: search, mode: "insensitive" } },
@@ -395,49 +443,60 @@ export class ProductController {
         ];
       }
 
-      // Get products and total count
-      const [products, total] = await Promise.all([
-        this.db.product.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { [orderByField]: orderByDirection },
-          include: {
-            category: true,
-            seller: {
-              select: {
-                id: true,
-                username: true,
-                firstName: true,
-                lastName: true,
+      try {
+        console.log("Query where clause:", JSON.stringify(where, null, 2));
+
+        // Get products and total count
+        const [products, total] = await Promise.all([
+          this.db.product.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: { [orderByField]: orderByDirection },
+            include: {
+              category: true,
+              seller: {
+                select: {
+                  id: true,
+                  username: true,
+                  firstName: true,
+                  lastName: true,
+                },
               },
-            },
-            images: {
-              where: { isPrimary: true },
-              take: 1,
-            },
-            reviews: {
-              select: { rating: true },
-            },
-            originLocation: true,
-          } as any,
-        }),
-        this.db.product.count({ where }),
-      ]);
+              images: true,
+              reviews: {
+                select: { rating: true },
+              },
+              originLocation: true,
+            } as any,
+          }),
+          this.db.product.count({ where }),
+        ]);
 
-      const responseProducts = products.map(this.mapToProductResponse);
+        // Use bind to ensure 'this' context is preserved
+        const responseProducts = products.map(this.mapToProductResponse.bind(this));
 
-      sendSuccessResponse(res, {
-        products: responseProducts,
-        pagination: {
-          total,
-          page,
-          limit,
-          pages: Math.ceil(total / limit),
-        },
-      });
+        sendSuccessResponse(res, {
+          products: responseProducts,
+          pagination: {
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit),
+          },
+        });
+      } catch (error: any) {
+        console.error("Error fetching products:", error);
+        if (error.code) {
+          console.error("Prisma error code:", error.code);
+        }
+        if (error.meta) {
+          console.error("Prisma error meta:", error.meta);
+        }
+        sendErrorResponse(res, `Failed to fetch products: ${error.message}`, HttpStatusCode.INTERNAL_SERVER_ERROR);
+      }
     } catch (error: any) {
-      console.error("Error fetching products:", error);
+      console.error("Error in getProducts:", error);
       sendErrorResponse(res, 'Failed to fetch products', HttpStatusCode.INTERNAL_SERVER_ERROR);
     }
   }
@@ -962,67 +1021,86 @@ export class ProductController {
    * @returns Product response
    */
   private mapToProductResponse(product: any): ProductResponse {
-    const averageRating = product.reviews && product.reviews.length > 0
-      ? product.reviews.reduce((acc: number, review: any) => acc + review.rating, 0) / product.reviews.length
-      : null;
-    const reviewCount = product.reviews ? product.reviews.length : 0;
+    try {
+      const averageRating = product.reviews && product.reviews.length > 0
+        ? product.reviews.reduce((acc: number, review: any) => acc + review.rating, 0) / product.reviews.length
+        : null;
+      const reviewCount = product.reviews ? product.reviews.length : 0;
 
-    let regionString: string | undefined = undefined;
-    if (product.originLocation) {
-      const city = product.originLocation.city;
-      const department = product.originLocation.department;
-      if (city && department) {
-        regionString = `${city}, ${department}`;
-      } else if (city) {
-        regionString = city;
-      } else if (department) {
-        regionString = department;
+      let regionString: string | undefined = undefined;
+      if (product.originLocation) {
+        const city = product.originLocation.city;
+        const department = product.originLocation.department;
+        if (city && department) {
+          regionString = `${city}, ${department}`;
+        } else if (city) {
+          regionString = city;
+        } else if (department) {
+          regionString = department;
+        }
       }
-    }
 
-    return {
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.basePrice,
-      stockQuantity: product.stockQuantity,
-      unitMeasure: product.unitMeasure,
-      sellerId: product.sellerId,
-      categoryId: product.categoryId,
-      originLocationId: product.originLocationId,
-      isFeatured: product.isFeatured,
-      isActive: product.isActive,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-      images: product.images?.map((image: any) => ({
-        id: image.id,
-        imageUrl: image.imageUrl,
-        altText: image.altText,
-        isPrimary: image.isPrimary,
-        displayOrder: image.displayOrder,
-      })),
-      seller: product.seller
-        ? {
-            id: product.seller.id,
-            username: product.seller.username,
-            firstName: product.seller.firstName,
-            lastName: product.seller.lastName,
-          }
-        : undefined,
-      category: product.category
-        ? {
-            id: product.category.id,
-            name: product.category.name,
-            description: product.category.description,
-            parentId: product.category.parentId,
-            createdAt: product.category.createdAt,
-            updatedAt: product.category.updatedAt,
-          }
-        : undefined,
-      originLocation: product.originLocation,
-      region: regionString,
-      averageRating: averageRating,
-      reviewCount: reviewCount,
-    };
+      return {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.basePrice,
+        stockQuantity: product.stockQuantity,
+        unitMeasure: product.unitMeasure,
+        sellerId: product.sellerId,
+        categoryId: product.categoryId,
+        originLocationId: product.originLocationId,
+        isFeatured: product.isFeatured,
+        isActive: product.isActive,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+        images: Array.isArray(product.images) ? product.images.map((image: any) => ({
+          id: image.id,
+          imageUrl: image.imageUrl,
+          altText: image.altText,
+          isPrimary: image.isPrimary,
+          displayOrder: image.displayOrder,
+        })) : [],
+        seller: product.seller
+          ? {
+              id: product.seller.id,
+              username: product.seller.username,
+              firstName: product.seller.firstName,
+              lastName: product.seller.lastName,
+            }
+          : undefined,
+        category: product.category
+          ? {
+              id: product.category.id,
+              name: product.category.name,
+              description: product.category.description,
+              parentId: product.category.parentId,
+              createdAt: product.category.createdAt,
+              updatedAt: product.category.updatedAt,
+            }
+          : undefined,
+        originLocation: product.originLocation,
+        region: regionString,
+        averageRating: averageRating,
+        reviewCount: reviewCount,
+      };
+    } catch (error) {
+      console.error("Error in mapToProductResponse:", error);
+      // Return a minimal valid product response
+      return {
+        id: product.id || "unknown",
+        name: product.name || "Unknown Product",
+        description: product.description || "",
+        price: product.basePrice || 0,
+        stockQuantity: product.stockQuantity || 0,
+        unitMeasure: product.unitMeasure || "unit",
+        sellerId: product.sellerId || "",
+        originLocationId: product.originLocationId || "",
+        isFeatured: false,
+        isActive: true,
+        createdAt: product.createdAt || new Date(),
+        images: [],
+      };
+    }
   }
 } 

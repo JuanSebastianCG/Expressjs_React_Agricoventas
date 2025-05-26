@@ -10,6 +10,7 @@ import { useAppContext } from '../../context/AppContext';
 import api from '../../services/api';
 import { certificationService } from '../../services/certificationService';
 import categoryService from '../../services/categoryService';
+import locationService, { COLOMBIAN_DEPARTMENTS, ILocation } from '../../services/locationService';
 import { ICategory } from '../../interfaces/category';
 import Header from '../../components/layout/Header';
 import UserProfile from '../../components/common/UserProfile';
@@ -27,72 +28,6 @@ const ChevronDownIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
 );
-
-interface ILocation {
-  id: string;
-  addressLine1: string; 
-  addressLine2?: string;
-  city: string;
-  department: string;
-  postalCode?: string;
-  country?: string;
-}
-
-const locationService = {
-  async getUserLocations(userId: string): Promise<ILocation[]> {
-    try {
-      console.log("[ProductCreate] Fetching locations for user via API:", userId);
-      const response = await api.get(`/locations/user/${userId}`);
-      if (response.data && response.data.success) {
-        return response.data.data || []; // Assuming backend sends { success: true, data: ILocation[] }
-      }
-      console.error("[ProductCreate] Failed to fetch user locations or unexpected response structure:", response.data);
-      return [];
-    } catch (error) {
-      console.error("[ProductCreate] Error calling getUserLocations API:", error);
-      return []; // Return empty array on error
-    }
-  },
-  async getCurrentUserPrimaryLocation(): Promise<ILocation | null> {
-    try {
-      console.log("[ProductCreate] Fetching current user's primary location via API");
-      const response = await api.get(`/users/me/location`); // Using the new endpoint
-      if (response.data && response.data.success && response.data.data) {
-        return response.data.data as ILocation;
-      }
-      if (response.data && response.data.success && !response.data.data) {
-        // Success but no primary location set
-        console.log("[ProductCreate] Current user does not have a primary location set.");
-        return null;
-      }
-      console.error("[ProductCreate] Failed to fetch user's primary location or unexpected response structure:", response.data);
-      return null;
-    } catch (error: any) {
-      // Handle cases where the backend might send a 404 if no location is set, which might not be an error for this specific call
-      if (error.response && error.response.status === 404) {
-        console.log("[ProductCreate] No primary location found for the current user (404).");
-        return null;
-      }
-      console.error("[ProductCreate] Error calling getCurrentUserPrimaryLocation API:", error);
-      return null; 
-    }
-  },
-  async createLocation(data: Partial<ILocation>): Promise<ILocation> {
-    try {
-      console.log("[ProductCreate] Creating new location via API:", data);
-      // Ensure your actual API endpoint for creating locations is correct
-      const response = await api.post('/locations', data); 
-      if (response.data && response.data.success) {
-        return response.data.data; // Assuming backend sends { success: true, data: ILocation }
-      }
-      throw new Error(response.data?.error?.message || 'Failed to create location or unexpected response structure');
-    } catch (error: any) {
-      console.error("[ProductCreate] Error calling createLocation API:", error);
-      // Re-throw or handle as appropriate for your UI
-      throw error; 
-    }
-  }
-};
 
 const ProductCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -812,7 +747,11 @@ const ProductCreate: React.FC = () => {
                           </FormField>
                           <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Región (Departamento)</label>
-                              <StyledInput type="text" value={userLocations.find(loc => loc.id === formData.originLocationId)?.department || ''} disabled readOnly />
+                              <div className="p-2 bg-gray-50 border border-gray-300 rounded-md">
+                                <p className="text-gray-800">
+                                  {userLocations.find(loc => loc.id === formData.originLocationId)?.department || 'No seleccionado'}
+                                </p>
+                              </div>
                           </div>
                         </div>
                       )}
@@ -845,15 +784,30 @@ const ProductCreate: React.FC = () => {
                               required
                               placeholder="Ej. Medellín"
                             />
-                            <StyledInput
-                              label="Departamento"
-                              name="newLocDepartment"
-                              value={newLocationData.department || ''}
-                              onChange={handleInputChange}
-                              error={errors.newLocDepartment}
-                              required
-                              placeholder="Ej. Antioquia"
-                            />
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Departamento <span className="text-red-1">*</span>
+                              </label>
+                              <select
+                                name="newLocDepartment"
+                                value={newLocationData.department || ''}
+                                onChange={handleInputChange}
+                                className={`w-full py-2 px-3 border ${
+                                  errors.newLocDepartment ? 'border-red-500' : 'border-gray-300'
+                                } rounded-md focus:outline-none focus:ring-2 focus:ring-green-1`}
+                                required
+                              >
+                                <option value="">Seleccionar Departamento</option>
+                                {COLOMBIAN_DEPARTMENTS.map(department => (
+                                  <option key={department} value={department}>
+                                    {department}
+                                  </option>
+                                ))}
+                              </select>
+                              {errors.newLocDepartment && (
+                                <p className="mt-1 text-sm text-red-500">{errors.newLocDepartment}</p>
+                              )}
+                            </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <StyledInput
