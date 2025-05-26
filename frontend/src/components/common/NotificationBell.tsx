@@ -82,11 +82,33 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
         return '/certificados';
       case 'PRODUCT_CREATED':
       case 'PRODUCT_REVIEW':
+      case 'LOW_STOCK':
         return `/product/${entityId}`;
       case 'ORDER_STATUS':
+      case 'ORDER_PLACED':
+      case 'PAYMENT_RECEIVED':
+      case 'NEW_ORDER':
         return `/pedido/${entityId}`;
+      case 'NEW_CERTIFICATION':
+        return '/admin/certificaciones';
       default:
         return '#';
+    }
+  };
+
+  // Obtener texto en español para el tipo de notificación
+  const getNotificationTypeLabel = (type: string): string => {
+    switch (type) {
+      case 'CERTIFICATION_STATUS': return 'Estado de certificación';
+      case 'PRODUCT_CREATED': return 'Producto creado';
+      case 'PRODUCT_REVIEW': return 'Nueva reseña';
+      case 'LOW_STOCK': return 'Stock bajo';
+      case 'ORDER_STATUS': return 'Estado de pedido';
+      case 'ORDER_PLACED': return 'Pedido realizado';
+      case 'PAYMENT_RECEIVED': return 'Pago recibido';
+      case 'NEW_ORDER': return 'Nuevo pedido';
+      case 'NEW_CERTIFICATION': return 'Nueva certificación';
+      default: return 'Notificación';
     }
   };
 
@@ -207,7 +229,28 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
                             </svg>
                           </span>
                         )}
-                        {!['PRODUCT_CREATED', 'ORDER_STATUS', 'CERTIFICATION_STATUS', 'PRODUCT_REVIEW', 'PAYMENT_RECEIVED', 'LOW_STOCK'].includes(notification.type) && (
+                        {notification.type === 'ORDER_PLACED' && (
+                          <span className="bg-indigo-500 p-2.5 rounded-full text-white inline-flex items-center justify-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </span>
+                        )}
+                        {notification.type === 'NEW_ORDER' && (
+                          <span className="bg-pink-500 p-2.5 rounded-full text-white inline-flex items-center justify-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                          </span>
+                        )}
+                        {notification.type === 'NEW_CERTIFICATION' && (
+                          <span className="bg-teal-500 p-2.5 rounded-full text-white inline-flex items-center justify-center shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                          </span>
+                        )}
+                        {!['PRODUCT_CREATED', 'ORDER_STATUS', 'CERTIFICATION_STATUS', 'PRODUCT_REVIEW', 'PAYMENT_RECEIVED', 'LOW_STOCK', 'ORDER_PLACED', 'NEW_ORDER', 'NEW_CERTIFICATION'].includes(notification.type) && (
                           <span className="bg-gray-500 p-2.5 rounded-full text-white inline-flex items-center justify-center shadow-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -217,7 +260,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = '' }) =
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-gray-900 mb-0.5">
-                          {notification.title || 'Notificación'}
+                          {notification.title || getNotificationTypeLabel(notification.type)}
                         </p>
                         <p className="text-sm text-gray-600 mb-1">
                           {notification.message}

@@ -52,9 +52,9 @@ class InsightService {
       return [
         { 
           id: '1',
-          type: 'Flood Warning', 
+          type: 'Alerta de Inundación', 
           region: 'Casanare', 
-          message: 'Heavy rainfall expected in the next 60 hours. Secure crops and prepare drainage systems.',
+          message: 'Se esperan fuertes lluvias en las próximas 60 horas. Asegure sus cultivos y prepare sistemas de drenaje adecuados para evitar pérdidas.',
           severity: 'medium',
           icon: 'rain',
           startDate: new Date().toISOString(),
@@ -62,9 +62,9 @@ class InsightService {
         },
         { 
           id: '2',
-          type: 'Heat Wave Alert', 
+          type: 'Ola de Calor', 
           region: 'Antioquia', 
-          message: 'Extreme temperatures forecasted. Increase irrigation frequency and provide shade where possible.',
+          message: 'Se pronostican temperaturas extremas de hasta 38°C. Aumente la frecuencia de riego y proporcione sombra a los cultivos sensibles, especialmente en horas pico.',
           severity: 'high',
           icon: 'sun',
           startDate: new Date().toISOString(),
@@ -72,9 +72,9 @@ class InsightService {
         },
         {
           id: '3',
-          type: 'Frost Warning',
+          type: 'Alerta de Heladas',
           region: 'Boyacá',
-          message: 'Overnight temperatures expected to drop below freezing. Protect sensitive crops.',
+          message: 'Se esperan temperaturas nocturnas por debajo de 0°C en zonas altas. Proteja cultivos sensibles con coberturas y evite el riego en horas de la tarde para prevenir daños.',
           severity: 'medium',
           icon: 'snow',
           startDate: new Date().toISOString(),
@@ -82,9 +82,9 @@ class InsightService {
         },
         {
           id: '4',
-          type: 'Drought Alert',
+          type: 'Alerta de Sequía',
           region: 'La Guajira',
-          message: 'Extended dry period forecasted. Conserve water and implement drought management strategies.',
+          message: 'Se pronostica período prolongado de sequía. Implemente estrategias de conservación de agua como riego por goteo y mulching. Priorice cultivos resistentes a la sequía.',
           severity: 'high',
           icon: 'drought',
           startDate: new Date().toISOString(),
@@ -110,7 +110,7 @@ class InsightService {
         {
           id: '1',
           title: 'Tiempo ideal de siembra',
-          description: 'Perfect conditions for planting avocados in Antioquia region this week.',
+          description: 'Condiciones perfectas para la siembra de aguacate Hass en la región de Antioquia esta semana. Aproveche la humedad del suelo y temperaturas moderadas.',
           icon: 'seed',
           categoryId: 'avocado-category',
           categoryName: 'Aguacates',
@@ -118,8 +118,8 @@ class InsightService {
         },
         {
           id: '2',
-          title: 'Consejos de riego',
-          description: 'Reduce watering frequency for coffee plants due to expected rainfall.',
+          title: 'Optimización de riego',
+          description: 'Reduzca la frecuencia de riego para plantas de café debido a las lluvias esperadas en Huila. Ajuste sistemas de drenaje para evitar encharcamiento en la zona radicular.',
           icon: 'water',
           categoryId: 'coffee-category',
           categoryName: 'Café',
@@ -127,8 +127,8 @@ class InsightService {
         },
         {
           id: '3',
-          title: 'Control de plagas',
-          description: 'Increased risk of aphid infestation in tomato crops. Apply organic pesticides preventatively.',
+          title: 'Control biológico de plagas',
+          description: 'Mayor riesgo de infestación de áfidos en cultivos de tomate. Aplique extracto de ajo y chile como repelente natural o libere mariquitas como control biológico.',
           icon: 'bug',
           categoryId: 'tomato-category',
           categoryName: 'Tomates',
@@ -136,8 +136,8 @@ class InsightService {
         },
         {
           id: '4',
-          title: 'Preparación de suelo',
-          description: 'Ideal time to add lime to acidic soils before the rainy season begins.',
+          title: 'Corrección de acidez del suelo',
+          description: 'Momento ideal para aplicar cal agrícola a suelos ácidos antes del inicio de la temporada de lluvias. Use 2-3 toneladas/hectárea según análisis de suelo.',
           icon: 'soil',
           categoryId: 'general',
           categoryName: 'General',
@@ -162,8 +162,8 @@ class InsightService {
       return [
         {
           type: 'supply',
-          status: 'Surplus',
-          description: 'Esperado para Q2 2025',
+          status: 'Excedente',
+          description: 'Sobreproducción de café prevista para Q2 2025 debido a condiciones climáticas favorables en zonas cafeteras',
           value: '+15%',
           trend: 15,
           icon: 'chart-up',
@@ -173,7 +173,7 @@ class InsightService {
         {
           type: 'demand',
           status: 'Crecimiento',
-          description: '+15% vs mes pasado',
+          description: 'Aumento en demanda de verduras orgánicas en mercados urbanos, +15% vs mes anterior',
           value: '+15%',
           trend: 15,
           icon: 'users',
@@ -183,7 +183,7 @@ class InsightService {
         {
           type: 'price',
           status: 'Estable',
-          description: 'Próximos 30 días',
+          description: 'Precios de frutas mantendrán estabilidad en próximos 30 días según tendencias históricas',
           value: '0%',
           trend: 0,
           icon: 'tag',
@@ -193,7 +193,7 @@ class InsightService {
         {
           type: 'price',
           status: 'Descenso',
-          description: 'Próximos 60 días',
+          description: 'Se espera reducción en precios de granos por importaciones y buena cosecha local',
           value: '-5%',
           trend: -5,
           icon: 'chart-down',

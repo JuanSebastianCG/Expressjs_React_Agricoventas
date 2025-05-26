@@ -508,24 +508,40 @@ const MarketInsights: React.FC = () => {
                   <div 
                     key={alert.id} 
                     className={`p-4 rounded-lg ${
-                      alert.type.toLowerCase().includes('flood') 
-                        ? 'bg-yellow-50 border border-yellow-200' 
-                        : 'bg-red-50 border border-red-200'
+                      alert.type.includes('Inundación') 
+                        ? 'bg-blue-50 border border-blue-200' 
+                        : alert.type.includes('Calor')
+                        ? 'bg-red-50 border border-red-200'
+                        : alert.type.includes('Heladas')
+                        ? 'bg-indigo-50 border border-indigo-200'
+                        : 'bg-yellow-50 border border-yellow-200'
                     }`}
                   >
                     <div className="flex items-start">
                       <div className={`p-2 rounded-full ${
-                        alert.type.toLowerCase().includes('flood') 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : 'bg-red-100 text-red-800'
+                        alert.type.includes('Inundación') 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : alert.type.includes('Calor')
+                          ? 'bg-red-100 text-red-800'
+                          : alert.type.includes('Heladas')
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : 'bg-yellow-100 text-yellow-800'
                       } mr-3`}>
-                        {alert.type.toLowerCase().includes('flood') ? (
+                        {alert.type.includes('Inundación') ? (
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
-                        ) : (
+                        ) : alert.type.includes('Calor') ? (
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        ) : alert.type.includes('Heladas') ? (
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
                         )}
                       </div>
@@ -543,7 +559,7 @@ const MarketInsights: React.FC = () => {
 
             {/* Sección de consejos agrícolas */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Consejo agrícola</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Consejos Agrícolas</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {farmingTips.slice(0, 2).map((tip) => (
                   <div key={tip.id} className="bg-white shadow-sm rounded-lg p-5 border border-gray-200">
@@ -560,11 +576,22 @@ const MarketInsights: React.FC = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                             </svg>
                           )}
+                          {tip.icon === 'bug' && (
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                          {tip.icon === 'soil' && (
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
                         </div>
                       </div>
                       <div>
                         <h3 className="text-lg font-medium text-gray-800">{tip.title}</h3>
                         <p className="text-sm text-gray-600 mt-1">{tip.description}</p>
+                        {tip.region && <p className="text-xs text-gray-500 mt-2">Región: {tip.region}</p>}
                       </div>
                     </div>
                   </div>
@@ -574,7 +601,7 @@ const MarketInsights: React.FC = () => {
 
             {/* Sección de pronóstico del mercado */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Pronostico del mercado</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Pronóstico del Mercado</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {marketForecasts.map((forecast) => (
                   <div key={forecast.type} className="bg-white rounded-lg shadow-sm p-5 border border-gray-200">
@@ -602,9 +629,13 @@ const MarketInsights: React.FC = () => {
                         )}
                       </div>
                       <div>
-                        <h4 className="text-2xl font-bold">{forecast.status}</h4>
-                        <p className="text-sm text-gray-600">{forecast.description}</p>
+                        <div className="text-xl font-medium text-gray-800">{forecast.status}</div>
+                        <p className="text-sm text-gray-500 mt-1">{forecast.description}</p>
+                        {forecast.categoryName && <p className="text-xs text-gray-500 mt-2">Categoría: {forecast.categoryName}</p>}
                       </div>
+                    </div>
+                    <div className="mt-3 flex items-center">
+                      <TrendIndicator value={forecast.trend} />
                     </div>
                   </div>
                 ))}

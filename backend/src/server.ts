@@ -209,16 +209,16 @@ export function createApp(): Express {
   });
 
   // Routes
-  app.use('/api/auth', authRoutes);
-  app.use('/api/users', userRoutes);
-  app.use('/api/products', productRoutes);
-  app.use('/api/orders', orderRoutes);
-  app.use('/api/certifications', certificationRoutes);
-  app.use('/api/uploads', uploadRoutes);
-  app.use('/api/categories', categoryRoutes);
-  app.use('/api/locations', locationRoutes);
-  app.use('/api/reviews', reviewRoutes);
-  app.use('/api/notifications', notificationRoutes);
+  app.use('/auth', authRoutes);
+  app.use('/users', userRoutes);
+  app.use('/products', productRoutes);
+  app.use('/orders', orderRoutes);
+  app.use('/certifications', certificationRoutes);
+  app.use('/uploads', uploadRoutes);
+  app.use('/categories', categoryRoutes);
+  app.use('/locations', locationRoutes);
+  app.use('/reviews', reviewRoutes);
+  app.use('/notifications', notificationRoutes);
 
   // Root route
   app.get('/', (req: Request, res: Response) => {
