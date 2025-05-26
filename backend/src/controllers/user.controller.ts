@@ -42,6 +42,11 @@ export class UserController {
   private getProfileImageUrl(imagePath: string | null): string | null {
     if (!imagePath) return null;
     
+    // If the path is already a full URL (starts with http:// or https://), use it as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
     // Use the port from the environment or the updated fallback
     const port = process.env.PORT || '3001';
     const apiUrl = process.env.API_URL || `http://localhost:${port}`;

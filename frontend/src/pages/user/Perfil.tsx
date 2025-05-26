@@ -182,6 +182,20 @@ const Perfil: React.FC = () => {
     return (user.firstName?.charAt(0) || '').toUpperCase() + (user.lastName?.charAt(0) || '').toUpperCase();
   };
   
+  const getImageUrl = (imagePath: string | null | undefined): string => {
+    if (!imagePath) return '/assets/default-avatar.png';
+    
+    // If the path is already a full URL (starts with http:// or https://), use it as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Otherwise, prepend the API URL
+    const apiUrl = import.meta.env.VITE_BACKEND_URL;
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${apiUrl}/${cleanPath}`;
+  };
+  
   if (loading && !user) {
     return (
       <MainLayout>
@@ -218,7 +232,7 @@ const Perfil: React.FC = () => {
                   <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                     {user?.profileImage ? (
                       <img
-                        src={user.profileImage}
+                        src={getImageUrl(user.profileImage)}
                         alt={`${user.firstName} ${user.lastName}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {

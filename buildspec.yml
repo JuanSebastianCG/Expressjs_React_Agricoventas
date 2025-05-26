@@ -1,0 +1,93 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: "us-east-1" # Cambia esto a tu región preferida
+    BACKEND_IMAGE_REPO_NAME: "agricoventas-backend"
+    EB_APPLICATION_NAME: "agricoventas-app" # Nombre de tu aplicación en Elastic Beanstalk
+    EB_ENVIRONMENT_NAME: "agricoventas-backend-env" # Nombre de tu entorno de backend en EB
+    # AWS_ACCOUNT_ID se obtendrá dinámicamente
+    # S3_FRONTEND_BUCKET será una variable de entorno en CodeBuild (ej: s3://tu-agricoventas-frontend-bucket)
+    # EB_BACKEND_URL será una variable de entorno en CodeBuild (ej: http://agricoventas-backend-env.eba-xxxxxx.us-east-1.elasticbeanstalk.com)
+
+phases:
+  install:
+    runtime-versions:
+      docker: 20 # O la versión más reciente que soporte CodeBuild
+      nodejs: 18 # O la versión que use tu frontend para el build
+    commands:
+      - echo "Entorno de instalación..."
+      - npm install -g yarn # O si usas npm, esto no es necesario
+
+  pre_build:
+    commands:
+      - echo "Fase de Pre-construcción..."
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - echo "AWS Account ID: $AWS_ACCOUNT_ID"
+      - echo "AWS Region: $AWS_REGION"
+      - echo "Iniciando sesión en Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo "Image tag para backend será: $IMAGE_TAG"
+      - echo "Bucket S3 para frontend: $S3_FRONTEND_BUCKET"
+      - echo "URL del Backend para el frontend: $EB_BACKEND_URL"
+      - if [ -z "$S3_FRONTEND_BUCKET" ]; then echo "Error: S3_FRONTEND_BUCKET no está configurada."; exit 1; fi
+      - if [ -z "$EB_BACKEND_URL" ]; then echo "Error: EB_BACKEND_URL no está configurada."; exit 1; fi
+
+  build:
+    commands:
+      - echo "Fase de Construcción iniciada en $(date)"
+
+      - echo "Construyendo artefactos del frontend..."
+      - cd frontend
+      - echo "VITE_API_URL=$EB_BACKEND_URL" > .env.production # Crea un .env para el build de producción
+      - yarn install # o npm install
+      - yarn build   # o npm run build
+      - cd ..
+      - echo "Contenido de la carpeta dist del frontend:"
+      - ls -R frontend/dist
+
+      - echo "Construyendo imagen Docker del backend..."
+      - docker build -t $BACKEND_IMAGE_REPO_NAME:$IMAGE_TAG ./backend
+
+  post_build:
+    commands:
+      - echo "Fase de Post-construcción iniciada en $(date)"
+
+      - echo "Subiendo archivos del frontend a S3..."
+      # Asegúrate de que la carpeta de build del frontend sea 'dist'. Si es 'build', cambia frontend/dist a frontend/build
+      - aws s3 sync ./frontend/dist/ $S3_FRONTEND_BUCKET --delete --acl public-read
+
+      - echo "Etiquetando imagen Docker del backend para ECR..."
+      - docker tag $BACKEND_IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_IMAGE_REPO_NAME:$IMAGE_TAG
+      - echo "Subiendo imagen Docker del backend a Amazon ECR..."
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_IMAGE_REPO_NAME:$IMAGE_TAG
+
+      - echo "Creando Dockerrun.aws.json para el backend..."
+      - |
+        echo '{
+          "AWSEBDockerrunVersion": "1",
+          "Image": {
+            "Name": "'$AWS_ACCOUNT_ID'.dkr.ecr.'$AWS_REGION'.amazonaws.com/'$BACKEND_IMAGE_REPO_NAME':'$IMAGE_TAG'",
+            "Update": "true"
+          },
+          "Ports": [
+            {
+              "ContainerPort": 3001,
+              "HostPort": 8080 
+            }
+          ],
+          "Logging": "/var/log/eb-docker/containers/agricoventas-backend"
+        }' > Dockerrun.aws.json
+        # Nota: Elastic Beanstalk mapeará el puerto 80 del balanceador de carga al HostPort (8080 aquí), 
+        # y este HostPort se mapea al ContainerPort (3001) de tu aplicación backend.
+        # Tu backend debe escuchar en el puerto 3001 (según tu .env).
+
+      - echo "Dockerrun.aws.json creado:"
+      - cat Dockerrun.aws.json
+
+artifacts:
+  files:
+    - Dockerrun.aws.json
+  # No necesitamos los archivos del frontend como artefactos para EB, ya que se suben a S3.

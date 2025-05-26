@@ -67,6 +67,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
+  const getImageUrl = (imagePath: string | null | undefined): string => {
+    if (!imagePath) return '';
+    
+    // If the path is already a full URL (starts with http:// or https://), use it as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Otherwise, prepend the API URL
+    const apiUrl = import.meta.env.VITE_BACKEND_URL;
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${apiUrl}/${cleanPath}`;
+  };
+
   return (
     <Card 
       className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer relative z-10" 
@@ -78,7 +92,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       >
         {images.length > 0 ? (
           <img 
-            src={images[currentImageIndex]?.imageUrl} 
+            src={getImageUrl(images[currentImageIndex]?.imageUrl)} 
             alt={`${product.name} - image ${currentImageIndex + 1}`}
             className="w-full h-full object-cover transition-transform duration-300 ease-in-out hover:scale-105"
           />

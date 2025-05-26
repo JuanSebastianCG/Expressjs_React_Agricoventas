@@ -1,42 +1,15 @@
 import express from 'express';
-import multer from 'multer';
-import path from 'path';
 import { UserController } from '../controllers/user.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validateRequest } from '../middleware/validation.middleware';
 import { updateUserSchema } from '../schemas/user.schema';
+import { handleProfileImageUpload, UploadController } from '../controllers/upload.controller';
 
 const router = express.Router();
 const userController = new UserController();
+const uploadController = new UploadController();
 
-// Configuración de multer para subida de imágenes
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads/profiles'));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'profile-' + uniqueSuffix + ext);
-  }
-});
-
-const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Aceptar solo imágenes
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Solo se permiten archivos de imagen'));
-  }
-};
-
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  }
-});
+// Todas las rutas relacionadas con la subida de imágenes ahora usan S3
 
 /**
  * @swagger
@@ -162,12 +135,12 @@ router.get("/check/email", (req, res) => userController.checkEmailAvailability(r
  */
 router.delete("/:userId", authenticate, (req, res) => userController.deactivateUser(req, res));
 
-// Profile image upload route
+// Profile image upload route - Ahora usa S3
 router.put(
   '/:userId/profile-image',
   authenticate,
-  upload.single('profileImage'),
-  (req, res) => userController.updateProfileImage(req, res)
+  handleProfileImageUpload,
+  uploadController.uploadProfileImage.bind(uploadController)
 );
 
 // Get current user profile
@@ -186,11 +159,8 @@ router.put("/me", authenticate, validateRequest(updateUserSchema), (req, res) =>
 router.put(
   '/me/profile-image',
   authenticate,
-  upload.single('profileImage'),
-  (req, res) => {
-    req.params.userId = 'me';
-    userController.updateProfileImage(req, res);
-  }
+  handleProfileImageUpload,
+  uploadController.uploadProfileImage.bind(uploadController)
 );
 
 /**
@@ -252,14 +222,7 @@ router.get(
   "/me/location", 
   authenticate, 
   (req, res) => {
-    // The controller's getUserPrimaryLocation method handles 'me' by looking at req.user.userId
-    // So we can directly call it. For clarity in Swagger, we define a separate /me/location path,
-    // but the controller logic for /:userId/location can resolve 'me' if passed.
-    // To make this route work as expected, we ensure the controller logic correctly handles `req.params.userId` being 'me'.
-    // Since the controller already handles 'me' if `req.params.userId` is 'me', we can just pass it.
-    // Or, more explicitly, we can ensure 'me' is set in params if this specific route is hit.
-    // For this setup, getUserPrimaryLocation should check if param is 'me' and use req.user.id.
-    req.params.userId = 'me'; // Ensure 'me' is passed to controller for this specific route.
+    req.params.userId = 'me';
     userController.getUserPrimaryLocation(req, res);
   }
 );

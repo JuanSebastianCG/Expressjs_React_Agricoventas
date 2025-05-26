@@ -341,18 +341,17 @@ export class CertificationController {
    * Helper method to ensure image URLs are absolute
    */
   private ensureAbsoluteUrl(url: string, baseUrl: string): string {
-    if (!url) return url;
-    
-    // Already absolute URL
+    // If URL is already absolute, return it
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
     
-    // Remove leading slash if present
-    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    
-    // Combine with base URL
-    return `${baseUrl}/${cleanUrl}`;
+    // Otherwise, prepend the base URL
+    if (url.startsWith('/')) {
+      return `${baseUrl}${url}`;
+    } else {
+      return `${baseUrl}/${url}`;
+    }
   }
 
   /**

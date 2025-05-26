@@ -1,67 +1,15 @@
-import { Router } from "express";
-import { ProductController } from "../controllers/product.controller";
-import { ProductHistoryController } from "../controllers/productHistory.controller";
-import { authenticate, authorize } from "../middleware/auth.middleware";
-import { validateRequest, validateQuery, validateParams } from "../middleware/validation.middleware";
-import { createProductSchema, updateProductSchema, productQuerySchema } from "../schemas/product.schema";
-import { z } from "zod";
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import express from 'express';
+import { ProductController } from '../controllers/product.controller';
+import { ProductHistoryController } from '../controllers/productHistory.controller';
+import { authenticate, authorize } from '../middleware/auth.middleware';
+import { validateRequest, validateQuery, validateParams } from '../middleware/validation.middleware';
+import { createProductSchema, updateProductSchema, productQuerySchema } from '../schemas/product.schema';
+import { z } from 'zod';
+import { handleProductImageUpload, handleMultipleProductImagesUpload, UploadController } from '../controllers/upload.controller';
 
-const router = Router();
+const router = express.Router();
 const productController = new ProductController();
-
-// Ensure uploads directory exists for products
-const productUploadsDir = path.join(__dirname, '../../uploads/products'); 
-if (!fs.existsSync(productUploadsDir)) {
-  fs.mkdirSync(productUploadsDir, { recursive: true });
-  console.log(`[ProductRoutes] Created product uploads directory: ${productUploadsDir}`);
-} else {
-  console.log(`[ProductRoutes] Product uploads directory exists: ${productUploadsDir}`);
-}
-
-// Log directory access permissions
-try {
-  fs.accessSync(productUploadsDir, fs.constants.W_OK);
-  console.log(`[ProductRoutes] Write access confirmed for: ${productUploadsDir}`);
-} catch (err) {
-  console.error(`[ProductRoutes] Permission check failed for ${productUploadsDir}:`, err);
-}
-
-// Configure Multer for product image uploads
-const productStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    console.log(`[Multer] Destination called for file: ${file.originalname}`);
-    cb(null, productUploadsDir);
-  },
-  filename: (req, file, cb) => {
-    console.log(`[Multer] Filename called for file: ${file.originalname}`);
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const newFilename = 'product-' + uniqueSuffix + ext;
-    console.log(`[Multer] Generated filename: ${newFilename}`);
-    cb(null, newFilename);
-  }
-});
-
-const productUpload = multer({
-  storage: productStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB per image
-  },
-  // Debug to log all files
-  fileFilter: (req, file, cb) => {
-    console.log(`[Multer] Received file: ${file.originalname}, mimetype: ${file.mimetype}`);
-    // Accept images only
-    if (!file.mimetype.startsWith('image/')) {
-      console.log(`[Multer] Rejected file ${file.originalname}: not an image`);
-      cb(null, false);
-    } else {
-      cb(null, true);
-    }
-  }
-});
+const uploadController = new UploadController();
 
 /**
  * @swagger
@@ -82,12 +30,11 @@ const productUpload = multer({
  *         description: Product created successfully
  */
 router.post(
-  "/",
+  '/',
   authenticate,
-  authorize(["SELLER", "ADMIN"]),
-  productUpload.array('images', 10),
+  authorize(['SELLER', 'ADMIN']),
   validateRequest(createProductSchema),
-  (req, res) => productController.createProduct(req, res)
+  productController.createProduct.bind(productController)
 );
 
 /**
@@ -107,7 +54,7 @@ router.post(
  *       200:
  *         description: Product details
  */
-router.get("/:productId", (req, res) => productController.getProductById(req, res));
+router.get('/:productId', (req, res) => productController.getProductById(req, res));
 
 /**
  * @swagger
@@ -165,7 +112,7 @@ router.get("/:productId", (req, res) => productController.getProductById(req, re
  *       200:
  *         description: List of products
  */
-router.get("/", (req, res) => productController.getProducts(req, res));
+router.get('/', validateQuery(productQuerySchema), productController.getProducts.bind(productController));
 
 /**
  * @swagger
@@ -193,11 +140,11 @@ router.get("/", (req, res) => productController.getProducts(req, res));
  *         description: Product updated successfully
  */
 router.put(
-  "/:productId",
+  '/:productId',
   authenticate,
-  productUpload.array('images', 10),
+  authorize(['SELLER', 'ADMIN']),
   validateRequest(updateProductSchema),
-  (req, res) => productController.updateProduct(req, res)
+  productController.updateProduct.bind(productController)
 );
 
 /**
@@ -219,7 +166,12 @@ router.put(
  *       200:
  *         description: Product deleted successfully
  */
-router.delete("/:productId", authenticate, (req, res) => productController.deleteProduct(req, res));
+router.delete(
+  '/:productId',
+  authenticate,
+  authorize(['SELLER', 'ADMIN']),
+  productController.deleteProduct.bind(productController)
+);
 
 /**
  * @swagger
@@ -237,7 +189,7 @@ router.delete("/:productId", authenticate, (req, res) => productController.delet
  *       200:
  *         description: List of featured products
  */
-router.get("/featured", (req, res) => productController.getFeaturedProducts(req, res));
+router.get('/featured', productController.getFeaturedProducts.bind(productController));
 
 // Get a specific product by ID
 router.get(
@@ -398,6 +350,24 @@ router.get(
 router.get(
   '/price-trends',
   (req, res) => ProductHistoryController.getProductPriceTrends(req, res)
+);
+
+// Subir una imagen para un producto (vendedores y admins)
+router.post(
+  '/:productId/images',
+  authenticate,
+  authorize(['SELLER', 'ADMIN']),
+  handleProductImageUpload, // Middleware de Multer-S3 para una sola imagen llamada 'productImage'
+  uploadController.uploadProductImage.bind(uploadController)
+);
+
+// Subir múltiples imágenes para un producto (vendedores y admins)
+router.post(
+  '/:productId/images-multiple',
+  authenticate,
+  authorize(['SELLER', 'ADMIN']),
+  handleMultipleProductImagesUpload, // Middleware para múltiples imágenes llamadas 'productImages'
+  uploadController.uploadMultipleProductImages.bind(uploadController)
 );
 
 export default router; 

@@ -37,6 +37,13 @@ const defaultAvatar = '/assets/default-avatar.png';
 // Helper function to get full image URL
 const getImageUrl = (imagePath: string | null) => {
   if (!imagePath) return defaultAvatar;
+  
+  // If the path is already a full URL (starts with http:// or https://), use it as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // Otherwise, prepend the API URL
   const apiUrl = import.meta.env.VITE_BACKEND_URL;
   const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
   const fullUrl = `${apiUrl}/${cleanPath}`;

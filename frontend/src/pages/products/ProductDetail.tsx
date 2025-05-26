@@ -223,6 +223,21 @@ const ProductDetail: React.FC = () => {
     }
   };
 
+  // Add this helper function near the top of the component
+  const getImageUrl = (imagePath: string | null | undefined): string => {
+    if (!imagePath) return '';
+    
+    // If the path is already a full URL (starts with http:// or https://), use it as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Otherwise, prepend the API URL
+    const apiUrl = import.meta.env.VITE_BACKEND_URL;
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${apiUrl}/${cleanPath}`;
+  };
+
   if (loading) {
     return (
       <>
@@ -310,7 +325,7 @@ const ProductDetail: React.FC = () => {
               <div className="rounded-lg overflow-hidden">
                 {product.images && product.images.length > 0 ? (
                   <img 
-                    src={product.images[currentImageIndex]?.imageUrl || ''}
+                    src={getImageUrl(product.images[currentImageIndex]?.imageUrl || '')}
                     alt={product.name} 
                     className="w-full h-auto object-cover rounded-lg"
                   />

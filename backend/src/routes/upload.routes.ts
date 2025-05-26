@@ -1,11 +1,12 @@
 import express from 'express';
-import { uploadController } from '../controllers/upload.controller';
+import { UploadController, handleProfileImageUpload, handleCertificationUpload } from '../controllers/upload.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { sendSuccessResponse } from '../utils/responseHandler';
 import path from 'path';
 import fs from 'fs';
 
 const router = express.Router();
+const uploadController = new UploadController();
 
 // All upload routes require authentication
 router.use(authenticate);
@@ -123,9 +124,9 @@ router.get('/debug', (req, res) => {
 });
 
 // Upload profile image
-router.post('/profile', (req, res) => uploadController.uploadProfileImage(req, res));
+router.post('/profile', handleProfileImageUpload, (req, res) => uploadController.uploadProfileImage(req, res));
 
 // Upload certification document
-router.post('/certifications', (req, res) => uploadController.uploadCertificationDocument(req, res));
+router.post('/certifications', handleCertificationUpload, (req, res) => uploadController.uploadCertificationDocument(req, res));
 
 export default router; 
