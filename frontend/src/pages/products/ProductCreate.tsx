@@ -789,13 +789,13 @@ const ProductCreate: React.FC = () => {
                                 Departamento <span className="text-red-1">*</span>
                               </label>
                               <select
-                                name="newLocDepartment"
-                                value={newLocationData.department || ''}
-                                onChange={handleInputChange}
+                              name="newLocDepartment"
+                              value={newLocationData.department || ''}
+                              onChange={handleInputChange}
                                 className={`w-full py-2 px-3 border ${
                                   errors.newLocDepartment ? 'border-red-500' : 'border-gray-300'
                                 } rounded-md focus:outline-none focus:ring-2 focus:ring-green-1`}
-                                required
+                              required
                               >
                                 <option value="">Seleccionar Departamento</option>
                                 {COLOMBIAN_DEPARTMENTS.map(department => (

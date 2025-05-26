@@ -9,14 +9,15 @@ Agricoventas is a full-stack e-commerce platform designed specifically for agric
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
-- [Installation](#installation)
+- [Docker Setup (Recommended)](#docker-setup-recommended)
+- [Manual Installation](#manual-installation)
 - [Environment Variables](#environment-variables)
 - [Running the Application](#running-the-application)
 - [API Endpoints](#api-endpoints)
 - [Authentication](#authentication)
 - [Data Models](#data-models)
 - [Certification System](#certification-system)
-- [Deployment](#deployment)
+- [AWS Deployment](#aws-deployment)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -72,6 +73,14 @@ Agricoventas is a full-stack e-commerce platform designed specifically for agric
 - **Tailwind CSS** for styling
 - **Axios** for API requests
 - **React Toastify** for notifications
+- **Chart.js** for data visualization
+
+### Infrastructure
+- **Docker** for containerization
+- **Docker Compose** for local development
+- **AWS Elastic Beanstalk** for deployment
+- **Amazon ECR** for container registry
+- **MongoDB** for database
 
 ## Project Structure
 
@@ -91,35 +100,96 @@ Expressjs_React_Agricoventas/
 │   │   ├── index.ts       # Application entry point
 │   │   └── server.ts      # Express server setup
 │   ├── uploads/           # Uploaded files storage
+│   ├── Dockerfile         # Docker configuration for backend
 │   └── package.json
 ├── frontend/
 │   ├── public/            # Static assets
 │   ├── src/
 │   │   ├── assets/        # Images, fonts, etc.
 │   │   ├── components/    # React components
-│   │   │   ├── admin/     # Admin-specific components
-│   │   │   ├── common/    # Shared components
-│   │   │   ├── layout/    # Layout components
-│   │   │   ├── products/  # Product-related components
-│   │   │   └── ui/        # UI components (buttons, inputs, etc.)
 │   │   ├── context/       # React context providers
 │   │   ├── hooks/         # Custom React hooks
 │   │   ├── interfaces/    # TypeScript interfaces
 │   │   ├── pages/         # Application pages
-│   │   │   ├── admin/     # Admin pages
-│   │   │   ├── products/  # Product pages
-│   │   │   └── user/      # User account pages
 │   │   ├── services/      # API service functions
 │   │   ├── utils/         # Utility functions
 │   │   ├── App.tsx        # Main App component
 │   │   └── main.tsx       # Application entry point
+│   ├── Dockerfile         # Docker configuration for frontend
+│   ├── nginx.conf         # Nginx configuration for production
 │   └── package.json
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerrun.aws.json     # AWS Elastic Beanstalk configuration
+├── aws-deploy.sh          # AWS deployment script
+├── setup.sh               # Setup script for Unix-based systems
+├── setup.bat              # Setup script for Windows
+├── env-example            # Example environment variables
 ├── .gitignore
-├── package.json
 └── README.md
 ```
 
-## Installation
+## Docker Setup (Recommended)
+
+The easiest way to run Agricoventas is using Docker, which handles all dependencies and environment setup automatically.
+
+### Prerequisites
+- [Docker](https://www.docker.com/get-started)
+- [Docker Compose](https://docs.docker.com/compose/install/) (included with Docker Desktop)
+
+### Quick Start
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/Expressjs_React_Agricoventas.git
+cd Expressjs_React_Agricoventas
+```
+
+2. Run the setup script:
+
+For Windows:
+```bash
+setup.bat
+```
+
+For macOS/Linux:
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+This will:
+- Create the necessary environment files
+- Create required directories
+- Build and start all Docker containers
+- Seed the database with initial data
+
+3. Access the application:
+   - Frontend: http://localhost
+   - Backend API: http://localhost:3000
+   - API Documentation: http://localhost:3000/api-docs
+
+### Manual Docker Setup
+
+If you prefer to set up manually:
+
+1. Copy the environment example file:
+```bash
+cp env-example .env
+```
+
+2. Edit the `.env` file with your configuration
+
+3. Start the Docker containers:
+```bash
+docker-compose up -d
+```
+
+4. Seed the database:
+```bash
+docker-compose exec backend npm run seed:all
+```
+
+## Manual Installation
 
 ### Prerequisites
 - Node.js (v14 or later)
@@ -321,34 +391,75 @@ Agricoventas implements a certification verification system to ensure product qu
    - Certification expiry dates are tracked
    - Certifications must be renewed before expiry
 
-## Deployment
+## AWS Deployment
 
-### Production Considerations
-- Use environment variables for sensitive information
-- Enable CORS for production domains
-- Configure rate limiting and security headers
-- Set up MongoDB indexes for performance
-- Implement proper logging
+Agricoventas can be easily deployed to AWS using Elastic Beanstalk with Docker.
 
-### Deployment Options
-- **Render**: Easy deployment with automatic builds
-- **Vercel**: Great for the React frontend
-- **Railway**: Simple full-stack deployment
-- **AWS/GCP/Azure**: More control and scalability options
+### Prerequisites
+- AWS Account
+- [AWS CLI](https://aws.amazon.com/cli/) installed and configured
+- [Elastic Beanstalk CLI](https://github.com/aws/aws-elastic-beanstalk-cli-setup) (optional, but recommended)
 
-### Containerization (Optional)
-The project can be containerized using Docker:
+### Deployment Steps
+
+1. Set required environment variables:
 ```bash
-# Build and run backend
-cd backend
-docker build -t agricoventas-backend .
-docker run -p 3001:3001 agricoventas-backend
-
-# Build and run frontend
-cd ../frontend
-docker build -t agricoventas-frontend .
-docker run -p 5173:80 agricoventas-frontend
+export AWS_ACCOUNT_ID=your_aws_account_id
+export AWS_REGION=your_aws_region
 ```
+
+2. For VPC configuration (if needed):
+```bash
+export VPC_ID=your_vpc_id
+export SUBNET_IDS=your_subnet_ids
+export SECURITY_GROUP=your_security_group
+```
+
+3. Run the deployment script:
+```bash
+chmod +x aws-deploy.sh
+./aws-deploy.sh
+```
+
+The script will:
+- Log in to Amazon ECR
+- Create repositories if they don't exist
+- Build and push Docker images
+- Create or update the Elastic Beanstalk application and environment
+
+### Manual AWS Deployment
+
+If you prefer to deploy manually:
+
+1. Build the Docker images:
+```bash
+docker build -t agricoventas-frontend ./frontend
+docker build -t agricoventas-backend ./backend
+```
+
+2. Create ECR repositories in your AWS account
+
+3. Tag and push the images:
+```bash
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+docker tag agricoventas-frontend:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/agricoventas-frontend:latest
+docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/agricoventas-frontend:latest
+
+docker tag agricoventas-backend:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/agricoventas-backend:latest
+docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/agricoventas-backend:latest
+```
+
+4. Create an Elastic Beanstalk application and environment using the Dockerrun.aws.json file
+
+### Production Environment Variables
+
+For a production deployment, ensure you set these additional environment variables in your Elastic Beanstalk environment:
+
+- `NODE_ENV`: Set to "production"
+- `DATABASE_URL`: Your MongoDB connection string (consider using MongoDB Atlas)
+- `JWT_SECRET`: A strong secret key for JWT tokens
+- `CORS_ORIGIN`: The domain of your application
 
 ## Contributing
 
